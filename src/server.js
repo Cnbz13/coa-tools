@@ -43,7 +43,7 @@ async function api(request, response, pathname) {
   if (match && request.method === 'PATCH') return json(response, 200, await addons.toggle(decodeURIComponent(match[1]), (await body(request)).enabled));
   if (match && request.method === 'DELETE') return json(response, 200, await addons.remove(decodeURIComponent(match[1])));
   if (request.method === 'GET' && pathname === '/api/updates/check') return json(response, 200, await updater.check());
-  if (request.method === 'POST' && pathname === '/api/updates/download') return json(response, 200, await updater.download((await body(request)).artifact));
+  if (request.method === 'POST' && pathname === '/api/updates/download') return json(response, 200, await updater.downloadLatest());
   return json(response, 404, { error: 'Not found' });
 }
 

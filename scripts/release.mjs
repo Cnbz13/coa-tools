@@ -9,6 +9,7 @@ const stage = path.join(output, `coa-tools-${version}`);
 await rm(output, { recursive: true, force: true });
 await mkdir(stage, { recursive: true });
 for (const item of ['package.json', 'manifest.json', 'README.md', 'LICENSE', 'SECURITY.md', 'src', 'public', 'schemas']) await cp(item, path.join(stage, item), { recursive: true });
+await writeFile(path.join(stage, 'package.json'), `${JSON.stringify({ ...pkg, version }, null, 2)}\n`);
 
 // A dependency-free tar archive is portable across GitHub runners and Node platforms.
 const { spawnSync } = await import('node:child_process');

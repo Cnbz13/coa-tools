@@ -27,6 +27,12 @@ export class Updater {
     const artifact = manifest.artifacts.find(item => (item.platform === process.platform || item.platform === 'any') && (item.arch === process.arch || item.arch === 'any'));
     return { available, currentVersion: this.currentVersion, manifest, artifact: artifact || null };
   }
+  async downloadLatest() {
+    const update = await this.check();
+    if (!update.available) throw new Error('No update available');
+    if (!update.artifact) throw new Error('No compatible artifact');
+    return this.download(update.artifact);
+  }
   async download(artifact) {
     if (!artifact?.url || !/^[a-f0-9]{64}$/.test(artifact.sha256)) throw new Error('Invalid artifact metadata');
     await ensureDir(this.stagingDir);

@@ -19,7 +19,7 @@ Ouvrez ensuite <http://127.0.0.1:4173>. Les données locales sont stockées dans
 
 ## Mises à jour sûres
 
-Le client interroge le `manifest.json` de la dernière release GitHub. Un artefact compatible est téléchargé dans `.updates/`, sa taille et son empreinte SHA-256 sont vérifiées, puis un fichier `ready.json` atomique indique qu’il peut être appliqué. Un téléchargement invalide est supprimé et n’altère jamais l’installation courante.
+Au démarrage puis toutes les six heures, le client interroge le `manifest.json` de la dernière release GitHub. Un artefact compatible est automatiquement téléchargé dans `.updates/`, sa taille et son empreinte SHA-256 sont vérifiées, puis un fichier `ready.json` atomique indique qu’il peut être appliqué. Un téléchargement invalide est supprimé et n’altère jamais l’installation courante. Les métadonnées de téléchargement sont toujours relues par le serveur depuis le manifeste distant et ne sont jamais acceptées depuis le navigateur.
 
 Le manifeste versionné à la racine décrit le format. Celui attaché à chaque release contient l’URL, la taille et le SHA-256 réels de l’artefact :
 

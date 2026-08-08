@@ -23,7 +23,13 @@ jobs:
       - run: npm test
       - run: npm run release
       - run: node scripts/validate-manifest.mjs dist/manifest.json
-      - name: Publish immutable release and update manifest asset
+      - name: Publish release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "v${RELEASE_VERSION}" dist/*.tgz dist/*.sha256 dist/manifest.json --generate-notes --target "${GITHUB_SHA}"
+        shell: bash
+        run: |
+          if gh release view "v${RELEASE_VERSION}" >/dev/null 2>&1; then
+            gh release upload "v${RELEASE_VERSION}" dist/*.tgz dist/*.sha256 dist/manifest.json --clobber
+          else
+            gh release create "v${RELEASE_VERSION}" dist/*.tgz dist/*.sha256 dist/manifest.json --generate-notes --target "${GITHUB_SHA}"
+          fi

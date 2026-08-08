@@ -2,10 +2,50 @@
   "$schema": "./schemas/manifest.schema.json",
   "schemaVersion": 1,
   "name": "CoA Tools",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "channel": "stable",
   "publishedAt": "2026-08-09T00:00:00.000Z",
-  "minimumNodeVersion": "20.0.0",
-  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.0.1",
-  "artifacts": []
+  "minimumNodeVersion": "24.14.0",
+  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.0.2",
+  "artifacts": [
+    {
+      "name": "CoA Addon Manager for Windows",
+      "component": "addon-manager",
+      "version": "1.0.2",
+      "platform": "win32",
+      "arch": "x64",
+      "targetFolder": "CoAAddonManager",
+      "installPath": ".",
+      "file": "CoAAddonManager-v1.0.2-Windows.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.0.2/CoAAddonManager-v1.0.2-Windows.zip",
+      "sha256": "4d81da2a9df07a29c1cb751c085c5008a66672e9cda82723a240f763899e99c0",
+      "size": 35488
+    },
+    {
+      "name": "CoA Combat Assistant",
+      "component": "combat-assistant",
+      "version": "1.0.2",
+      "platform": "any",
+      "arch": "any",
+      "targetFolder": "CoACombatAssistant",
+      "installPath": "Interface/AddOns",
+      "file": "CoACombatAssistant-v1.0.2.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.0.2/CoACombatAssistant-v1.0.2.zip",
+      "sha256": "85a4e2c60d6cb88678c6bf41966127b021fa92e96ef6f6a77e78856c04969dfe",
+      "size": 4112
+    },
+    {
+      "name": "CoA UI Manager",
+      "component": "ui-manager",
+      "version": "1.0.2",
+      "platform": "any",
+      "arch": "any",
+      "targetFolder": "CoAUIManager",
+      "installPath": "Interface/AddOns",
+      "file": "CoAUIManager-v1.0.2.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.0.2/CoAUIManager-v1.0.2.zip",
+      "sha256": "841a83bd437598827d8844535e11de06e76fd24fd3b0aa8d6edd21d839bc9a15",
+      "size": 3173
+    }
+  ]
 }

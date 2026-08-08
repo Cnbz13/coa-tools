@@ -1,0 +1,13 @@
+CoA Addon Manager pour Windows
+================================
+
+1. Extrayez entièrement le dossier CoAAddonManager.
+2. Double-cliquez sur CoAAddonManager.cmd.
+3. Au premier lancement, le moteur Node.js officiel est téléchargé depuis
+   nodejs.org, vérifié par SHA-256 puis installé dans le dossier runtime.
+4. Le tableau de bord s'ouvre ensuite dans votre navigateur.
+
+Les données et addons installés sont conservés dans :
+%LOCALAPPDATA%\CoAAddonManager
+
+Ne déplacez pas le fichier .cmd hors du dossier extrait.

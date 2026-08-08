@@ -1,14 +1,24 @@
 # CoA Tools
 
-Suite locale sans télémétrie regroupant trois outils dans un tableau de bord unique :
+Suite locale sans télémétrie regroupant trois outils :
 
-- **CoA Combat Assistant** — sessions, chronologie tactique et événements en direct ;
-- **CoA UI Manager** — thèmes, densité et préférences persistantes ;
-- **CoA Addon Manager** — installation depuis un dossier local, activation et suppression.
+- **CoA Combat Assistant** — addon WoW avec chronomètre et suivi des rencontres ;
+- **CoA UI Manager** — addon WoW de réglage rapide de l’interface ;
+- **CoA Addon Manager** — application Windows pour installer, activer et supprimer des addons.
 
-## Démarrage
+## Artefacts installables
 
-Prérequis : Node.js 20 ou supérieur.
+Chaque release publie trois ZIP indépendants :
+
+- `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire ;
+- `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans `World of Warcraft/_retail_/Interface/AddOns` ;
+- `CoAUIManager-vX.Y.Z.zip` : extrayez le dossier `CoAUIManager` dans `World of Warcraft/_retail_/Interface/AddOns`.
+
+Dans le jeu, `/coacombat` affiche ou masque l’assistant (`/coacombat reset` réinitialise sa position) et `/coaui` ouvre le gestionnaire d’interface.
+
+## Développement local
+
+Prérequis : Node.js 24.14 ou supérieur.
 
 ```bash
 npm install
@@ -19,22 +29,27 @@ Ouvrez ensuite <http://127.0.0.1:4173>. Les données locales sont stockées dans
 
 ## Mises à jour sûres
 
-Au démarrage puis toutes les six heures, le client interroge le `manifest.json` de la dernière release GitHub. Un artefact compatible est automatiquement téléchargé dans `.updates/`, sa taille et son empreinte SHA-256 sont vérifiées, puis un fichier `ready.json` atomique indique qu’il peut être appliqué. Un téléchargement invalide est supprimé et n’altère jamais l’installation courante. Les métadonnées de téléchargement sont toujours relues par le serveur depuis le manifeste distant et ne sont jamais acceptées depuis le navigateur.
+Au démarrage puis toutes les six heures, le client interroge le `manifest.json` de la dernière release GitHub. Le manifeste liste séparément chaque composant avec sa version, son URL, son dossier cible, son chemin d’installation, sa taille et son SHA-256. Un artefact compatible est téléchargé dans `.updates/`, vérifié, puis un fichier `ready.json` atomique indique qu’il peut être appliqué. Un téléchargement invalide est supprimé et n’altère jamais l’installation courante.
 
-Le manifeste versionné à la racine décrit le format. Celui attaché à chaque release contient l’URL, la taille et le SHA-256 réels de l’artefact :
+Les métadonnées sont toujours relues par le serveur depuis le manifeste distant et ne sont jamais acceptées depuis le navigateur. Le bootstrap Windows vérifie également le moteur Node.js téléchargé avec le fichier officiel `SHASUMS256.txt` de nodejs.org.
+
+## Générer une release
+
+Le générateur ZIP est sans dépendance et produit des archives déterministes : mêmes sources, mêmes SHA-256 sur Windows et GitHub Actions.
 
 ```bash
 npm run release
 npm run validate:manifest -- dist/manifest.json
 ```
 
-## Publier une release
+Pour publier :
 
-1. Mettre à jour `version` dans `package.json` et `manifest.json`.
-2. Pousser un tag correspondant, par exemple `v1.1.0`.
-3. Le workflow `Release` teste, package, calcule le SHA-256 et publie l’archive, son checksum et le manifeste.
+1. Mettre à jour `version` dans `package.json`, `package-lock.json`, `manifest.json` et les deux fichiers `.toc`.
+2. Exécuter `npm run release` et reporter les tailles et SHA-256 obtenus dans le manifeste versionné.
+3. Pousser un tag correspondant, par exemple `v1.1.0`.
+4. Le workflow `Release` teste, crée les trois ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
 
-Le workflow peut aussi être lancé manuellement avec une version. Le client utilise par défaut l’asset `manifest.json` de la dernière release ; `COA_UPDATE_MANIFEST` permet de cibler un autre canal.
+Le workflow peut aussi être lancé manuellement avec une version. Le client utilise par défaut le manifeste de la dernière release ; `COA_UPDATE_MANIFEST` permet de cibler un autre canal.
 
 ## Vérification
 

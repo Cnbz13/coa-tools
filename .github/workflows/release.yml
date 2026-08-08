@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with: { node-version: 24.14.0 }
       - name: Resolve version
         shell: bash
         run: echo "RELEASE_VERSION=${{ inputs.version || github.ref_name }}" | sed 's/=v/=/' >> "$GITHUB_ENV"
@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           if gh release view "v${RELEASE_VERSION}" >/dev/null 2>&1; then
-            gh release upload "v${RELEASE_VERSION}" dist/*.tgz dist/*.sha256 dist/manifest.json --clobber
+            gh release upload "v${RELEASE_VERSION}" dist/*.zip dist/SHA256SUMS.txt dist/manifest.json --clobber
           else
-            gh release create "v${RELEASE_VERSION}" dist/*.tgz dist/*.sha256 dist/manifest.json --generate-notes --target "${GITHUB_SHA}"
+            gh release create "v${RELEASE_VERSION}" dist/*.zip dist/SHA256SUMS.txt dist/manifest.json --generate-notes --target "${GITHUB_SHA}"
           fi

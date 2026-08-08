@@ -1,0 +1,65 @@
+import http from 'node:http';
+import path from 'node:path';
+import { readFile, stat } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { CombatAssistant } from './core/combat.js';
+import { AddonManager } from './core/addons.js';
+import { UiManager } from './core/ui-manager.js';
+import { Updater } from './core/updater.js';
+import { ensureDir, readJson } from './lib/files.js';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const publicDir = path.join(root, 'public');
+const dataDir = path.resolve(process.env.COA_DATA_DIR || path.join(root, 'data'));
+const addonsDir = path.resolve(process.env.COA_ADDONS_DIR || path.join(dataDir, 'addons'));
+const pkg = await readJson(path.join(root, 'package.json'));
+const manifestUrl = process.env.COA_UPDATE_MANIFEST || 'https://github.com/Cnbz13/coa-tools/releases/latest/download/manifest.json';
+await ensureDir(dataDir);
+
+const combat = new CombatAssistant();
+const addons = new AddonManager(dataDir, addonsDir);
+const ui = new UiManager(dataDir);
+const updater = new Updater({ currentVersion: pkg.version, manifestUrl, stagingDir: path.join(root, '.updates') });
+
+const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' };
+const json = (response, status, body) => { response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); response.end(JSON.stringify(body)); };
+async function body(request) {
+  let value = '';
+  for await (const chunk of request) { value += chunk; if (value.length > 1_000_000) throw new Error('Request too large'); }
+  return value ? JSON.parse(value) : {};
+}
+
+async function api(request, response, pathname) {
+  if (request.method === 'GET' && pathname === '/api/status') return json(response, 200, { name: 'CoA Tools', version: pkg.version, platform: process.platform });
+  if (request.method === 'GET' && pathname === '/api/combat') return json(response, 200, combat.status());
+  if (request.method === 'POST' && pathname === '/api/combat/start') return json(response, 201, combat.start(await body(request)));
+  if (request.method === 'POST' && pathname === '/api/combat/events') return json(response, 201, combat.event(await body(request)));
+  if (request.method === 'POST' && pathname === '/api/combat/stop') return json(response, 200, combat.stop());
+  if (request.method === 'GET' && pathname === '/api/ui') return json(response, 200, await ui.get());
+  if (request.method === 'PUT' && pathname === '/api/ui') return json(response, 200, await ui.update(await body(request)));
+  if (request.method === 'GET' && pathname === '/api/addons') return json(response, 200, await addons.list());
+  if (request.method === 'POST' && pathname === '/api/addons') return json(response, 201, await addons.install(await body(request)));
+  const match = pathname.match(/^\/api\/addons\/([^/]+)$/);
+  if (match && request.method === 'PATCH') return json(response, 200, await addons.toggle(decodeURIComponent(match[1]), (await body(request)).enabled));
+  if (match && request.method === 'DELETE') return json(response, 200, await addons.remove(decodeURIComponent(match[1])));
+  if (request.method === 'GET' && pathname === '/api/updates/check') return json(response, 200, await updater.check());
+  if (request.method === 'POST' && pathname === '/api/updates/download') return json(response, 200, await updater.download((await body(request)).artifact));
+  return json(response, 404, { error: 'Not found' });
+}
+
+export const server = http.createServer(async (request, response) => {
+  try {
+    const pathname = new URL(request.url, 'http://localhost').pathname;
+    if (pathname.startsWith('/api/')) return await api(request, response, pathname);
+    const relative = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.slice(1));
+    const file = path.resolve(publicDir, relative);
+    if (!file.startsWith(`${publicDir}${path.sep}`) || !(await stat(file)).isFile()) throw Object.assign(new Error('Not found'), { status: 404 });
+    response.writeHead(200, { 'content-type': mime[path.extname(file)] || 'application/octet-stream', 'x-content-type-options': 'nosniff' });
+    response.end(await readFile(file));
+  } catch (error) { json(response, error.status || 400, { error: error.message }); }
+});
+
+if (process.env.NODE_ENV !== 'test') {
+  const port = Number(process.env.PORT) || 4173;
+  server.listen(port, '127.0.0.1', () => console.log(`CoA Tools ${pkg.version} — http://127.0.0.1:${port}`));
+}

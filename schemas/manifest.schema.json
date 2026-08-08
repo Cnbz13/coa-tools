@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Cnbz13/coa-tools/raw/main/schemas/manifest.schema.json",
+  "title": "CoA Tools release manifest",
+  "type": "object",
+  "required": ["schemaVersion", "name", "version", "channel", "publishedAt", "minimumNodeVersion", "releaseUrl", "artifacts"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "name": { "const": "CoA Tools" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+    "channel": { "enum": ["stable", "beta", "nightly"] },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "minimumNodeVersion": { "type": "string" },
+    "releaseUrl": { "type": "string", "format": "uri" },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["platform", "arch", "file", "url", "sha256", "size"],
+        "properties": {
+          "platform": { "enum": ["win32", "linux", "darwin", "any"] },
+          "arch": { "enum": ["x64", "arm64", "any"] },
+          "file": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "size": { "type": "integer", "minimum": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

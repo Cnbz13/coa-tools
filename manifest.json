@@ -1,0 +1,11 @@
+{
+  "$schema": "./schemas/manifest.schema.json",
+  "schemaVersion": 1,
+  "name": "CoA Tools",
+  "version": "1.0.0",
+  "channel": "stable",
+  "publishedAt": "2026-08-09T00:00:00.000Z",
+  "minimumNodeVersion": "20.0.0",
+  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.0.0",
+  "artifacts": []
+}

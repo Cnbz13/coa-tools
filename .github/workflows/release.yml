@@ -1,0 +1,29 @@
+name: Release
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version (x.y.z)
+        required: true
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Resolve version
+        shell: bash
+        run: echo "RELEASE_VERSION=${{ inputs.version || github.ref_name }}" | sed 's/=v/=/' >> "$GITHUB_ENV"
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run release
+      - run: node scripts/validate-manifest.mjs dist/manifest.json
+      - name: Publish immutable release and update manifest asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v${RELEASE_VERSION}" dist/*.tgz dist/*.sha256 dist/manifest.json --generate-notes --target "${GITHUB_SHA}"

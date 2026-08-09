@@ -49,7 +49,7 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
     'COMBAT_LOG_EVENT_UNFILTERED', 'SPELL_AURA_APPLIED', 'SPELL_AURA_APPLIED_DOSE', 'SPELL_AURA_REFRESH',
     'COMBAT_TEXT_UPDATE', 'SPELL_ACTIVE', 'sourceGUID == playerGUID', 'WasDirectlyCast(spellId, spellName)',
     'IsOwnedSource(sourceGUID, sourceFlags)', 'COMBATLOG_OBJECT_AFFILIATION_MINE', 'UnitGUID("pet")',
-    'coa status', 'coa learn', 'coa scan'
+    'coa status', 'coa learn', 'coa scan', 'coa buffs'
   ]) assert.ok(lua.includes(required), `EventAlert CoA patch is missing ${required}`);
   assert.equal(lua.includes('EA_Items[playerClassToken]'), false, 'Genuine EventAlert uses flat spell-ID tables');
   assert.equal(lua.includes('EventAlert_LoadSpellArray ='), false, 'Companion must not replace the genuine spell loader');
@@ -64,6 +64,14 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
     'EventAlert frames must all be detached before rebuilding the anchor chain');
   assert.doesNotMatch(lua, /prevFrame == eaf/, 'the compatibility positioner must not preserve EventAlert 4.3.6 cyclic-anchor logic');
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
+  for (const required of [
+    'EventAlertCoABuffManagerFrame', 'UICheckButtonTemplate', 'UIPanelButtonTemplate',
+    'EA_Config.CoA.KnownBuffs', 'EA_Config.CoA.DisabledBuffs', 'SetLearnedBuffEnabled',
+    'EA_CustomItems[spellId] = nil', 'RemoveActiveBuff(spellId)', 'IsBuffDisabled(spellId)',
+    'Apprendre automatiquement les nouveaux procs'
+  ]) assert.ok(lua.includes(required), `EventAlert buff manager is missing ${required}`);
+  assert.match(lua, /if IsBuffDisabled\(spellId\) then return false end[\s\S]+EA_CustomItems\[spellId\] = true/,
+    'ignored buffs must not be learned again');
 });
 
 test('GridCoA shows one center icon only for debuffs the current character can dispel', async () => {

@@ -2,7 +2,7 @@
 ## Title: CoA Combat Assistant
 ## Notes: Icône contextuelle de rotation et mémoire de combat pour Project Ascension 3.3.5a.
 ## Author: Cnbz13
-## Version: 1.4.1
+## Version: 1.4.2
 ## SavedVariables: CoACombatAssistantDB
 
 CoACombatAssistant.lua

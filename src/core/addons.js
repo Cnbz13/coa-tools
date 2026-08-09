@@ -8,7 +8,7 @@ import { ensureDir, readJson, writeJsonAtomic } from '../lib/files.js';
 import { extractZip } from '../lib/zip.js';
 
 export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
-const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'event-alert']);
+const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'event-alert', 'grid-compat']);
 const EVENT_ALERT_COMPANION_FOLDER = 'EventAlertCoA';
 const EVENT_ALERT_LEGACY_FOLDER = 'CoAEventAlert';
 const EVENT_ALERT_UPSTREAM_PATH = '/files/456/081/EventAlert-4.3.6.zip';
@@ -304,6 +304,9 @@ export class AddonManager {
     if (!artifact) throw new Error('Artefact distant introuvable dans le manifeste');
     if (component === 'event-alert') return this.installEventAlert(detection, artifact);
     if (!/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '')) throw new Error('Nom de dossier cible invalide');
+    if (component === 'grid-compat' && !(await isDirectory(path.join(detection.directory, 'Grid')))) {
+      throw new Error('Grid doit être installé avant sa compatibilité CoA');
+    }
     const local = (await this.scan(detection.directory)).find(item => item.folder.toLowerCase() === artifact.targetFolder.toLowerCase());
     const transaction = path.join(this.transactionsRoot, randomUUID());
     const archive = path.join(transaction, path.basename(artifact.file));
@@ -322,7 +325,9 @@ export class AddonManager {
         if (backup) await this.replaceFolder(detection.directory, artifact.targetFolder, backup.folder);
         throw error;
       }
-      return { operation: local ? 'replaced' : 'installed', component, version: artifact.version, backup: backup?.id || null, inventory: await this.inventory() };
+      let enabledProfiles = await this.enableAddonForProfiles(detection.directory, artifact.targetFolder);
+      if (component === 'grid-compat') enabledProfiles += await this.enableAddonForProfiles(detection.directory, 'Grid');
+      return { operation: local ? 'replaced' : 'installed', component, version: artifact.version, enabledProfiles, backup: backup?.id || null, inventory: await this.inventory() };
     } finally { await rm(transaction, { recursive: true, force: true }); }
   }
 

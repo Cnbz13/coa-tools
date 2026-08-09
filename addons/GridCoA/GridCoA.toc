@@ -1,0 +1,8 @@
+## Interface: 30300
+## Title: Grid - Compatibilite CoA
+## Notes: Affiche dans Grid les affaiblissements et controles Project Ascension, y compris les auras sans type
+## Author: CoA Tools
+## Version: 1.3.0
+## RequiredDeps: Grid
+
+GridCoA.lua

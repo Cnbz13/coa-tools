@@ -201,6 +201,53 @@ test('a manually selected AddOns path is remembered when standard detection fail
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test('installing GridCoA requires Grid and enables both addons in existing character profiles', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'coa-grid-manager-'));
+  const addonsDir = path.join(root, 'Ascension', 'Interface', 'AddOns');
+  let server;
+  try {
+    const gridBytes = await addonZip(root, 'GridCoA', 'Grid - Compatibilite CoA', '1.3.0');
+    let manifest;
+    server = createServer((request, response) => {
+      if (request.url === '/manifest.json') {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify(manifest));
+      }
+      if (request.url === '/grid.zip') {
+        response.writeHead(200, { 'content-type': 'application/zip' });
+        return response.end(gridBytes);
+      }
+      response.writeHead(404); response.end();
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    manifest = { version: '1.3.0', artifacts: [{
+      name: 'Grid - Compatibilite CoA', component: 'grid-compat', version: '1.3.0', targetFolder: 'GridCoA',
+      file: 'grid.zip', url: `${origin}/grid.zip`, sha256: sha256(gridBytes), size: gridBytes.length
+    }] };
+    const manager = new AddonManager({
+      dataDir: path.join(root, 'data'), canonicalPath: addonsDir, manifestUrl: `${origin}/manifest.json`,
+      environmentPath: null, downloadPolicy: url => url.origin === origin
+    });
+    await mkdir(addonsDir, { recursive: true });
+    await assert.rejects(manager.install('grid-compat'), /Grid doit être installé/);
+
+    await mkdir(path.join(addonsDir, 'Grid'), { recursive: true });
+    await writeFile(path.join(addonsDir, 'Grid', 'Grid.toc'), '## Interface: 30300\n## Title: Grid\n## Version: 1.30300.1308\n');
+    const addonState = path.join(root, 'Ascension', 'WTF', 'Account', 'Test', 'Realm', 'Character', 'AddOns.txt');
+    await mkdir(path.dirname(addonState), { recursive: true });
+    await writeFile(addonState, 'Grid: disabled\r\nGridCoA: disabled\r\n');
+    const installed = await manager.install('grid-compat');
+    assert.equal(installed.enabledProfiles, 2);
+    const state = await readFile(addonState, 'utf8');
+    assert.match(state, /^Grid: enabled$/m);
+    assert.match(state, /^GridCoA: enabled$/m);
+  } finally {
+    if (server) await new Promise(resolve => server.close(resolve));
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('production manager pins the exact official EventAlert source', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'coa-eventalert-pin-'));
   const addonsDir = path.join(root, 'Interface', 'AddOns');

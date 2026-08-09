@@ -19,6 +19,12 @@ local function Trim(value)
     return string.match(value or "", "^%s*(.-)%s*$")
 end
 
+local function SpellKey(value)
+    local cleaned = Trim(value)
+    cleaned = string.gsub(cleaned, "%s*%([Rr]ank%s+[%dIVXivx]+%)%s*$", "")
+    return Lower(cleaned)
+end
+
 local function Round(value)
     return math.floor((tonumber(value) or 0) + 0.5)
 end
@@ -120,17 +126,17 @@ local character = { level = 0, className = "Inconnue", classToken = "UNKNOWN", s
 -- Aucun motif générique "Command:" ou "Animate:" n'est utilisé comme fallback.
 local animationPriority = {
     -- Défense et armée : ces règles disparaissent dès que l'effet ou l'invocation est confirmé.
-    { name = "Bone Ward", score = 150, selfBuffMissing = "Bone Ward", reason = "protection personnelle absente" },
+    { name = "Bone Ward", score = 150, selfBuffMissing = "Bone Ward", preparationOnly = true, reason = "protection personnelle absente avant la prochaine cible" },
     { name = "Sacrifice Undead", score = 148, maxPlayerHealth = 32, requiresSummon = 1, requiresCombat = true, reason = "survie critique" },
-    { name = "Raise: Crypt Fiend", score = 142, desiredSummons = 2, summonNames = { "Crypt Fiend" }, recentLock = 3.0, reason = "compléter les deux Crypt Fiends" },
-    { name = "Animate: Skeletal Archer", score = 140, desiredSummons = 1, summonNames = { "Skeletal Archer" }, recentLock = 3.0, reason = "archer temporaire disponible" },
-    { name = "Raise: Greater Skeletal Warrior", score = 138, desiredSummons = 1, summonNames = { "Greater Skeletal Warrior" }, recentLock = 3.0, reason = "guerrier squelette supérieur absent" },
-    { name = "Raise: Abomination", score = 136, desiredSummons = 1, summonNames = { "Abomination" }, recentLock = 3.0, reason = "abomination absente" },
-    { name = "Raise: Lesser Skeletal Warrior", score = 134, desiredSummons = 1, summonNames = { "Lesser Skeletal Warrior" }, recentLock = 3.0, reason = "aucune armée active", onlyWithoutSummon = true },
+    { name = "Raise: Crypt Fiend", score = 142, desiredSummons = 2, summonNames = { "Crypt Fiend" }, recentLock = 3.0, preparationOnly = true, reason = "compléter les deux Crypt Fiends avant le combat" },
+    { name = "Animate: Skeletal Archer", score = 140, desiredSummons = 1, summonNames = { "Skeletal Archer" }, recentLock = 3.0, preparationOnly = true, reason = "préparer l'archer avant la prochaine cible" },
+    { name = "Raise: Greater Skeletal Warrior", score = 138, desiredSummons = 1, summonNames = { "Greater Skeletal Warrior" }, recentLock = 3.0, preparationOnly = true, reason = "préparer le guerrier squelette supérieur" },
+    { name = "Raise: Abomination", score = 136, desiredSummons = 1, summonNames = { "Abomination" }, recentLock = 3.0, preparationOnly = true, reason = "préparer l'abomination" },
+    { name = "Raise: Lesser Skeletal Warrior", score = 134, desiredSummons = 1, summonNames = { "Lesser Skeletal Warrior" }, recentLock = 3.0, preparationOnly = true, reason = "préparer une armée", onlyWithoutSummon = true },
     { name = "Unholy Frenzy", score = 132, selfBuffMissing = "Unholy Frenzy", eliteOrBoss = true, requiresSummon = 1, requiresCombat = true, recentLock = 5.0, reason = "burst contre une cible élite ou boss" },
 
     -- Ouverture/entretien, d'après les sorts réellement observés dans le spellbook.
-    { name = "Foul Mandate", score = 130, selfBuffMissing = "Foul Mandate", reason = "mandat personnel absent" },
+    { name = "Foul Mandate", score = 130, selfBuffMissing = "Foul Mandate", preparationOnly = true, reason = "mandat personnel absent avant la prochaine cible" },
     { name = "Blight", score = 128, requiresTarget = true, targetDebuffMissing = "Blight", minTargetHealth = 30, longSetup = true, reason = "maladie principale absente sur une cible assez durable" },
     { name = "Harvest Plague", score = 126, requiresTarget = true, targetDebuffMissing = "Harvest Plague", targetDebuffPresentAny = { "Blight" }, minTargetHealth = 35, longSetup = true, reason = "entretenir Harvest Plague sur une cible durable" },
 
@@ -144,20 +150,20 @@ local animationPriority = {
     { name = "Crypt Swarm", score = 116, requiresTarget = true, requiresCombat = true, directDamage = true, channel = true, reason = "dégâts et génération de puissance runique" },
     { name = "Lichfrost", score = 114, requiresTarget = true, targetDebuffPresentAny = { "Blight" }, directDamage = true, reason = "dégâts directs avec Blight actif" },
     { name = "Glacial Tap", score = 112, requiresTarget = true, requiresCombat = true, maxRunic = 70, reason = "générer de la puissance runique sans surcap" },
-    { name = "Runic Harvest", score = 110, maxRunic = 70, reason = "préparer la puissance runique entre deux combats" },
+    { name = "Runic Harvest", score = 110, maxRunic = 70, preparationOnly = true, reason = "préparer la puissance runique entre deux combats" },
     { name = "Razorice", score = 108, requiresTarget = true, directDamage = true, reason = "dégâts directs de complément" },
     { name = "Ghoulify", score = 106, requiresTarget = true, maxTargetHealth = 35, phase = "established", directDamage = true, execute = true, reason = "finir une cible affaiblie" }
 }
 
 local trackedSelfBuffs = {
-    [Lower("Bone Ward")] = true,
-    [Lower("Foul Mandate")] = true,
-    [Lower("Unholy Frenzy")] = true
+    [SpellKey("Bone Ward")] = true,
+    [SpellKey("Foul Mandate")] = true,
+    [SpellKey("Unholy Frenzy")] = true
 }
 
 local trackedTargetDebuffs = {
-    [Lower("Blight")] = true,
-    [Lower("Harvest Plague")] = true
+    [SpellKey("Blight")] = true,
+    [SpellKey("Harvest Plague")] = true
 }
 
 local function EnsureDatabase()
@@ -170,7 +176,7 @@ local function EnsureDatabase()
     CoACombatAssistantDB.settings = CoACombatAssistantDB.settings or {}
     CoACombatAssistantDB.settings.aoeThreshold = tonumber(CoACombatAssistantDB.settings.aoeThreshold) or DEFAULT_AOE_THRESHOLD
     CoACombatAssistantDB.settings.maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
-    CoACombatAssistantDB.version = "1.1.1"
+    CoACombatAssistantDB.version = "1.3.0"
 
     if not CoACombatAssistantDB.position and CoACombatAssistantDB.ui then
         local old = CoACombatAssistantDB.ui
@@ -533,20 +539,20 @@ local TargetIsValid
 
 local function HasAura(unit, auraName, harmful)
     if not auraName then return false end
-    local wanted = Lower(auraName)
+    local wanted = SpellKey(auraName)
     local index
     for index = 1, 40 do
         local name
         if harmful then name = UnitDebuff(unit, index) else name = UnitBuff(unit, index) end
         if not name then break end
-        if Lower(name) == wanted then return true end
+        if SpellKey(name) == wanted then return true end
     end
     return false
 end
 
 local function HasSelfBuff(auraName)
     if HasAura("player", auraName, false) then return true end
-    local key = Lower(auraName)
+    local key = SpellKey(auraName)
     if confirmedSelfBuffs[key] then return true end
     local assumedUntil = assumedSelfBuffs[key]
     if assumedUntil and assumedUntil > GetTime() then return true end
@@ -564,7 +570,7 @@ local function HasTargetDebuff(auraName)
     if not TargetIsValid or not TargetIsValid() then return false end
     if HasAura("target", auraName, true) then return true end
     local guid = UnitGUID("target")
-    local key = Lower(auraName)
+    local key = SpellKey(auraName)
     local confirmed = TargetDebuffTable(confirmedTargetDebuffs, guid, false)
     if confirmed and confirmed[key] then return true end
     local assumed = TargetDebuffTable(assumedTargetDebuffs, guid, false)
@@ -577,7 +583,7 @@ end
 local function RecordPlayerCast(spellName)
     if not spellName or spellName == "" then return end
     local now = GetTime()
-    local key = Lower(spellName)
+    local key = SpellKey(spellName)
     lastCasts[key] = now
     lastPlayerCastName = spellName
     lastPlayerCastAt = now
@@ -808,6 +814,10 @@ local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth
     if spell.passive then Reject(candidate, "sort passif") end
     if rule.minLevel and character.level < rule.minLevel then Reject(candidate, "niveau insuffisant") end
     if rule.requiresCombat and not startedAt then Reject(candidate, "réservé au combat") end
+    local combatActive = startedAt ~= nil or (UnitAffectingCombat and UnitAffectingCombat("player"))
+    if rule.preparationOnly and (combatActive or TargetIsValid()) then
+        Reject(candidate, "préparation uniquement hors combat et sans cible hostile")
+    end
     if rule.mode and rule.mode ~= currentMode then Reject(candidate, "réservé au mode " .. rule.mode) end
     if rule.minEnemies and currentEnemyCount < rule.minEnemies then Reject(candidate, "pas assez de cibles") end
     if rule.requiresTarget and not TargetIsValid() then Reject(candidate, "aucune cible hostile valide") end
@@ -847,7 +857,7 @@ local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth
         if not found then Reject(candidate, "maladie préalable absente") end
     end
     local recentLock = rule.recentLock or GLOBAL_RECENT_CAST_LOCK
-    local last = lastCasts[Lower(rule.name)]
+    local last = lastCasts[SpellKey(rule.name)]
     if last and GetTime() - last < recentLock then Reject(candidate, "lancé récemment : proposer l'action suivante") end
 
     AdaptCandidateToTarget(candidate, targetProfile, targetHealth)
@@ -1072,7 +1082,7 @@ end
 
 local function TrackCombatAura(subevent, sourceOwned, destGUID, spellName, auraType)
     if not spellName then return end
-    local key = Lower(spellName)
+    local key = SpellKey(spellName)
     local applied = subevent == "SPELL_AURA_APPLIED"
         or subevent == "SPELL_AURA_REFRESH"
         or subevent == "SPELL_AURA_APPLIED_DOSE"
@@ -1154,7 +1164,7 @@ local function HandleCombatLog(...)
         local memory = RememberMob(destGUID, destName, subevent, "TAKEN", amount)
         if isSpellOutcome then
             RecordSpellOutcome(memory, outcomeSpellName, subevent, amount, missType)
-            local commandAt = lastCasts[Lower("Command: Undead")]
+            local commandAt = lastCasts[SpellKey("Command: Undead")]
             if sourceGUID ~= playerGUID and commandAt and GetTime() - commandAt <= 3 then
                 RecordSpellOutcome(memory, "Command: Undead", subevent, amount, missType)
             end

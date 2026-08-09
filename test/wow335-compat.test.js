@@ -58,6 +58,24 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
 });
 
+test('GridCoA re-enables typed debuffs and displays every harmful CoA aura through genuine Grid', async () => {
+  const toc = await readFile('addons/GridCoA/GridCoA.toc', 'utf8');
+  const lua = await readFile('addons/GridCoA/GridCoA.lua', 'utf8');
+  assert.match(toc, /^## Interface: 30300$/m);
+  assert.match(toc, /^## RequiredDeps: Grid$/m);
+  for (const required of [
+    'Grid:GetModule("GridStatus")', 'GridStatus:GetModule("GridStatusAuras")',
+    'Grid:GetModule("GridFrame")', 'Grid:GetModule("GridRoster")',
+    '"debuff_magic"', '"debuff_curse"', '"debuff_disease"', '"debuff_poison"',
+    'settings.enable = true', 'statusmap.icon[status] = true', 'UnitAura(unit, index, "HARMFUL")',
+    'GridStatus:SendStatusGained', 'GridStatus:SendStatusLost', 'PARTY_MEMBERS_CHANGED',
+    'RAID_ROSTER_UPDATE', 'UNIT_AURA', 'debuff_coa_harmful'
+  ]) assert.ok(lua.includes(required), `GridCoA is missing ${required}`);
+  for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `GridCoA contains forbidden Retail API: ${api}`);
+  assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
+  assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText)\b/);
+});
+
 test('Combat Assistant tracks owned pets, summons and guardians into persistent mob memory', async () => {
   const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
   for (const required of [
@@ -119,6 +137,22 @@ test('successful casts immediately advance the recommendation and confirm buffs/
   ]) assert.ok(lua.includes(required), `Cast/aura progression is missing ${required}`);
   assert.match(lua, /name = "Foul Mandate"[^\n]+selfBuffMissing = "Foul Mandate"/);
   assert.doesNotMatch(lua, /name = "Foul Mandate"[^\n]+targetDebuffMissing/);
+});
+
+test('preparation buffs and minions never block the hostile-target combat rotation', async () => {
+  const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
+  for (const spell of [
+    'Bone Ward', 'Foul Mandate', 'Raise: Crypt Fiend', 'Animate: Skeletal Archer',
+    'Raise: Greater Skeletal Warrior', 'Raise: Abomination', 'Raise: Lesser Skeletal Warrior', 'Runic Harvest'
+  ]) {
+    assert.match(lua, new RegExp(`name = "${spell.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^\\n]+preparationOnly = true`), `${spell} must be preparation-only`);
+  }
+  for (const required of [
+    'local function SpellKey', '[Rr]ank%s+', 'local combatActive = startedAt ~= nil',
+    'rule.preparationOnly and (combatActive or TargetIsValid())',
+    'préparation uniquement hors combat et sans cible hostile', 'lastCasts[SpellKey(rule.name)]'
+  ]) assert.ok(lua.includes(required), `Combat phase separation is missing ${required}`);
+  assert.doesNotMatch(lua, /name = "(?:Command: Undead|Crypt Swarm|Lichfrost|Razorice)"[^\n]+preparationOnly/);
 });
 
 test('Animation priority follows the learned level-30 generator/spender loop', async () => {

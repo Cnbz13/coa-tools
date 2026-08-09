@@ -23,6 +23,7 @@ const packages = [
   { name: 'CoA Addon Manager for Windows', component: 'addon-manager', platform: 'win32', arch: 'x64', targetFolder: 'CoAAddonManager', installPath: '.', file: `CoAAddonManager-v${version}-Windows.zip`, source: path.join(stage, 'manager') },
   { name: 'CoA Combat Assistant', component: 'combat-assistant', platform: 'any', arch: 'any', targetFolder: 'CoACombatAssistant', installPath: 'Interface/AddOns', file: `CoACombatAssistant-v${version}.zip`, source: path.resolve('addons', 'CoACombatAssistant', '..') , only: 'CoACombatAssistant' },
   { name: 'CoA UI Manager', component: 'ui-manager', platform: 'any', arch: 'any', targetFolder: 'CoAUIManager', installPath: 'Interface/AddOns', file: `CoAUIManager-v${version}.zip`, source: path.resolve('addons', 'CoAUIManager', '..'), only: 'CoAUIManager' },
+  { name: 'Grid - Compatibilité CoA', component: 'grid-compat', platform: 'any', arch: 'any', targetFolder: 'GridCoA', installPath: 'Interface/AddOns', file: `GridCoA-v${version}.zip`, source: path.resolve('addons', 'GridCoA', '..'), only: 'GridCoA' },
   {
     name: 'EventAlert 4.3.6 + compatibilité CoA', component: 'event-alert', platform: 'any', arch: 'any',
     targetFolder: 'EventAlert', installPath: 'Interface/AddOns', file: `EventAlertCoA-v${version}.zip`,

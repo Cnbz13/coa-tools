@@ -5,9 +5,9 @@ import { readFile } from 'node:fs/promises';
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
-test('release manifest describes four managed components and the official EventAlert source', () => {
+test('release manifest describes five managed components and the official EventAlert source', () => {
   assert.equal(manifest.version, pkg.version);
-  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'event-alert', 'ui-manager']);
+  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'event-alert', 'grid-compat', 'ui-manager']);
   for (const artifact of manifest.artifacts) {
     assert.equal(artifact.version, pkg.version);
     assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
@@ -37,10 +37,11 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(workflow, /test-windows-package\.ps1/);
   assert.match(workflow, /verify-eventalert-package\.mjs/);
   assert.match(workflow, /EventAlertCoA-v\$env:RELEASE_VERSION\.zip/);
+  assert.match(workflow, /GridCoA-v\$env:RELEASE_VERSION\.zip/);
 });
 
 test('WoW addon metadata matches the package version', async () => {
-  for (const name of ['CoACombatAssistant', 'CoAUIManager']) {
+  for (const name of ['CoACombatAssistant', 'CoAUIManager', 'GridCoA']) {
     const toc = await readFile(`addons/${name}/${name}.toc`, 'utf8');
     assert.match(toc, /^## Interface: \d+/m);
     assert.match(toc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));

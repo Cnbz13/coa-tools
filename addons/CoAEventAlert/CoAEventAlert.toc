@@ -2,7 +2,7 @@
 ## Title: CoA Event Alert
 ## Notes: Alertes de combat adaptatives pour Project Ascension 3.3.5a.
 ## Author: Cnbz13
-## Version: 1.1.0
+## Version: 1.1.1
 ## SavedVariables: CoAEventAlertDB
 
 Modules\NecromancerAnimation.lua

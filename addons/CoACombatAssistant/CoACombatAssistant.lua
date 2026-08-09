@@ -9,6 +9,7 @@ local DEFAULT_MAX_ARMY_SIZE = 4
 local GLOBAL_RECENT_CAST_LOCK = 1.65
 local ASSUMED_SELF_BUFF_SECONDS = 90
 local ASSUMED_TARGET_DEBUFF_SECONDS = 12
+local TARGET_EXPERIENCE_MAX_AGE = 30 * 24 * 60 * 60
 
 local function Lower(value)
     return string.lower(value or "")
@@ -130,22 +131,22 @@ local animationPriority = {
 
     -- Ouverture/entretien, d'après les sorts réellement observés dans le spellbook.
     { name = "Foul Mandate", score = 130, selfBuffMissing = "Foul Mandate", reason = "mandat personnel absent" },
-    { name = "Blight", score = 128, requiresTarget = true, targetDebuffMissing = "Blight", reason = "maladie principale absente" },
-    { name = "Harvest Plague", score = 126, requiresTarget = true, targetDebuffMissing = "Harvest Plague", targetDebuffPresentAny = { "Blight" }, reason = "entretenir Harvest Plague" },
+    { name = "Blight", score = 128, requiresTarget = true, targetDebuffMissing = "Blight", minTargetHealth = 30, longSetup = true, reason = "maladie principale absente sur une cible assez durable" },
+    { name = "Harvest Plague", score = 126, requiresTarget = true, targetDebuffMissing = "Harvest Plague", targetDebuffPresentAny = { "Blight" }, minTargetHealth = 35, longSetup = true, reason = "entretenir Harvest Plague sur une cible durable" },
 
     -- AOE importante ; Call of The Scourge n'est pas une attaque de rotation.
-    { name = "March of the Dead", score = 124, mode = "AOE", minEnemies = 5, requiresCombat = true, reason = "cinq ennemis actifs ou plus" },
-    { name = "Grave March", score = 122, mode = "AOE", minEnemies = 3, requiresSummon = 2, requiresCombat = true, reason = "invocations engagées sur plusieurs cibles" },
-    { name = "Corpse Explosion", score = 120, mode = "AOE", minEnemies = 3, requiresTarget = true, maxTargetHealth = 45, phase = "established", reason = "cible affaiblie dans un groupe" },
+    { name = "March of the Dead", score = 124, mode = "AOE", minEnemies = 5, requiresCombat = true, directDamage = true, reason = "cinq ennemis actifs ou plus" },
+    { name = "Grave March", score = 122, mode = "AOE", minEnemies = 3, requiresSummon = 2, requiresCombat = true, directDamage = true, reason = "invocations engagées sur plusieurs cibles" },
+    { name = "Corpse Explosion", score = 120, mode = "AOE", minEnemies = 3, requiresTarget = true, maxTargetHealth = 45, phase = "established", directDamage = true, reason = "cible affaiblie dans un groupe" },
 
     -- Boucle Animation : dépenser avec Command, générer avec Crypt Swarm, puis dégâts de secours.
-    { name = "Command: Undead", score = 118, requiresTarget = true, requiresSummon = 1, requiresCombat = true, reason = "dépense principale avec les invocations" },
-    { name = "Crypt Swarm", score = 116, requiresTarget = true, requiresCombat = true, reason = "dégâts et génération de puissance runique" },
-    { name = "Lichfrost", score = 114, requiresTarget = true, targetDebuffPresentAny = { "Blight" }, reason = "dégâts directs avec Blight actif" },
+    { name = "Command: Undead", score = 118, requiresTarget = true, requiresSummon = 1, requiresCombat = true, directDamage = true, reason = "dépense principale avec les invocations" },
+    { name = "Crypt Swarm", score = 116, requiresTarget = true, requiresCombat = true, directDamage = true, channel = true, reason = "dégâts et génération de puissance runique" },
+    { name = "Lichfrost", score = 114, requiresTarget = true, targetDebuffPresentAny = { "Blight" }, directDamage = true, reason = "dégâts directs avec Blight actif" },
     { name = "Glacial Tap", score = 112, requiresTarget = true, requiresCombat = true, maxRunic = 70, reason = "générer de la puissance runique sans surcap" },
     { name = "Runic Harvest", score = 110, maxRunic = 70, reason = "préparer la puissance runique entre deux combats" },
-    { name = "Razorice", score = 108, requiresTarget = true, reason = "dégâts directs de complément" },
-    { name = "Ghoulify", score = 106, requiresTarget = true, maxTargetHealth = 35, phase = "established", reason = "finir une cible affaiblie" }
+    { name = "Razorice", score = 108, requiresTarget = true, directDamage = true, reason = "dégâts directs de complément" },
+    { name = "Ghoulify", score = 106, requiresTarget = true, maxTargetHealth = 35, phase = "established", directDamage = true, execute = true, reason = "finir une cible affaiblie" }
 }
 
 local trackedSelfBuffs = {
@@ -169,7 +170,7 @@ local function EnsureDatabase()
     CoACombatAssistantDB.settings = CoACombatAssistantDB.settings or {}
     CoACombatAssistantDB.settings.aoeThreshold = tonumber(CoACombatAssistantDB.settings.aoeThreshold) or DEFAULT_AOE_THRESHOLD
     CoACombatAssistantDB.settings.maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
-    CoACombatAssistantDB.version = "1.1.0"
+    CoACombatAssistantDB.version = "1.1.1"
 
     if not CoACombatAssistantDB.position and CoACombatAssistantDB.ui then
         local old = CoACombatAssistantDB.ui
@@ -318,6 +319,14 @@ local function IsOwnedActor(guid, flags, name)
     return false
 end
 
+local function UpdateTargetMetadata(memory, guid)
+    if not memory or not guid or not UnitGUID or UnitGUID("target") ~= guid then return end
+    memory.level = UnitLevel and UnitLevel("target") or memory.level
+    memory.classification = UnitClassification and UnitClassification("target") or memory.classification
+    memory.creatureType = UnitCreatureType and UnitCreatureType("target") or memory.creatureType
+    memory.maxHealth = UnitHealthMax and UnitHealthMax("target") or memory.maxHealth
+end
+
 local function RememberMob(guid, name, eventType, damageDirection, amount)
     if not initialized or not guid or guid == playerGUID or guid == petGUID or ownedSummons[guid] then return nil end
     local nowEpoch = time()
@@ -335,6 +344,7 @@ local function RememberMob(guid, name, eventType, damageDirection, amount)
             combatTime = 0,
             damageTaken = 0,
             damageDone = 0,
+            spellStats = {},
             events = 0,
             zone = CurrentZone()
         }
@@ -346,6 +356,8 @@ local function RememberMob(guid, name, eventType, damageDirection, amount)
     memory.lastSeen = nowEpoch
     memory.lastEncounter = nowEpoch
     memory.zone = CurrentZone()
+    memory.spellStats = memory.spellStats or {}
+    UpdateTargetMetadata(memory, guid)
     if eventType and eventType ~= "TARGET_FALLBACK" then
         memory.events = (memory.events or 0) + 1
     end
@@ -364,6 +376,27 @@ local function RememberMob(guid, name, eventType, damageDirection, amount)
     end
     PruneMemory()
     return memory
+end
+
+local function RecordSpellOutcome(memory, spellName, subevent, amount, missType)
+    if not memory or not spellName or spellName == "" then return end
+    memory.spellStats = memory.spellStats or {}
+    local key = Lower(spellName)
+    local stats = memory.spellStats[key]
+    if not stats then
+        stats = { name = spellName, hits = 0, damage = 0, misses = 0, immune = 0, resists = 0 }
+        memory.spellStats[key] = stats
+    end
+    stats.name = spellName
+    stats.lastSeen = time()
+    if string.find(subevent or "", "_DAMAGE", 1, true) then
+        stats.hits = (stats.hits or 0) + 1
+        stats.damage = (stats.damage or 0) + (tonumber(amount) or 0)
+    elseif string.find(subevent or "", "_MISSED", 1, true) then
+        stats.misses = (stats.misses or 0) + 1
+        if missType == "IMMUNE" then stats.immune = (stats.immune or 0) + 1 end
+        if missType == "RESIST" then stats.resists = (stats.resists or 0) + 1 end
+    end
 end
 
 local function MarkMobDeath(guid, name)
@@ -588,6 +621,132 @@ TargetIsValid = function()
     return true
 end
 
+local function MergeSpellStats(destination, source)
+    local key, stats
+    for key, stats in pairs(source or {}) do
+        local merged = destination[key]
+        if not merged then
+            merged = { name = stats.name or key, hits = 0, damage = 0, misses = 0, immune = 0, resists = 0 }
+            destination[key] = merged
+        end
+        merged.hits = merged.hits + (stats.hits or 0)
+        merged.damage = merged.damage + (stats.damage or 0)
+        merged.misses = merged.misses + (stats.misses or 0)
+        merged.immune = merged.immune + (stats.immune or 0)
+        merged.resists = merged.resists + (stats.resists or 0)
+    end
+end
+
+local function BuildTargetProfile()
+    local profile = { valid = TargetIsValid(), spells = {}, samples = 0, encounters = 0, combatTime = 0, damageDone = 0 }
+    if not profile.valid then return profile end
+
+    profile.guid = UnitGUID("target")
+    profile.name = UnitName("target") or "Créature inconnue"
+    profile.nameKey = Lower(profile.name)
+    profile.level = UnitLevel and (UnitLevel("target") or 0) or 0
+    profile.classification = UnitClassification and UnitClassification("target") or "normal"
+    profile.creatureType = UnitCreatureType and UnitCreatureType("target") or "Inconnu"
+    profile.healthPercent = Percent(UnitHealth("target"), UnitHealthMax("target"))
+    profile.maxHealth = UnitHealthMax("target") or 0
+
+    local _, memory
+    for _, memory in pairs(CoACombatAssistantDB.mobs or {}) do
+        local sameName = Lower(memory.name) == profile.nameKey
+        local sameType = not memory.creatureType or memory.creatureType == profile.creatureType
+        local memoryLevel = tonumber(memory.level) or 0
+        local closeLevel = memoryLevel <= 0 or profile.level <= 0 or math.abs(memoryLevel - profile.level) <= 3
+        local recent = not memory.lastSeen or time() - memory.lastSeen <= TARGET_EXPERIENCE_MAX_AGE
+        if sameName and sameType and closeLevel and recent then
+            profile.samples = profile.samples + 1
+            profile.encounters = profile.encounters + (memory.encounters or 0)
+            profile.combatTime = profile.combatTime + (memory.combatTime or 0)
+            profile.damageDone = profile.damageDone + (memory.damageDone or 0)
+            MergeSpellStats(profile.spells, memory.spellStats)
+        end
+    end
+
+    profile.averageDuration = profile.encounters > 0 and profile.combatTime / profile.encounters or nil
+    local playerMaxHealth = UnitHealthMax("player") or 0
+    profile.averageDanger = profile.encounters > 0 and playerMaxHealth > 0 and (profile.damageDone / profile.encounters) / playerMaxHealth or 0
+    local levelDifference = profile.level - (character.level or 0)
+    profile.elite = profile.classification == "elite" or profile.classification == "rareelite" or profile.classification == "worldboss"
+    profile.durable = profile.elite or levelDifference >= 2 or profile.averageDuration and profile.averageDuration >= 12
+    profile.shortLived = profile.encounters >= 2 and profile.averageDuration and profile.averageDuration < 7
+    profile.dangerous = profile.elite or profile.averageDanger >= 0.45
+    return profile
+end
+
+local function SpellExperience(profile, spellName)
+    if not profile or not profile.spells or not spellName then return nil end
+    local wanted = Lower(spellName)
+    if wanted ~= Lower("Command: Undead") then return profile.spells[wanted] end
+    local aggregate = { name = spellName, hits = 0, damage = 0, misses = 0, immune = 0, resists = 0 }
+    local found = false
+    local key, stats
+    for key, stats in pairs(profile.spells) do
+        if string.find(key, "command:", 1, true) == 1 then
+            found = true
+            aggregate.hits = aggregate.hits + (stats.hits or 0)
+            aggregate.damage = aggregate.damage + (stats.damage or 0)
+            aggregate.misses = aggregate.misses + (stats.misses or 0)
+            aggregate.immune = aggregate.immune + (stats.immune or 0)
+            aggregate.resists = aggregate.resists + (stats.resists or 0)
+        end
+    end
+    return found and aggregate or nil
+end
+
+local Reject
+local Explain
+
+local function AdaptCandidateToTarget(candidate, profile, targetHealth)
+    local rule = candidate.rule
+    if not rule.requiresTarget or not profile or not profile.valid then return end
+
+    if rule.minTargetHealth and targetHealth < rule.minTargetHealth then
+        Reject(candidate, "cible trop proche de mourir pour cette préparation")
+    end
+    if rule.longSetup then
+        if profile.shortLived and currentMode == "ST" then
+            Reject(candidate, "mémoire : ce type de créature meurt trop vite pour ce sort")
+        elseif profile.shortLived then
+            candidate.score = candidate.score - 18
+            Explain(candidate, "cibles habituellement courtes : préparation dépriorisée")
+        elseif profile.durable then
+            candidate.score = candidate.score + 12
+            Explain(candidate, "cible durable : effet prolongé rentabilisé")
+        end
+    end
+    if rule.directDamage and targetHealth <= 35 then
+        candidate.score = candidate.score + 18
+        Explain(candidate, "cible affaiblie : dégâts immédiats favorisés")
+    end
+    if rule.execute and targetHealth <= 35 then
+        candidate.score = candidate.score + 28
+        Explain(candidate, "phase d'exécution")
+    end
+    if rule.channel and targetHealth <= 20 then
+        candidate.score = candidate.score - 20
+        Explain(candidate, "cible presque morte : canalisation dépriorisée")
+    end
+
+    local stats = SpellExperience(profile, candidate.name)
+    if not stats then return end
+    local attempts = (stats.hits or 0) + (stats.misses or 0)
+    if attempts >= 2 and (stats.immune or 0) >= 2 and stats.immune / attempts >= 0.5 then
+        Reject(candidate, "mémoire : sort souvent immunisé sur cette créature")
+    elseif attempts >= 3 and (stats.resists or 0) >= 2 and stats.resists / attempts >= 0.5 then
+        candidate.score = candidate.score - 45
+        Explain(candidate, "mémoire : sort souvent résisté, priorité réduite")
+    elseif (stats.hits or 0) >= 3 and profile.maxHealth > 0 then
+        local averageHit = (stats.damage or 0) / stats.hits
+        local effectiveness = math.min(12, math.floor(averageHit * 100 / profile.maxHealth))
+        candidate.score = candidate.score + effectiveness
+        Explain(candidate, "mémoire : efficacité observée sur ce type de créature")
+    end
+end
+
 local function CurrentPhase()
     if not startedAt then return "idle" end
     if GetTime() - startedAt < 6 and combatDamageEvents < 4 then return "opening" end
@@ -623,15 +782,15 @@ local function SpellState(spell, requiresTarget)
     return state
 end
 
-local function Reject(candidate, reason)
+Reject = function(candidate, reason)
     table.insert(candidate.rejected, reason)
 end
 
-local function Explain(candidate, reason)
+Explain = function(candidate, reason)
     table.insert(candidate.reasons, reason)
 end
 
-local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth, playerMana, runicPercent)
+local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth, playerMana, runicPercent, targetProfile)
     local spell = LearnedSpell(rule.name)
     local candidate = {
         name = rule.name,
@@ -691,6 +850,8 @@ local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth
     local last = lastCasts[Lower(rule.name)]
     if last and GetTime() - last < recentLock then Reject(candidate, "lancé récemment : proposer l'action suivante") end
 
+    AdaptCandidateToTarget(candidate, targetProfile, targetHealth)
+
     candidate.state = SpellState(spell, rule.requiresTarget)
     if candidate.state.inRange == false then Reject(candidate, "cible hors de portée") end
     if candidate.state.noMana then Explain(candidate, "ressource insuffisante") end
@@ -712,12 +873,13 @@ local function BuildRecommendationQueue()
     local playerHealth = Percent(UnitHealth("player"), UnitHealthMax("player"))
     local playerMana = Percent(UnitMana("player"), UnitManaMax("player"))
     local runicPercent, runicCurrent, runicMaximum = CurrentRunicPower()
+    local targetProfile = BuildTargetProfile()
     local candidates = {}
     local rejected = {}
     local _, rule
 
     for _, rule in ipairs(animationPriority) do
-        local candidate = EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth, playerMana, runicPercent)
+        local candidate = EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth, playerMana, runicPercent, targetProfile)
         if candidate.available then
             table.insert(candidates, candidate)
         else
@@ -742,6 +904,7 @@ local function BuildRecommendationQueue()
         runicPercent = runicPercent,
         runicCurrent = runicCurrent,
         runicMaximum = runicMaximum,
+        targetProfile = targetProfile,
         phase = phase,
         candidates = candidates,
         rejected = rejected,
@@ -980,11 +1143,22 @@ local function HandleCombatLog(...)
     if not IsCombatInteraction(subevent) then return end
     lastCombatInteraction = GetTime()
     local amount = DamageAmount(subevent, select(9, ...))
+    local isSpellOutcome = (string.find(subevent, "SPELL_", 1, true) == 1 or string.find(subevent, "RANGE_", 1, true) == 1)
+        and (string.find(subevent, "_DAMAGE", 1, true) or string.find(subevent, "_MISSED", 1, true))
+    local outcomeSpellName = isSpellOutcome and select(10, ...) or nil
+    local missType = string.find(subevent, "_MISSED", 1, true) and select(12, ...) or nil
     if string.find(subevent, "_DAMAGE", 1, true) then combatDamageEvents = combatDamageEvents + 1 end
 
     if sourceOwned and destGUID and not destOwned and IsHostile(destFlags) then
         if not startedAt then StartCombat() end
-        RememberMob(destGUID, destName, subevent, "TAKEN", amount)
+        local memory = RememberMob(destGUID, destName, subevent, "TAKEN", amount)
+        if isSpellOutcome then
+            RecordSpellOutcome(memory, outcomeSpellName, subevent, amount, missType)
+            local commandAt = lastCasts[Lower("Command: Undead")]
+            if sourceGUID ~= playerGUID and commandAt and GetTime() - commandAt <= 3 then
+                RecordSpellOutcome(memory, "Command: Undead", subevent, amount, missType)
+            end
+        end
     elseif destOwned and sourceGUID and not sourceOwned and IsHostile(sourceFlags) then
         if not startedAt then StartCombat() end
         RememberMob(sourceGUID, sourceName, subevent, "DONE", amount)
@@ -1083,6 +1257,7 @@ local function PrintMemory(filter)
         local data = entries[index]
         Chat(index .. ". " .. (data.name or "Inconnue")
             .. " | GUID " .. (data.guid or "?")
+            .. " | " .. (data.creatureType or "type inconnu") .. " niv. " .. (data.level or "?")
             .. " | rencontres " .. (data.encounters or 0)
             .. " | morts " .. (data.deaths or 0)
             .. " | temps " .. Round(data.combatTime) .. "s"
@@ -1095,6 +1270,16 @@ end
 local function PrintDebug()
     RefreshDisplay()
     Chat("Décision : " .. currentMode .. ", " .. currentEnemyCount .. " cible(s), " .. (lastDecision.summonCount or 0) .. " invocation(s), phase " .. (lastDecision.phase or "?") .. ".")
+    local profile = lastDecision.targetProfile
+    if profile and profile.valid then
+        local duration = profile.averageDuration and string.format("%.1fs", profile.averageDuration) or "inconnue"
+        Chat("Cible : " .. profile.name .. ", " .. (profile.creatureType or "type inconnu")
+            .. ", niveau " .. (profile.level or "?") .. ", " .. (profile.classification or "normal")
+            .. ", vie " .. Round(profile.healthPercent) .. "%, durée moyenne " .. duration
+            .. ", " .. (profile.encounters or 0) .. " combat(s) appris.")
+    else
+        Chat("Cible : aucune créature hostile valide.")
+    end
     if lastDecision.runicMaximum then
         Chat("Puissance runique : " .. Round(lastDecision.runicCurrent) .. "/" .. Round(lastDecision.runicMaximum) .. ".")
     else

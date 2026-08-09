@@ -2,15 +2,63 @@
   "$schema": "./schemas/manifest.schema.json",
   "schemaVersion": 1,
   "name": "CoA Tools",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "channel": "stable",
   "publishedAt": "2026-08-09T00:00:00.000Z",
   "minimumNodeVersion": "24.14.0",
-  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.1.0",
+  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.1.1",
   "artifacts": [
-    { "name": "CoA Addon Manager for Windows", "component": "addon-manager", "version": "1.1.0", "platform": "win32", "arch": "x64", "targetFolder": "CoAAddonManager", "installPath": ".", "file": "CoAAddonManager-v1.1.0-Windows.zip", "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.1.0/CoAAddonManager-v1.1.0-Windows.zip", "sha256": "29b98b29ba8724ee0185a087a951bff13007baffbb66fc8ada12b96b0fcadc76", "size": 68656 },
-    { "name": "CoA Combat Assistant", "component": "combat-assistant", "version": "1.1.0", "platform": "any", "arch": "any", "targetFolder": "CoACombatAssistant", "installPath": "Interface/AddOns", "file": "CoACombatAssistant-v1.1.0.zip", "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.1.0/CoACombatAssistant-v1.1.0.zip", "sha256": "72c581bfee057625c7778ba64ff439c5bea0f3b3ab0cff6656c4761ddea970f5", "size": 49144 },
-    { "name": "CoA UI Manager", "component": "ui-manager", "version": "1.1.0", "platform": "any", "arch": "any", "targetFolder": "CoAUIManager", "installPath": "Interface/AddOns", "file": "CoAUIManager-v1.1.0.zip", "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.1.0/CoAUIManager-v1.1.0.zip", "sha256": "9b96f99aa715b15c30e59f9ae99d02c4305b284ae75a9b77580278f217ddd45b", "size": 20407 },
-    { "name": "CoA Event Alert", "component": "event-alert", "version": "1.1.0", "platform": "any", "arch": "any", "targetFolder": "CoAEventAlert", "installPath": "Interface/AddOns", "file": "CoAEventAlert-v1.1.0.zip", "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.1.0/CoAEventAlert-v1.1.0.zip", "sha256": "6d391cf0aa3468b26d861bee4a832aa90fd8184d6f5583838fdd0114aad333b1", "size": 15976 }
+    {
+      "name": "CoA Addon Manager for Windows",
+      "component": "addon-manager",
+      "version": "1.1.1",
+      "platform": "win32",
+      "arch": "x64",
+      "targetFolder": "CoAAddonManager",
+      "installPath": ".",
+      "file": "CoAAddonManager-v1.1.1-Windows.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.1.1/CoAAddonManager-v1.1.1-Windows.zip",
+      "sha256": "c7e17600e518ea360de0f0fefc4f9a465a04d04ec4137db2065c8f2c7037e277",
+      "size": 68656
+    },
+    {
+      "name": "CoA Combat Assistant",
+      "component": "combat-assistant",
+      "version": "1.1.1",
+      "platform": "any",
+      "arch": "any",
+      "targetFolder": "CoACombatAssistant",
+      "installPath": "Interface/AddOns",
+      "file": "CoACombatAssistant-v1.1.1.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.1.1/CoACombatAssistant-v1.1.1.zip",
+      "sha256": "29271b89d34ac7b0eecadc335e3347745b5c020453c7f76baf53475633ab52e4",
+      "size": 59272
+    },
+    {
+      "name": "CoA UI Manager",
+      "component": "ui-manager",
+      "version": "1.1.1",
+      "platform": "any",
+      "arch": "any",
+      "targetFolder": "CoAUIManager",
+      "installPath": "Interface/AddOns",
+      "file": "CoAUIManager-v1.1.1.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.1.1/CoAUIManager-v1.1.1.zip",
+      "sha256": "20a4cb2d1b3bd35475262f21147f671267377f7788dfe428327a942317ef79f9",
+      "size": 20407
+    },
+    {
+      "name": "CoA Event Alert",
+      "component": "event-alert",
+      "version": "1.1.1",
+      "platform": "any",
+      "arch": "any",
+      "targetFolder": "CoAEventAlert",
+      "installPath": "Interface/AddOns",
+      "file": "CoAEventAlert-v1.1.1.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.1.1/CoAEventAlert-v1.1.1.zip",
+      "sha256": "3515a9d1f74d22c93182c36a27e5d2f708ca9b2d577df1bfb992168496e23fa9",
+      "size": 15976
+    }
   ]
 }

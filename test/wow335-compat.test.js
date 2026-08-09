@@ -127,6 +127,32 @@ test('Animation priority follows the learned level-30 generator/spender loop', a
   assert.match(priority, /name = "Harvest Plague"[^\n]+targetDebuffMissing = "Harvest Plague"/);
 });
 
+test('target profiles learn creature durability, danger and per-spell outcomes', async () => {
+  const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
+  for (const required of [
+    'BuildTargetProfile', 'UnitCreatureType("target")', 'UnitClassification("target")',
+    'profile.averageDuration', 'profile.averageDanger', 'profile.shortLived', 'profile.durable',
+    'spellStats = {}', 'RecordSpellOutcome', 'SPELL_', '_MISSED', 'missType == "IMMUNE"',
+    'missType == "RESIST"', 'SpellExperience', 'Command: Undead',
+    'GetTime() - commandAt <= 3'
+  ]) assert.ok(lua.includes(required), `Adaptive target memory is missing ${required}`);
+  assert.match(lua, /sameName[\s\S]+sameType[\s\S]+closeLevel/);
+  assert.match(lua, /MergeSpellStats\(profile\.spells, memory\.spellStats\)/);
+});
+
+test('recommendations react to health, expected lifetime and learned immunities', async () => {
+  const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
+  for (const required of [
+    'AdaptCandidateToTarget', 'rule.minTargetHealth', 'rule.longSetup', 'rule.directDamage',
+    'rule.execute', 'rule.channel', 'cible trop proche de mourir',
+    'ce type de créature meurt trop vite', 'sort souvent immunisé', 'sort souvent résisté',
+    'efficacité observée sur ce type de créature'
+  ]) assert.ok(lua.includes(required), `Adaptive scoring is missing ${required}`);
+  assert.match(lua, /name = "Blight"[^\n]+minTargetHealth = 30[^\n]+longSetup = true/);
+  assert.match(lua, /name = "Ghoulify"[^\n]+directDamage = true[^\n]+execute = true/);
+  assert.match(lua, /AdaptCandidateToTarget\(candidate, targetProfile, targetHealth\)/);
+});
+
 test('UI Manager provides persistent movers and never applies frames during combat', async () => {
   const lua = await readFile('addons/CoAUIManager/CoAUIManager.lua', 'utf8');
   for (const frame of [

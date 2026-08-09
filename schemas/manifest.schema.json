@@ -5,6 +5,7 @@
   "type": "object",
   "required": ["schemaVersion", "name", "version", "channel", "publishedAt", "minimumNodeVersion", "releaseUrl", "artifacts"],
   "properties": {
+    "$schema": { "type": "string" },
     "schemaVersion": { "const": 1 },
     "name": { "const": "CoA Tools" },
     "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
@@ -28,7 +29,23 @@
           "file": { "type": "string" },
           "url": { "type": "string", "format": "uri" },
           "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-          "size": { "type": "integer", "minimum": 1 }
+          "size": { "type": "integer", "minimum": 1 },
+          "upstream": {
+            "type": "object",
+            "required": ["name", "version", "targetFolder", "file", "url", "sha256", "size", "sourceUrl", "license"],
+            "properties": {
+              "name": { "const": "EventAlert" },
+              "version": { "const": "4.3.6" },
+              "targetFolder": { "const": "EventAlert" },
+              "file": { "const": "EventAlert-4.3.6.zip" },
+              "url": { "const": "https://edge.forgecdn.net/files/456/081/EventAlert-4.3.6.zip" },
+              "sha256": { "const": "48c529fe42dedae8d7ed779f529e6cb55ba13a1d185b654804080a3bb9e4aa97" },
+              "size": { "const": 27480 },
+              "sourceUrl": { "type": "string", "format": "uri" },
+              "license": { "const": "All Rights Reserved" }
+            },
+            "additionalProperties": false
+          }
         },
         "additionalProperties": false
       }

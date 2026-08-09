@@ -1,6 +1,6 @@
 # CoA Tools
 
-> Depuis la version 1.1.0, la suite inclut aussi **CoA Event Alert**, un addon 3.3.5a autonome avec alertes de procs, buffs, debuffs, cooldowns et invocations, module Nécromancien Animation et journal d'apprentissage. Commandes : `/cea status`, `/cea scan`, `/cea learn`, `/cea debug`.
+> Depuis la version 1.2.0, le manager installe le **véritable EventAlert 4.3.6** pour WoW 3.3.5 depuis sa publication CurseForge, puis applique une couche de compatibilité CoA. Elle conserve l’interface, les sons, les options et `/ea` d’origine, ajoute les classes CoA et apprend automatiquement leurs procs et réactions `SPELL_ACTIVE`.
 
 Suite locale sans télémétrie regroupant trois outils :
 
@@ -10,13 +10,20 @@ Suite locale sans télémétrie regroupant trois outils :
 
 ## Artefacts installables
 
-Chaque release publie trois ZIP indépendants :
+Chaque release publie quatre ZIP :
 
 - `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
 - `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans le dossier `Interface/AddOns` de Project Ascension ;
 - `CoAUIManager-vX.Y.Z.zip` : extrayez le dossier `CoAUIManager` dans le dossier `Interface/AddOns` de Project Ascension.
+- `EventAlertCoA-vX.Y.Z.zip` : couche de compatibilité appliquée automatiquement par le manager au véritable EventAlert 4.3.6. Le code original, sous licence « All Rights Reserved », est téléchargé séparément depuis [sa fiche CurseForge officielle](https://www.curseforge.com/wow/addons/event-alert/files/456081), puis vérifié par taille et SHA-256.
 
-Les deux addons ciblent strictement le client Project Ascension / WoW 3.3.5a (`## Interface: 30300`) et Lua 5.1.
+Les addons et la couche EventAlert ciblent strictement le client Project Ascension / WoW 3.3.5a (`## Interface: 30300`) et Lua 5.1.
+
+## EventAlert pour CoA
+
+Ce projet ne réinvente pas EventAlert et ne republie pas son code. Le manager compose localement l’archive officielle EventAlert 4.3.6 avec `EventAlertCoA.lua`. La couche prépare les tables pour les jetons de classes CoA tels que `NECROMANCER`, migre les réglages d’anciens ports Ascension, détecte les auras de proc émises par le joueur et les réactions `SPELL_ACTIVE`, puis les affiche dans les vrais frames EventAlert. Les procs appris sont conservés dans les SavedVariables d’EventAlert et apparaissent dans ses options après rechargement.
+
+Commandes complémentaires : `/ea coa`, `/ea coa learn`, `/ea coa scan`. Toutes les autres commandes `/ea` restent celles d’origine.
 
 ## CoA Combat Assistant
 
@@ -79,7 +86,7 @@ Pour publier :
 1. Mettre à jour `version` dans `package.json`, `package-lock.json`, `manifest.json` et les deux fichiers `.toc`.
 2. Exécuter `npm run release` et reporter les tailles et SHA-256 obtenus dans le manifeste versionné.
 3. Pousser le commit puis le tag correspondant.
-4. Le workflow `Release` teste, crée les trois ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
+4. Le workflow `Release` teste, crée les quatre ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
 
 Le workflow peut aussi être lancé manuellement avec une version. Le client utilise par défaut le manifeste de la dernière release ; `COA_UPDATE_MANIFEST` permet de cibler un autre canal.
 

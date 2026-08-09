@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
-import { cp, readFile, readdir, rename, rm, stat } from 'node:fs/promises';
+import { cp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -9,6 +9,19 @@ import { extractZip } from '../lib/zip.js';
 
 export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
 const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'event-alert']);
+const EVENT_ALERT_LEGACY_FOLDER = 'CoAEventAlert';
+const EVENT_ALERT_SCRIPT = '<Script file="EventAlertCoA.lua"/>';
+const EVENT_ALERT_UPSTREAM_PATH = '/files/456/081/EventAlert-4.3.6.zip';
+const EVENT_ALERT_UPSTREAM_URL = `https://edge.forgecdn.net${EVENT_ALERT_UPSTREAM_PATH}`;
+const EVENT_ALERT_UPSTREAM_SHA256 = '48c529fe42dedae8d7ed779f529e6cb55ba13a1d185b654804080a3bb9e4aa97';
+const EVENT_ALERT_UPSTREAM_SIZE = 27480;
+
+function defaultDownloadPolicy(url) {
+  return url.protocol === 'https:' && (
+    url.hostname === 'github.com'
+    || (url.hostname === 'edge.forgecdn.net' && url.pathname === EVENT_ALERT_UPSTREAM_PATH)
+  );
+}
 
 async function isDirectory(directory) {
   try { return (await stat(directory)).isDirectory(); } catch { return false; }
@@ -28,6 +41,7 @@ export function parseToc(contents, folder, tocFile = '') {
     folder,
     title: cleanWowText(metadata.title) || folder,
     version: cleanWowText(metadata.version) || 'inconnue',
+    coaCompatibilityVersion: cleanWowText(metadata['x-coa-compatibility-version']),
     notes: cleanWowText(metadata.notes),
     tocFile: tocFile || `${folder}.toc`
   };
@@ -57,7 +71,8 @@ export class AddonManager {
     this.cachedManifestFile = path.join(this.dataDir, 'remote-manifest.json');
     this.backupsRoot = path.join(this.dataDir, 'backups');
     this.transactionsRoot = path.join(this.dataDir, 'transactions');
-    this.downloadPolicy = downloadPolicy || (url => url.protocol === 'https:' && url.hostname === 'github.com');
+    this.strictOfficialSources = !downloadPolicy;
+    this.downloadPolicy = downloadPolicy || defaultDownloadPolicy;
     this.operation = Promise.resolve();
   }
 
@@ -143,16 +158,26 @@ export class AddonManager {
     const { manifest, cached, error } = await this.getManifest();
     const managedArtifacts = (manifest?.artifacts || []).filter(item => MANAGED_COMPONENTS.has(item.component));
     const managedFolders = new Set(managedArtifacts.map(item => item.targetFolder.toLowerCase()));
+    if (managedArtifacts.some(item => item.component === 'event-alert')) managedFolders.add(EVENT_ALERT_LEGACY_FOLDER.toLowerCase());
     const managed = [];
     for (const artifact of managedArtifacts) {
-      const installed = local.find(item => item.folder.toLowerCase() === artifact.targetFolder.toLowerCase()) || null;
-      const comparison = installed ? compareAddonVersions(artifact.version, installed.version) : 1;
+      const targetInstalled = local.find(item => item.folder.toLowerCase() === artifact.targetFolder.toLowerCase()) || null;
+      const legacyInstalled = artifact.component === 'event-alert'
+        ? local.find(item => item.folder.toLowerCase() === EVENT_ALERT_LEGACY_FOLDER.toLowerCase()) || null
+        : null;
+      const installed = targetInstalled || legacyInstalled;
+      const localVersion = artifact.component === 'event-alert'
+        ? targetInstalled?.coaCompatibilityVersion || legacyInstalled?.version || null
+        : installed?.version || null;
+      const comparison = installed
+        ? artifact.component === 'event-alert' && !targetInstalled?.coaCompatibilityVersion ? 1 : compareAddonVersions(artifact.version, localVersion)
+        : 1;
       const backups = await this.listBackups(artifact.component);
       managed.push({
         kind: 'managed', component: artifact.component, name: artifact.name, folder: artifact.targetFolder,
-        title: installed?.title || artifact.name, notes: installed?.notes || '', localVersion: installed?.version || null,
+        title: installed?.title || artifact.name, notes: installed?.notes || '', localVersion,
         remoteVersion: artifact.version, installed: Boolean(installed), action: !installed ? 'install' : comparison > 0 ? 'update' : 'reinstall',
-        artifact: { file: artifact.file, size: artifact.size, sha256: artifact.sha256 }, canRollback: backups.length > 0,
+        artifact: { file: artifact.file, size: artifact.size, sha256: artifact.sha256, upstream: artifact.upstream || null }, canRollback: backups.length > 0,
         latestBackup: backups[0] || null
       });
     }
@@ -178,15 +203,41 @@ export class AddonManager {
   }
 
   async createBackup(component, targetFolder, source, version, reason = 'replace') {
-    if (!(await isDirectory(source))) return null;
+    return this.createBackupSet(component, [{ targetFolder, source, version }], version, reason);
+  }
+
+  async createBackupSet(component, candidates, version, reason = 'replace') {
+    const folders = [];
+    for (const candidate of candidates) {
+      if (await isDirectory(candidate.source)) folders.push(candidate);
+    }
+    if (!folders.length) return null;
     const id = `${Date.now()}-${randomUUID().slice(0, 8)}`;
     const root = path.join(this.backupsRoot, component, id);
-    const backupFolder = path.join(root, targetFolder);
     await ensureDir(root);
-    await cp(source, backupFolder, { recursive: true, force: true });
-    const metadata = { component, targetFolder, version: version || 'inconnue', reason, createdAt: new Date().toISOString() };
+    for (const folder of folders) await cp(folder.source, path.join(root, folder.targetFolder), { recursive: true, force: true });
+    const metadata = {
+      component, targetFolder: folders[0].targetFolder, version: version || folders[0].version || 'inconnue', reason,
+      folders: folders.map(folder => ({ targetFolder: folder.targetFolder, version: folder.version || 'inconnue' })),
+      createdAt: new Date().toISOString()
+    };
     await writeJsonAtomic(path.join(root, 'backup.json'), metadata);
-    return { id, root, folder: backupFolder, ...metadata };
+    return { id, root, folder: path.join(root, folders[0].targetFolder), ...metadata };
+  }
+
+  backupFolders(backup) {
+    return Array.isArray(backup.folders) && backup.folders.length
+      ? backup.folders
+      : [{ targetFolder: backup.targetFolder, version: backup.version }];
+  }
+
+  async restoreBackupSet(addonsDir, backup, removeFolders = []) {
+    for (const targetFolder of removeFolders) await rm(path.join(addonsDir, targetFolder), { recursive: true, force: true });
+    for (const folder of this.backupFolders(backup)) {
+      const source = path.join(this.backupsRoot, backup.component, backup.id, folder.targetFolder);
+      await this.assertToc(source, folder.targetFolder);
+      await this.replaceFolder(addonsDir, folder.targetFolder, source);
+    }
   }
 
   async replaceFolder(addonsDir, targetFolder, sourceFolder) {
@@ -209,6 +260,23 @@ export class AddonManager {
     return toc.name;
   }
 
+  async patchEventAlert(directory, compatibilityVersion) {
+    const xmlFile = path.join(directory, 'EventAlert.xml');
+    const tocFile = path.join(directory, 'EventAlert.toc');
+    let xml = await readFile(xmlFile, 'utf8');
+    if (!xml.includes(EVENT_ALERT_SCRIPT)) {
+      const loader = /(<Script file="EventAlertSpellArray\.lua"\/>\r?\n)/;
+      if (!loader.test(xml)) throw new Error('EventAlert 4.3.6 inattendu : point de chargement CoA introuvable');
+      xml = xml.replace(loader, `$1${EVENT_ALERT_SCRIPT}\r\n`);
+      await writeFile(xmlFile, xml);
+    }
+    let toc = await readFile(tocFile, 'utf8');
+    const metadata = `## X-CoA-Compatibility-Version: ${compatibilityVersion}`;
+    if (/^## X-CoA-Compatibility-Version:.*$/m.test(toc)) toc = toc.replace(/^## X-CoA-Compatibility-Version:.*$/m, metadata);
+    else toc = toc.replace(/(^## Version:.*$)/m, `$1\r\n${metadata}`);
+    await writeFile(tocFile, toc);
+  }
+
   runExclusive(task) {
     const result = this.operation.then(task, task);
     this.operation = result.catch(() => {});
@@ -223,6 +291,7 @@ export class AddonManager {
     const { manifest } = await this.getManifest();
     const artifact = manifest?.artifacts?.find(item => item.component === component);
     if (!artifact) throw new Error('Artefact distant introuvable dans le manifeste');
+    if (component === 'event-alert') return this.installEventAlert(detection, artifact);
     if (!/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '')) throw new Error('Nom de dossier cible invalide');
     const local = (await this.scan(detection.directory)).find(item => item.folder.toLowerCase() === artifact.targetFolder.toLowerCase());
     const transaction = path.join(this.transactionsRoot, randomUUID());
@@ -246,6 +315,52 @@ export class AddonManager {
     } finally { await rm(transaction, { recursive: true, force: true }); }
   }
 
+  async installEventAlert(detection, artifact) {
+    const upstream = artifact.upstream;
+    if (!upstream || upstream.targetFolder !== 'EventAlert' || upstream.version !== '4.3.6') throw new Error('Métadonnées EventAlert officielles invalides');
+    if (this.strictOfficialSources && (
+      upstream.url !== EVENT_ALERT_UPSTREAM_URL || upstream.sha256 !== EVENT_ALERT_UPSTREAM_SHA256 || upstream.size !== EVENT_ALERT_UPSTREAM_SIZE
+    )) throw new Error('Source officielle EventAlert modifiée ou non approuvée');
+    if (!/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '') || artifact.targetFolder !== 'EventAlert') throw new Error('Nom de dossier EventAlert invalide');
+    const local = await this.scan(detection.directory);
+    const eventAlert = local.find(item => item.folder.toLowerCase() === 'eventalert');
+    const legacy = local.find(item => item.folder.toLowerCase() === EVENT_ALERT_LEGACY_FOLDER.toLowerCase());
+    const transaction = path.join(this.transactionsRoot, randomUUID());
+    const upstreamArchive = path.join(transaction, path.basename(upstream.file));
+    const patchArchive = path.join(transaction, path.basename(artifact.file));
+    const upstreamExtracted = path.join(transaction, 'upstream');
+    const patchExtracted = path.join(transaction, 'patch');
+    await ensureDir(transaction);
+    let backup = null;
+    try {
+      await this.download(upstream, upstreamArchive);
+      await this.download(artifact, patchArchive);
+      await extractZip(upstreamArchive, upstreamExtracted);
+      await extractZip(patchArchive, patchExtracted);
+      const prepared = path.join(upstreamExtracted, upstream.targetFolder);
+      await this.assertToc(prepared, upstream.targetFolder);
+      const compatibilityFile = path.join(patchExtracted, upstream.targetFolder, 'EventAlertCoA.lua');
+      if ((await stat(compatibilityFile)).size < 1) throw new Error('Patch EventAlert CoA vide');
+      await cp(compatibilityFile, path.join(prepared, 'EventAlertCoA.lua'), { force: true });
+      await this.patchEventAlert(prepared, artifact.version);
+      backup = await this.createBackupSet('event-alert', [
+        { targetFolder: 'EventAlert', source: path.join(detection.directory, 'EventAlert'), version: eventAlert?.coaCompatibilityVersion || eventAlert?.version },
+        { targetFolder: EVENT_ALERT_LEGACY_FOLDER, source: path.join(detection.directory, EVENT_ALERT_LEGACY_FOLDER), version: legacy?.version }
+      ], eventAlert?.coaCompatibilityVersion || legacy?.version);
+      try {
+        await this.replaceFolder(detection.directory, 'EventAlert', prepared);
+        await rm(path.join(detection.directory, EVENT_ALERT_LEGACY_FOLDER), { recursive: true, force: true });
+      } catch (error) {
+        if (backup) await this.restoreBackupSet(detection.directory, backup, ['EventAlert', EVENT_ALERT_LEGACY_FOLDER]);
+        throw error;
+      }
+      return {
+        operation: eventAlert || legacy ? 'replaced' : 'installed', component: 'event-alert', version: artifact.version,
+        upstreamVersion: upstream.version, backup: backup?.id || null, inventory: await this.inventory()
+      };
+    } finally { await rm(transaction, { recursive: true, force: true }); }
+  }
+
   rollback(component, backupId) { return this.runExclusive(() => this.rollbackNow(component, backupId)); }
   async rollbackNow(component, backupId) {
     if (!MANAGED_COMPONENTS.has(component)) throw new Error('Composant CoA inconnu');
@@ -254,6 +369,17 @@ export class AddonManager {
     const backups = await this.listBackups(component);
     const selected = backupId ? backups.find(item => item.id === backupId) : backups[0];
     if (!selected) throw new Error('Aucun backup disponible');
+    if (component === 'event-alert') {
+      const local = await this.scan(detection.directory);
+      const eventAlert = local.find(item => item.folder.toLowerCase() === 'eventalert');
+      const legacy = local.find(item => item.folder.toLowerCase() === EVENT_ALERT_LEGACY_FOLDER.toLowerCase());
+      await this.createBackupSet(component, [
+        { targetFolder: 'EventAlert', source: path.join(detection.directory, 'EventAlert'), version: eventAlert?.coaCompatibilityVersion || eventAlert?.version },
+        { targetFolder: EVENT_ALERT_LEGACY_FOLDER, source: path.join(detection.directory, EVENT_ALERT_LEGACY_FOLDER), version: legacy?.version }
+      ], eventAlert?.coaCompatibilityVersion || legacy?.version, 'pre-rollback');
+      await this.restoreBackupSet(detection.directory, selected, ['EventAlert', EVENT_ALERT_LEGACY_FOLDER]);
+      return { operation: 'restored', component, backup: selected.id, inventory: await this.inventory() };
+    }
     const source = path.join(this.backupsRoot, component, selected.id, selected.targetFolder);
     await this.assertToc(source, selected.targetFolder);
     const current = path.join(detection.directory, selected.targetFolder);

@@ -17,6 +17,13 @@ for (const [index, artifact] of (manifest.artifacts || []).entries()) {
   if (/^0{64}$/.test(artifact.sha256 || '')) errors.push(`artifact ${index}: placeholder SHA-256`);
   if (!Number.isInteger(artifact.size) || artifact.size < 1) errors.push(`artifact ${index}: invalid size`);
   try { new URL(artifact.url); } catch { errors.push(`artifact ${index}: invalid URL`); }
+  if (artifact.component === 'event-alert') {
+    const upstream = artifact.upstream;
+    if (!upstream || upstream.version !== '4.3.6' || upstream.targetFolder !== 'EventAlert') errors.push(`artifact ${index}: invalid EventAlert upstream`);
+    if (!/^[a-f0-9]{64}$/.test(upstream?.sha256 || '') || !Number.isInteger(upstream?.size)) errors.push(`artifact ${index}: invalid EventAlert upstream checksum`);
+    if (upstream?.license !== 'All Rights Reserved') errors.push(`artifact ${index}: EventAlert license must be explicit`);
+    try { new URL(upstream?.url); new URL(upstream?.sourceUrl); } catch { errors.push(`artifact ${index}: invalid EventAlert upstream URL`); }
+  }
 }
 if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
 console.log(`${file}: valid (${manifest.version}, ${manifest.artifacts.length} artifacts)`);

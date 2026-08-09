@@ -23,7 +23,17 @@ const packages = [
   { name: 'CoA Addon Manager for Windows', component: 'addon-manager', platform: 'win32', arch: 'x64', targetFolder: 'CoAAddonManager', installPath: '.', file: `CoAAddonManager-v${version}-Windows.zip`, source: path.join(stage, 'manager') },
   { name: 'CoA Combat Assistant', component: 'combat-assistant', platform: 'any', arch: 'any', targetFolder: 'CoACombatAssistant', installPath: 'Interface/AddOns', file: `CoACombatAssistant-v${version}.zip`, source: path.resolve('addons', 'CoACombatAssistant', '..') , only: 'CoACombatAssistant' },
   { name: 'CoA UI Manager', component: 'ui-manager', platform: 'any', arch: 'any', targetFolder: 'CoAUIManager', installPath: 'Interface/AddOns', file: `CoAUIManager-v${version}.zip`, source: path.resolve('addons', 'CoAUIManager', '..'), only: 'CoAUIManager' },
-  { name: 'CoA Event Alert', component: 'event-alert', platform: 'any', arch: 'any', targetFolder: 'CoAEventAlert', installPath: 'Interface/AddOns', file: `CoAEventAlert-v${version}.zip`, source: path.resolve('addons', 'CoAEventAlert', '..'), only: 'CoAEventAlert' }
+  {
+    name: 'EventAlert 4.3.6 + compatibilité CoA', component: 'event-alert', platform: 'any', arch: 'any',
+    targetFolder: 'EventAlert', installPath: 'Interface/AddOns', file: `EventAlertCoA-v${version}.zip`,
+    source: path.resolve('patches', 'EventAlertCoA'),
+    upstream: {
+      name: 'EventAlert', version: '4.3.6', targetFolder: 'EventAlert', file: 'EventAlert-4.3.6.zip',
+      url: 'https://edge.forgecdn.net/files/456/081/EventAlert-4.3.6.zip',
+      sha256: '48c529fe42dedae8d7ed779f529e6cb55ba13a1d185b654804080a3bb9e4aa97', size: 27480,
+      sourceUrl: 'https://www.curseforge.com/wow/addons/event-alert/files/456081', license: 'All Rights Reserved'
+    }
+  }
 ];
 
 const artifacts = [];
@@ -37,7 +47,12 @@ for (const item of packages) {
   await writeZip(packageStage, zipFile);
   const bytes = await readFile(zipFile);
   const digest = createHash('sha256').update(bytes).digest('hex');
-  artifacts.push({ name: item.name, component: item.component, version, platform: item.platform, arch: item.arch, targetFolder: item.targetFolder, installPath: item.installPath, file: item.file, url: `https://github.com/Cnbz13/coa-tools/releases/download/v${version}/${item.file}`, sha256: digest, size: (await stat(zipFile)).size });
+  artifacts.push({
+    name: item.name, component: item.component, version, platform: item.platform, arch: item.arch,
+    targetFolder: item.targetFolder, installPath: item.installPath, file: item.file,
+    url: `https://github.com/Cnbz13/coa-tools/releases/download/v${version}/${item.file}`,
+    sha256: digest, size: (await stat(zipFile)).size, ...(item.upstream ? { upstream: item.upstream } : {})
+  });
 }
 
 const manifest = {

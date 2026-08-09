@@ -22,10 +22,86 @@ async function addonZip(root, folder, title, version) {
 
 test('TOC metadata and addon versions are parsed tolerantly', () => {
   assert.deepEqual(parseToc('\uFEFF## Title: |cffffcc00AdiBags|r\r\n## Version: v1.2.3\r\n## Notes: Inventory', 'AdiBags'), {
-    folder: 'AdiBags', title: 'AdiBags', version: 'v1.2.3', notes: 'Inventory', tocFile: 'AdiBags.toc'
+    folder: 'AdiBags', title: 'AdiBags', version: 'v1.2.3', coaCompatibilityVersion: '', notes: 'Inventory', tocFile: 'AdiBags.toc'
   });
   assert.ok(compareAddonVersions('1.0.4', 'v1.0.3') > 0);
   assert.equal(compareAddonVersions('1.0.4', '1.0.4'), 0);
+});
+
+test('manager composes genuine EventAlert 4.3.6 with the CoA patch and backs up the legacy addon', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'coa-eventalert-manager-'));
+  const addonsDir = path.join(root, 'Ascension', 'Interface', 'AddOns');
+  let server;
+  try {
+    const upstreamStage = path.join(root, 'upstream-stage', 'EventAlert');
+    await mkdir(upstreamStage, { recursive: true });
+    await writeFile(path.join(upstreamStage, 'EventAlert.toc'), '## Interface: 30300\n## Title: EventAlert\n## Version: 4.3.6\n\nEventAlert.xml\n');
+    await writeFile(path.join(upstreamStage, 'EventAlert.xml'), '<Ui>\n<Script file="EventAlert.lua"/>\n<Script file="EventAlertSpellArray.lua"/>\n</Ui>\n');
+    await writeFile(path.join(upstreamStage, 'EventAlert.lua'), '-- genuine upstream fixture\n');
+    const upstreamArchive = path.join(root, 'EventAlert-4.3.6.zip');
+    await writeZip(path.join(root, 'upstream-stage'), upstreamArchive);
+    const upstreamBytes = await readFile(upstreamArchive);
+
+    const patchStage = path.join(root, 'patch-stage', 'EventAlert');
+    await mkdir(patchStage, { recursive: true });
+    await writeFile(path.join(patchStage, 'EventAlertCoA.lua'), '-- CoA patch fixture\n');
+    const patchArchive = path.join(root, 'EventAlertCoA.zip');
+    await writeZip(path.join(root, 'patch-stage'), patchArchive);
+    const patchBytes = await readFile(patchArchive);
+
+    for (const folder of ['EventAlert', 'CoAEventAlert']) {
+      await mkdir(path.join(addonsDir, folder), { recursive: true });
+      await writeFile(path.join(addonsDir, folder, `${folder}.toc`), `## Interface: 30300\n## Title: Old ${folder}\n## Version: 1.1.1\n`);
+      await writeFile(path.join(addonsDir, folder, 'local.txt'), `old ${folder}`);
+    }
+
+    const archives = { '/EventAlert-4.3.6.zip': upstreamBytes, '/EventAlertCoA.zip': patchBytes };
+    let manifest;
+    server = createServer((request, response) => {
+      if (request.url === '/manifest.json') {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify(manifest));
+      }
+      const bytes = archives[request.url];
+      if (!bytes) { response.writeHead(404); return response.end(); }
+      response.writeHead(200, { 'content-type': 'application/zip' }); response.end(bytes);
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    manifest = {
+      version: '1.2.0', artifacts: [{
+        name: 'EventAlert 4.3.6 + compatibilité CoA', component: 'event-alert', version: '1.2.0',
+        targetFolder: 'EventAlert', file: 'EventAlertCoA.zip', url: `${origin}/EventAlertCoA.zip`,
+        sha256: sha256(patchBytes), size: patchBytes.length,
+        upstream: {
+          name: 'EventAlert', version: '4.3.6', targetFolder: 'EventAlert', file: 'EventAlert-4.3.6.zip',
+          url: `${origin}/EventAlert-4.3.6.zip`, sha256: sha256(upstreamBytes), size: upstreamBytes.length
+        }
+      }]
+    };
+    const manager = new AddonManager({
+      dataDir: path.join(root, 'data'), canonicalPath: addonsDir, manifestUrl: `${origin}/manifest.json`,
+      environmentPath: null, downloadPolicy: url => url.origin === origin
+    });
+
+    const before = await manager.inventory();
+    assert.equal(before.managed[0].action, 'update');
+    assert.equal(before.regular.some(item => item.folder === 'CoAEventAlert'), false);
+    const installed = await manager.install('event-alert');
+    assert.ok(installed.backup);
+    assert.match(await readFile(path.join(addonsDir, 'EventAlert', 'EventAlert.xml'), 'utf8'), /EventAlertCoA\.lua/);
+    assert.match(await readFile(path.join(addonsDir, 'EventAlert', 'EventAlert.toc'), 'utf8'), /X-CoA-Compatibility-Version: 1\.2\.0/);
+    assert.match(await readFile(path.join(addonsDir, 'EventAlert', 'EventAlertCoA.lua'), 'utf8'), /CoA patch fixture/);
+    assert.equal(await stat(path.join(addonsDir, 'CoAEventAlert')).then(() => true, () => false), false);
+    assert.equal(installed.inventory.managed[0].action, 'reinstall');
+
+    await manager.rollback('event-alert', installed.backup);
+    assert.equal(await readFile(path.join(addonsDir, 'EventAlert', 'local.txt'), 'utf8'), 'old EventAlert');
+    assert.equal(await readFile(path.join(addonsDir, 'CoAEventAlert', 'local.txt'), 'utf8'), 'old CoAEventAlert');
+  } finally {
+    if (server) await new Promise(resolve => server.close(resolve));
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('manager scans Ascension addons and installs, backs up, restores and updates CoA addons', async () => {
@@ -105,6 +181,24 @@ test('a manually selected AddOns path is remembered when standard detection fail
     await first.setDirectory(selected);
     const second = new AddonManager(options);
     assert.deepEqual(await second.detectDirectory(), { directory: selected, exists: true, source: 'saved' });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('production manager pins the exact official EventAlert source', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'coa-eventalert-pin-'));
+  const addonsDir = path.join(root, 'Interface', 'AddOns');
+  try {
+    await mkdir(addonsDir, { recursive: true });
+    const tampered = {
+      version: '1.2.0', artifacts: [{
+        name: 'EventAlert', component: 'event-alert', version: '1.2.0', targetFolder: 'EventAlert',
+        file: 'patch.zip', url: 'https://github.com/Cnbz13/coa-tools/releases/download/v1.2.0/patch.zip', sha256: '1'.repeat(64), size: 1,
+        upstream: { version: '4.3.6', targetFolder: 'EventAlert', file: 'EventAlert-4.3.6.zip', url: 'https://edge.forgecdn.net/files/456/081/EventAlert-4.3.6.zip', sha256: '2'.repeat(64), size: 27480 }
+      }]
+    };
+    const manifestUrl = `data:application/json,${encodeURIComponent(JSON.stringify(tampered))}`;
+    const manager = new AddonManager({ dataDir: path.join(root, 'data'), canonicalPath: addonsDir, environmentPath: null, manifestUrl });
+    await assert.rejects(manager.install('event-alert'), /Source officielle EventAlert modifiée/);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 

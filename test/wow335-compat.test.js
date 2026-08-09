@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import luaparse from 'luaparse';
 
-const addons = ['CoACombatAssistant', 'CoAUIManager', 'CoAEventAlert'];
+const addons = ['CoACombatAssistant', 'CoAUIManager'];
 const forbiddenRetailApis = [
   'BackdropTemplate', 'SetShown', 'SetSize', 'SetObeyStepOnDrag', 'C_Timer',
   'GetSpecialization', 'CombatLogGetCurrentEventInfo', 'RegisterUnitEvent',
@@ -34,20 +34,21 @@ test('Combat Assistant uses the 3.3.5 spellbook and never casts automatically', 
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
 });
 
-test('Event Alert scans Ascension state, learns unknown IDs and renders 3.3.5 alerts', async () => {
-  const lua = await readFile('addons/CoAEventAlert/CoAEventAlert.lua', 'utf8');
-  const module = await readFile('addons/CoAEventAlert/Modules/NecromancerAnimation.lua', 'utf8');
+test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its UI', async () => {
+  const lua = await readFile('patches/EventAlertCoA/EventAlert/EventAlertCoA.lua', 'utf8');
   for (const required of [
-    'GetNumSpellTabs', 'GetSpellTabInfo', 'GetSpellName', 'GetSpellLink', 'GetNumTalentTabs',
-    'GetTalentTabInfo', 'UnitLevel', 'UnitClass', 'UnitBuff', 'UnitDebuff', 'GetSpellCooldown',
-    'COMBAT_LOG_EVENT_UNFILTERED', 'SPELL_SUMMON', 'SPELL_CREATE', 'UNIT_DIED',
-    'CoAEventAlertDB.learned', 'CooldownFrameTemplate', 'CooldownFrame_SetTimer',
-    'CoAEventAlertFrame', 'SLASH_COAEVENTALERT1 = "/cea"'
-  ]) assert.ok(lua.includes(required), `Event Alert is missing ${required}`);
-  for (const command of ['status', 'scan', 'learn', 'debug']) assert.match(lua, new RegExp(`command == "${command}"`));
-  for (const spell of ['Animate: Skeletal Archer', 'Bone Ward', 'Call of The Scourge', 'Command: Undead', 'March of the Dead', 'Raise: Abomination', 'Raise: Crypt Fiend', 'Runic Harvest']) {
-    assert.ok(module.includes(`["${spell}"]`), `Animation module is missing ${spell}`);
-  }
+    'GetNumSpellTabs', 'GetSpellTabInfo', 'GetSpellName', 'GetSpellLink',
+    'UnitClass', 'EventAlert_LoadSpellArray', 'EA_Items[playerClassToken]', 'EA_AltItems[playerClassToken]',
+    'EA_CustomItems[playerClassToken]', 'EventAlert_PositionFrames', 'EventAlert_DoAlert',
+    'COMBAT_LOG_EVENT_UNFILTERED', 'SPELL_AURA_APPLIED', 'SPELL_AURA_APPLIED_DOSE', 'SPELL_AURA_REFRESH',
+    'COMBAT_TEXT_UPDATE', 'SPELL_ACTIVE', 'sourceGUID == playerGUID', 'WasDirectlyCast(spellName)',
+    'IsOwnedSource(sourceGUID, select(5, ...))', 'COMBATLOG_OBJECT_AFFILIATION_MINE', 'UnitGUID("pet")',
+    'coa status', 'coa learn', 'coa scan'
+  ]) assert.ok(lua.includes(required), `EventAlert CoA patch is missing ${required}`);
+  for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `EventAlert patch contains forbidden Retail API: ${api}`);
+  assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
+  assert.equal(lua.includes('CoAEventAlertFrame'), false);
+  assert.equal(lua.includes('SLASH_COAEVENTALERT'), false);
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
 });
 
@@ -159,7 +160,7 @@ test('UI Manager provides persistent movers and never applies frames during comb
     'PlayerFrame', 'TargetFrame', 'FocusFrame', 'PetFrame', 'PartyMemberFrame4',
     'MinimapCluster', 'BuffFrame', 'WatchFrame', 'CastingBarFrame', 'MainMenuBar',
     'MultiBarBottomLeft', 'MultiBarBottomRight', 'MultiBarRight', 'MultiBarLeft',
-    'CoACombatAssistantFrame', 'CoAEventAlertFrame', 'CoAUIManagerPanel'
+    'CoACombatAssistantFrame', 'EA_Main_Frame', 'EA_Anchor_Frame', 'CoAUIManagerPanel'
   ]) assert.ok(lua.includes(`"${frame}"`), `UI Manager is missing mover target ${frame}`);
   for (const required of [
     'profiles.global', 'profiles.characters', 'characterModes', 'customFrames',

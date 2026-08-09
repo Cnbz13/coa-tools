@@ -57,11 +57,14 @@ for (const item of packages) {
 }
 
 const manifest = {
+  $schema: './schemas/manifest.schema.json',
   schemaVersion: 1, name: 'CoA Tools', version, channel: process.env.RELEASE_CHANNEL || 'stable',
   publishedAt: process.env.RELEASE_DATE || '2026-08-10T00:00:00.000Z', minimumNodeVersion: '24.14.0',
   releaseUrl: `https://github.com/Cnbz13/coa-tools/releases/tag/v${version}`, artifacts
 };
-await writeFile(path.join(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;
+await writeFile(path.join(output, 'manifest.json'), manifestText);
+await writeFile(path.resolve('manifest.json'), manifestText);
 await writeFile(path.join(output, 'SHA256SUMS.txt'), `${artifacts.map(item => `${item.sha256}  ${item.file}`).join('\n')}\n`);
 console.log(`Release ${version}: ${artifacts.length} installable ZIP files`);
 for (const item of artifacts) console.log(`${item.sha256}  ${item.file}`);

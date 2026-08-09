@@ -59,6 +59,10 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
   assert.equal(lua.includes('SLASH_COAEVENTALERT'), false);
   assert.match(lua, /local rawSpellId = select\(9, \.\.\.\)[\s\S]+local spellId = tonumber\(rawSpellId\)/);
   assert.doesNotMatch(lua, /tonumber\s*\(\s*select\s*\(/, 'select must be truncated before tonumber to avoid treating spellName as its base');
+  assert.match(lua, /local function SafePositionFrames\(\)/);
+  assert.match(lua, /for _, spellId in ipairs\(active\) do[\s\S]+frame:ClearAllPoints\(\)[\s\S]+local previous = EA_Main_Frame[\s\S]+for _, spellId in ipairs\(active\) do/,
+    'EventAlert frames must all be detached before rebuilding the anchor chain');
+  assert.doesNotMatch(lua, /prevFrame == eaf/, 'the compatibility positioner must not preserve EventAlert 4.3.6 cyclic-anchor logic');
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
 });
 

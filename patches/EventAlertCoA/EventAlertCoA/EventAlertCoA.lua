@@ -1,12 +1,13 @@
 -- Thin Project Ascension compatibility layer for the genuine EventAlert 4.3.6 addon.
 -- EventAlert remains responsible for every icon, sound, option and saved position.
 
-local COA_COMPAT_VERSION = "1.4.0"
+local COA_COMPAT_VERSION = "1.4.1"
 local BOOK = BOOKTYPE_SPELL or "spell"
 local AUTO_LEARN_DEFAULT = true
 local recentCasts = {}
 local spellbookIds = {}
 local initialized = false
+local safePositionerInstalled = false
 
 local function Now()
     return GetTime and GetTime() or 0
@@ -91,6 +92,90 @@ local function EnsureAlertFrame(spellId)
 
     frame:SetScript("OnEvent", EventAlert_OnEvent)
     return frame
+end
+
+local function ActiveAlertFrames()
+    local source = EA_TempBuffsTable or {}
+    local active = {}
+    local seen = {}
+    local _, rawSpellId
+
+    for _, rawSpellId in ipairs(source) do
+        local spellId = tonumber(rawSpellId) or rawSpellId
+        local frame = _G["EAFrame_" .. tostring(spellId)]
+        if frame and not seen[spellId] then
+            seen[spellId] = true
+            table.insert(active, spellId)
+        end
+    end
+
+    -- EventAlert 4.3.6 can insert the same proc more than once. Keep the
+    -- original table object because the genuine addon owns this state.
+    for index = #source, 1, -1 do source[index] = nil end
+    for index, spellId in ipairs(active) do source[index] = spellId end
+    EA_TempBuffsTable = source
+    return active
+end
+
+local function AlertSpellData(spellId)
+    local spellName, icon
+    if spellId == 48517 then
+        spellName = GetSpellInfo(spellId)
+        _, _, icon = GetSpellInfo(5176)
+    elseif spellId == 48518 then
+        spellName = GetSpellInfo(spellId)
+        _, _, icon = GetSpellInfo(2912)
+    else
+        spellName, _, icon = GetSpellInfo(spellId)
+    end
+    return spellName, icon
+end
+
+local function SafePositionFrames()
+    if not EA_Config or EA_Config.ShowFrame ~= true or not EA_Main_Frame or not EA_Position then return end
+
+    EA_Main_Frame:ClearAllPoints()
+    EA_Main_Frame:SetPoint(EA_Position.Anchor, UIParent, EA_Position.relativePoint, EA_Position.xLoc, EA_Position.yLoc)
+
+    local active = ActiveAlertFrames()
+    local _, spellId
+
+    -- This must be a separate first pass. When proc A disappears, 4.3.6 can
+    -- reverse the order of A and B while B still points at A. Anchoring A to B
+    -- before clearing B creates the "is dependent on this" SetPoint cycle.
+    for _, spellId in ipairs(active) do
+        local frame = _G["EAFrame_" .. tostring(spellId)]
+        if frame then frame:ClearAllPoints() end
+    end
+
+    local previous = EA_Main_Frame
+    for _, spellId in ipairs(active) do
+        local frame = _G["EAFrame_" .. tostring(spellId)]
+        if frame then
+            local spellName, icon = AlertSpellData(spellId)
+            if previous == EA_Main_Frame then
+                frame:SetPoint("CENTER", EA_Main_Frame, "CENTER", 0, 0)
+            else
+                frame:SetPoint("CENTER", previous, "CENTER", 100 + (EA_Position.xOffset or 0), EA_Position.yOffset or 0)
+            end
+
+            frame:SetWidth(EA_Config.IconSize or 60)
+            frame:SetHeight(EA_Config.IconSize or 60)
+            if icon then frame:SetBackdrop({ bgFile = icon }) end
+            if frame.spellName then
+                frame.spellName:SetText(EA_Config.ShowName == true and (spellName or tostring(spellId)) or "")
+            end
+            frame:SetScript("OnUpdate", EventAlert_OnUpdate)
+            frame:Show()
+            previous = frame
+        end
+    end
+end
+
+local function InstallSafePositioner()
+    if safePositionerInstalled or type(EventAlert_PositionFrames) ~= "function" then return end
+    EventAlert_PositionFrames = SafePositionFrames
+    safePositionerInstalled = true
 end
 
 local function RegisterAuraProc(spellId, spellName)
@@ -226,6 +311,7 @@ end
 
 local function Initialize()
     if not EnsureConfiguration() then return false end
+    InstallSafePositioner()
     ScanSpellbook()
     EventAlert_SlashHandler = CoASlashHandler
     SlashCmdList["EVENTALERT"] = CoASlashHandler

@@ -7,17 +7,17 @@ import { AddonManager } from './core/addons.js';
 import { UiManager } from './core/ui-manager.js';
 import { Updater } from './core/updater.js';
 import { ensureDir, readJson } from './lib/files.js';
+import { selectWindowsDirectory } from './lib/windows-folder-picker.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = path.join(root, 'public');
 const dataDir = path.resolve(process.env.COA_DATA_DIR || path.join(root, 'data'));
-const addonsDir = path.resolve(process.env.COA_ADDONS_DIR || path.join(dataDir, 'addons'));
 const pkg = await readJson(path.join(root, 'package.json'));
 const manifestUrl = process.env.COA_UPDATE_MANIFEST || 'https://github.com/Cnbz13/coa-tools/releases/latest/download/manifest.json';
 await ensureDir(dataDir);
 
 const combat = new CombatAssistant();
-const addons = new AddonManager(dataDir, addonsDir);
+const addons = new AddonManager({ dataDir, manifestUrl, environmentPath: process.env.COA_ADDONS_DIR });
 const ui = new UiManager(dataDir);
 const updater = new Updater({ currentVersion: pkg.version, manifestUrl, stagingDir: path.join(root, '.updates') });
 
@@ -37,11 +37,19 @@ async function api(request, response, pathname) {
   if (request.method === 'POST' && pathname === '/api/combat/stop') return json(response, 200, combat.stop());
   if (request.method === 'GET' && pathname === '/api/ui') return json(response, 200, await ui.get());
   if (request.method === 'PUT' && pathname === '/api/ui') return json(response, 200, await ui.update(await body(request)));
-  if (request.method === 'GET' && pathname === '/api/addons') return json(response, 200, await addons.list());
-  if (request.method === 'POST' && pathname === '/api/addons') return json(response, 201, await addons.install(await body(request)));
-  const match = pathname.match(/^\/api\/addons\/([^/]+)$/);
-  if (match && request.method === 'PATCH') return json(response, 200, await addons.toggle(decodeURIComponent(match[1]), (await body(request)).enabled));
-  if (match && request.method === 'DELETE') return json(response, 200, await addons.remove(decodeURIComponent(match[1])));
+  if (request.method === 'GET' && pathname === '/api/addons') return json(response, 200, await addons.inventory());
+  if (request.method === 'PUT' && pathname === '/api/addons/path') return json(response, 200, await addons.setDirectory((await body(request)).path));
+  if (request.method === 'POST' && pathname === '/api/addons/select-path') {
+    const current = await addons.detectDirectory();
+    const selected = await selectWindowsDirectory(current.directory);
+    return json(response, 200, selected ? await addons.setDirectory(selected) : { cancelled: true });
+  }
+  if (request.method === 'POST' && pathname === '/api/addons/update-all') return json(response, 200, await addons.updateAll());
+  const managedMatch = pathname.match(/^\/api\/addons\/managed\/([^/]+)\/(install|rollback)$/);
+  if (managedMatch && request.method === 'POST') {
+    const component = decodeURIComponent(managedMatch[1]);
+    return json(response, 200, managedMatch[2] === 'install' ? await addons.install(component) : await addons.rollback(component, (await body(request)).backupId));
+  }
   if (request.method === 'GET' && pathname === '/api/updates/check') return json(response, 200, await updater.check());
   if (request.method === 'POST' && pathname === '/api/updates/download') return json(response, 200, await updater.downloadLatest());
   return json(response, 404, { error: 'Not found' });

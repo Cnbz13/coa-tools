@@ -112,7 +112,6 @@ try {
         $stderrPath = Join-Path $logsRoot "server-$stamp.stderr.log"
         $env:PORT = [string]$port
         $env:COA_DATA_DIR = $dataRoot
-        $env:COA_ADDONS_DIR = Join-Path $stateRoot 'addons'
         $env:COA_UPDATE_MANIFEST = 'https://github.com/Cnbz13/coa-tools/releases/latest/download/manifest.json'
         $serverProcess = Start-Process -FilePath $nodePath -ArgumentList 'src/server.js' -WorkingDirectory $appRoot -WindowStyle Hidden -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -PassThru
         $ready = $false

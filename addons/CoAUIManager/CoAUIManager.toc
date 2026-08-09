@@ -2,7 +2,7 @@
 ## Title: CoA UI Manager
 ## Notes: Réglage rapide de l'échelle et de l'opacité de l'interface.
 ## Author: Cnbz13
-## Version: 1.0.3
+## Version: 1.0.4
 ## SavedVariables: CoAUIManagerDB
 
 CoAUIManager.lua

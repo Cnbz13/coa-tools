@@ -11,6 +11,7 @@ $profileRoot = Join-Path $qaRoot 'Local AppData With Spaces'
 $oldLocalAppData = $env:LOCALAPPDATA
 $oldNoBrowser = $env:COA_NO_BROWSER
 $oldNonInteractive = $env:COA_NONINTERACTIVE
+$oldAddonsDir = $env:COA_ADDONS_DIR
 $cmdProcess = $null
 $nodePid = $null
 $portJob = $null
@@ -26,6 +27,11 @@ try {
     $env:LOCALAPPDATA = $profileRoot
     $env:COA_NO_BROWSER = '1'
     $env:COA_NONINTERACTIVE = '1'
+    $fixtureAddons = Join-Path $qaRoot 'Ascension Game With Spaces\Interface\AddOns'
+    $fixture = Join-Path $fixtureAddons 'E2EFixture'
+    New-Item -ItemType Directory -Path $fixture -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $fixture 'E2EFixture.toc'), "## Title: E2E Fixture`n## Version: 1.0.0`n## Notes: Windows package scan`n", [Text.UTF8Encoding]::new($false))
+    $env:COA_ADDONS_DIR = $fixtureAddons
     $portJob = Start-Job -ScriptBlock {
         $listener = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, 4173)
         try { $listener.Start(); while ($true) { Start-Sleep -Seconds 1 } }
@@ -56,8 +62,11 @@ try {
     $state = Get-Content -LiteralPath $stateFile -Raw -Encoding UTF8 | ConvertFrom-Json
     $nodePid = $state.pid
     $status = Invoke-RestMethod "$($state.url)api/status" -TimeoutSec 5
+    $inventory = Invoke-RestMethod "$($state.url)api/addons" -TimeoutSec 20
     if ($state.port -eq 4173) { throw 'Launcher did not select a free port when 4173 was occupied.' }
     if ($status.name -ne 'CoA Tools' -or $status.version -ne $state.version) { throw 'Unexpected HTTP status payload.' }
+    if (-not $inventory.exists -or $inventory.localCount -lt 1) { throw 'Packaged Addon Manager did not scan an actual AddOns folder.' }
+    if ($inventory.managed.Count -lt 2) { throw 'Packaged Addon Manager did not load the managed CoA catalog.' }
     $nodeProcess = Get-CimInstance Win32_Process -Filter "ProcessId=$nodePid"
     if (-not $nodeProcess) { throw 'Packaged Node process is not running.' }
     if (-not $nodeProcess.ExecutablePath.StartsWith($profileRoot, [StringComparison]::OrdinalIgnoreCase)) { throw "Launcher used an unexpected Node: $($nodeProcess.ExecutablePath)" }
@@ -72,5 +81,6 @@ finally {
     $env:LOCALAPPDATA = $oldLocalAppData
     $env:COA_NO_BROWSER = $oldNoBrowser
     $env:COA_NONINTERACTIVE = $oldNonInteractive
+    $env:COA_ADDONS_DIR = $oldAddonsDir
     if (Test-Path -LiteralPath $qaRoot) { Remove-Item -LiteralPath $qaRoot -Recurse -Force -ErrorAction SilentlyContinue }
 }

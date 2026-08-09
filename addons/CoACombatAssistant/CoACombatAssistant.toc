@@ -2,7 +2,7 @@
 ## Title: CoA Combat Assistant
 ## Notes: Assistant de combat léger avec chronomètre et journal d'événements.
 ## Author: Cnbz13
-## Version: 1.0.3
+## Version: 1.0.4
 ## SavedVariables: CoACombatAssistantDB
 
 CoACombatAssistant.lua

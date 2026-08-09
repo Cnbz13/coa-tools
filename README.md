@@ -4,7 +4,7 @@ Suite locale sans télémétrie regroupant trois outils :
 
 - **CoA Combat Assistant** — addon WoW avec chronomètre et suivi des rencontres ;
 - **CoA UI Manager** — addon WoW de réglage rapide de l’interface ;
-- **CoA Addon Manager** — application Windows pour installer, activer et supprimer des addons.
+- **CoA Addon Manager** — application Windows qui détecte Project Ascension et gère automatiquement les addons CoA.
 
 ## Artefacts installables
 
@@ -15,6 +15,14 @@ Chaque release publie trois ZIP indépendants :
 - `CoAUIManager-vX.Y.Z.zip` : extrayez le dossier `CoAUIManager` dans `World of Warcraft/_retail_/Interface/AddOns`.
 
 Dans le jeu, `/coacombat` affiche ou masque l’assistant (`/coacombat reset` réinitialise sa position) et `/coaui` ouvre le gestionnaire d’interface.
+
+## Gestion automatique des addons Ascension
+
+Le manager privilégie automatiquement `C:\Ascension\Launcher\resources\ascension-live\Interface\AddOns`, puis le dernier chemin choisi et les installations usuelles. La configuration avancée permet de sélectionner et mémoriser un autre dossier `Interface\AddOns`.
+
+Chaque sous-dossier qui contient un fichier `.toc` est scanné réellement. Le nom du dossier ainsi que les champs `Title`, `Version` et `Notes` sont affichés. Les addons Ascension existants restent distincts de CoA Combat Assistant et CoA UI Manager, qui sont toujours proposés depuis le manifeste GitHub.
+
+Une installation ou mise à jour CoA télécharge le ZIP officiel, vérifie obligatoirement sa taille et son SHA-256, contrôle son chemin d’extraction et exige un `.toc` dans le dossier cible avant remplacement. Une sauvegarde automatique précède chaque remplacement et peut être restaurée depuis l’interface.
 
 ## Développement local
 

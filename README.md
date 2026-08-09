@@ -1,5 +1,7 @@
 # CoA Tools
 
+> Depuis la version 1.1.0, la suite inclut aussi **CoA Event Alert**, un addon 3.3.5a autonome avec alertes de procs, buffs, debuffs, cooldowns et invocations, module Nécromancien Animation et journal d'apprentissage. Commandes : `/cea status`, `/cea scan`, `/cea learn`, `/cea debug`.
+
 Suite locale sans télémétrie regroupant trois outils :
 
 - **CoA Combat Assistant** — addon WoW de recommandations visuelles et de mémoire des combats ;

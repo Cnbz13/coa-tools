@@ -19,7 +19,7 @@
         "required": ["name", "component", "version", "platform", "arch", "targetFolder", "installPath", "file", "url", "sha256", "size"],
         "properties": {
           "name": { "type": "string", "minLength": 1 },
-          "component": { "enum": ["addon-manager", "combat-assistant", "ui-manager"] },
+          "component": { "enum": ["addon-manager", "combat-assistant", "ui-manager", "event-alert"] },
           "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
           "platform": { "enum": ["win32", "linux", "darwin", "any"] },
           "arch": { "enum": ["x64", "arm64", "any"] },

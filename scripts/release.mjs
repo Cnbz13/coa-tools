@@ -22,7 +22,8 @@ await writeFile(path.join(managerRoot, 'package.json'), `${JSON.stringify({ ...p
 const packages = [
   { name: 'CoA Addon Manager for Windows', component: 'addon-manager', platform: 'win32', arch: 'x64', targetFolder: 'CoAAddonManager', installPath: '.', file: `CoAAddonManager-v${version}-Windows.zip`, source: path.join(stage, 'manager') },
   { name: 'CoA Combat Assistant', component: 'combat-assistant', platform: 'any', arch: 'any', targetFolder: 'CoACombatAssistant', installPath: 'Interface/AddOns', file: `CoACombatAssistant-v${version}.zip`, source: path.resolve('addons', 'CoACombatAssistant', '..') , only: 'CoACombatAssistant' },
-  { name: 'CoA UI Manager', component: 'ui-manager', platform: 'any', arch: 'any', targetFolder: 'CoAUIManager', installPath: 'Interface/AddOns', file: `CoAUIManager-v${version}.zip`, source: path.resolve('addons', 'CoAUIManager', '..'), only: 'CoAUIManager' }
+  { name: 'CoA UI Manager', component: 'ui-manager', platform: 'any', arch: 'any', targetFolder: 'CoAUIManager', installPath: 'Interface/AddOns', file: `CoAUIManager-v${version}.zip`, source: path.resolve('addons', 'CoAUIManager', '..'), only: 'CoAUIManager' },
+  { name: 'CoA Event Alert', component: 'event-alert', platform: 'any', arch: 'any', targetFolder: 'CoAEventAlert', installPath: 'Interface/AddOns', file: `CoAEventAlert-v${version}.zip`, source: path.resolve('addons', 'CoAEventAlert', '..'), only: 'CoAEventAlert' }
 ];
 
 const artifacts = [];

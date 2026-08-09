@@ -6,7 +6,7 @@ local DEFAULT_FRAMES = {
     "MinimapCluster", "BuffFrame", "WatchFrame", "CastingBarFrame",
     "MainMenuBar", "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight", "MultiBarLeft",
     "BonusActionBarFrame", "PetActionBarFrame", "ShapeshiftBarFrame", "PossessBarFrame",
-    "CoACombatAssistantFrame", "CoAUIManagerPanel"
+    "CoACombatAssistantFrame", "CoAEventAlertFrame", "CoAUIManagerPanel"
 }
 
 local FRAME_LABELS = {
@@ -19,7 +19,7 @@ local FRAME_LABELS = {
     MultiBarRight = "Barre droite", MultiBarLeft = "Barre gauche",
     BonusActionBarFrame = "Barre bonus", PetActionBarFrame = "Barre familier",
     ShapeshiftBarFrame = "Barre formes", PossessBarFrame = "Barre contrôle",
-    CoACombatAssistantFrame = "CoA Combat Assistant", CoAUIManagerPanel = "CoA UI Manager"
+    CoACombatAssistantFrame = "CoA Combat Assistant", CoAEventAlertFrame = "CoA Event Alert", CoAUIManagerPanel = "CoA UI Manager"
 }
 
 local movers = {}

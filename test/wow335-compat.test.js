@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import luaparse from 'luaparse';
 
-const addons = ['CoACombatAssistant', 'CoAUIManager'];
+const addons = ['CoACombatAssistant', 'CoAUIManager', 'CoAEventAlert'];
 const forbiddenRetailApis = [
   'BackdropTemplate', 'SetShown', 'SetSize', 'SetObeyStepOnDrag', 'C_Timer',
   'GetSpecialization', 'CombatLogGetCurrentEventInfo', 'RegisterUnitEvent',
@@ -13,7 +13,8 @@ const forbiddenRetailApis = [
 for (const name of addons) {
   test(`${name} targets Ascension 3.3.5 and parses as Lua 5.1`, async () => {
     const toc = await readFile(`addons/${name}/${name}.toc`, 'utf8');
-    const lua = await readFile(`addons/${name}/${name}.lua`, 'utf8');
+    const luaFiles = (await readdir(`addons/${name}`, { recursive: true })).filter(file => file.endsWith('.lua'));
+    const lua = (await Promise.all(luaFiles.map(file => readFile(`addons/${name}/${file}`, 'utf8')))).join('\n');
     assert.match(toc, /^## Interface: 30300$/m);
     assert.match(toc, /^## SavedVariables: \S+$/m);
     for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `${name} contains forbidden Retail API: ${api}`);
@@ -30,6 +31,23 @@ test('Combat Assistant uses the 3.3.5 spellbook and never casts automatically', 
     'March of the Dead', 'SLASH_COACOMBATASSISTANT1 = "/cca"'
   ]) assert.ok(lua.includes(required), `Combat Assistant is missing ${required}`);
   for (const command of ['status', 'scan', 'unlock', 'lock', 'memory', 'debug', 'aoe']) assert.match(lua, new RegExp(`command == "${command}"`));
+  assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
+});
+
+test('Event Alert scans Ascension state, learns unknown IDs and renders 3.3.5 alerts', async () => {
+  const lua = await readFile('addons/CoAEventAlert/CoAEventAlert.lua', 'utf8');
+  const module = await readFile('addons/CoAEventAlert/Modules/NecromancerAnimation.lua', 'utf8');
+  for (const required of [
+    'GetNumSpellTabs', 'GetSpellTabInfo', 'GetSpellName', 'GetSpellLink', 'GetNumTalentTabs',
+    'GetTalentTabInfo', 'UnitLevel', 'UnitClass', 'UnitBuff', 'UnitDebuff', 'GetSpellCooldown',
+    'COMBAT_LOG_EVENT_UNFILTERED', 'SPELL_SUMMON', 'SPELL_CREATE', 'UNIT_DIED',
+    'CoAEventAlertDB.learned', 'CooldownFrameTemplate', 'CooldownFrame_SetTimer',
+    'CoAEventAlertFrame', 'SLASH_COAEVENTALERT1 = "/cea"'
+  ]) assert.ok(lua.includes(required), `Event Alert is missing ${required}`);
+  for (const command of ['status', 'scan', 'learn', 'debug']) assert.match(lua, new RegExp(`command == "${command}"`));
+  for (const spell of ['Animate: Skeletal Archer', 'Bone Ward', 'Call of The Scourge', 'Command: Undead', 'March of the Dead', 'Raise: Abomination', 'Raise: Crypt Fiend', 'Runic Harvest']) {
+    assert.ok(module.includes(`["${spell}"]`), `Animation module is missing ${spell}`);
+  }
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
 });
 
@@ -115,7 +133,7 @@ test('UI Manager provides persistent movers and never applies frames during comb
     'PlayerFrame', 'TargetFrame', 'FocusFrame', 'PetFrame', 'PartyMemberFrame4',
     'MinimapCluster', 'BuffFrame', 'WatchFrame', 'CastingBarFrame', 'MainMenuBar',
     'MultiBarBottomLeft', 'MultiBarBottomRight', 'MultiBarRight', 'MultiBarLeft',
-    'CoACombatAssistantFrame', 'CoAUIManagerPanel'
+    'CoACombatAssistantFrame', 'CoAEventAlertFrame', 'CoAUIManagerPanel'
   ]) assert.ok(lua.includes(`"${frame}"`), `UI Manager is missing mover target ${frame}`);
   for (const required of [
     'profiles.global', 'profiles.characters', 'characterModes', 'customFrames',

@@ -8,7 +8,7 @@ import { ensureDir, readJson, writeJsonAtomic } from '../lib/files.js';
 import { extractZip } from '../lib/zip.js';
 
 export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
-const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager']);
+const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'event-alert']);
 
 async function isDirectory(directory) {
   try { return (await stat(directory)).isDirectory(); } catch { return false; }

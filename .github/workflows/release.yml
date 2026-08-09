@@ -43,6 +43,6 @@ jobs:
           )
           if (gh release view $tag 2>$null) {
             gh release upload $tag @assets --clobber
-          else
+          } else {
             gh release create $tag @assets --generate-notes --target $env:GITHUB_SHA
-          fi
+          }

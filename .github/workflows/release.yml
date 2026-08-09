@@ -11,25 +11,38 @@ permissions:
   contents: write
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 24.14.0 }
       - name: Resolve version
-        shell: bash
-        run: echo "RELEASE_VERSION=${{ inputs.version || github.ref_name }}" | sed 's/=v/=/' >> "$GITHUB_ENV"
+        shell: pwsh
+        run: |
+          $version = '${{ inputs.version || github.ref_name }}'.TrimStart('v')
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm run release
       - run: node scripts/validate-manifest.mjs dist/manifest.json
+      - name: Test Windows package end to end
+        shell: powershell
+        run: .\scripts\test-windows-package.ps1 -ZipPath "dist\CoAAddonManager-v${env:RELEASE_VERSION}-Windows.zip"
       - name: Publish release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
+        shell: pwsh
         run: |
-          if gh release view "v${RELEASE_VERSION}" >/dev/null 2>&1; then
-            gh release upload "v${RELEASE_VERSION}" dist/*.zip dist/SHA256SUMS.txt dist/manifest.json --clobber
+          $tag = "v$env:RELEASE_VERSION"
+          $assets = @(
+            "dist/CoAAddonManager-v$env:RELEASE_VERSION-Windows.zip",
+            "dist/CoACombatAssistant-v$env:RELEASE_VERSION.zip",
+            "dist/CoAUIManager-v$env:RELEASE_VERSION.zip",
+            'dist/SHA256SUMS.txt',
+            'dist/manifest.json'
+          )
+          if (gh release view $tag 2>$null) {
+            gh release upload $tag @assets --clobber
           else
-            gh release create "v${RELEASE_VERSION}" dist/*.zip dist/SHA256SUMS.txt dist/manifest.json --generate-notes --target "${GITHUB_SHA}"
+            gh release create $tag @assets --generate-notes --target $env:GITHUB_SHA
           fi

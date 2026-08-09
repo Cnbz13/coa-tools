@@ -14,6 +14,7 @@ for (const [index, artifact] of (manifest.artifacts || []).entries()) {
   if (artifact.version !== manifest.version) errors.push(`artifact ${index}: version mismatch`);
   if (!/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '')) errors.push(`artifact ${index}: invalid target folder`);
   if (!/^[a-f0-9]{64}$/.test(artifact.sha256 || '')) errors.push(`artifact ${index}: invalid SHA-256`);
+  if (/^0{64}$/.test(artifact.sha256 || '')) errors.push(`artifact ${index}: placeholder SHA-256`);
   if (!Number.isInteger(artifact.size) || artifact.size < 1) errors.push(`artifact ${index}: invalid size`);
   try { new URL(artifact.url); } catch { errors.push(`artifact ${index}: invalid URL`); }
 }

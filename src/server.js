@@ -60,6 +60,17 @@ export const server = http.createServer(async (request, response) => {
 });
 
 if (process.env.NODE_ENV !== 'test') {
-  const port = Number(process.env.PORT) || 4173;
-  server.listen(port, '127.0.0.1', () => console.log(`CoA Tools ${pkg.version} — http://127.0.0.1:${port}`));
+  const port = process.env.PORT === undefined ? 4173 : Number(process.env.PORT);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    console.error(`Invalid PORT: ${process.env.PORT}`);
+    process.exit(1);
+  }
+  server.on('error', error => {
+    console.error(`CoA Tools server failed: ${error.code || 'ERROR'} — ${error.message}`);
+    process.exit(1);
+  });
+  server.listen(port, '127.0.0.1', () => {
+    const actualPort = server.address().port;
+    console.log(`CoA Tools ${pkg.version} — http://127.0.0.1:${actualPort}`);
+  });
 }

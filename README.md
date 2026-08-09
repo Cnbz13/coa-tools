@@ -10,7 +10,7 @@ Suite locale sans télémétrie regroupant trois outils :
 
 Chaque release publie trois ZIP indépendants :
 
-- `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire ;
+- `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
 - `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans `World of Warcraft/_retail_/Interface/AddOns` ;
 - `CoAUIManager-vX.Y.Z.zip` : extrayez le dossier `CoAUIManager` dans `World of Warcraft/_retail_/Interface/AddOns`.
 
@@ -32,6 +32,8 @@ Ouvrez ensuite <http://127.0.0.1:4173>. Les données locales sont stockées dans
 Au démarrage puis toutes les six heures, le client interroge le `manifest.json` de la dernière release GitHub. Le manifeste liste séparément chaque composant avec sa version, son URL, son dossier cible, son chemin d’installation, sa taille et son SHA-256. Un artefact compatible est téléchargé dans `.updates/`, vérifié, puis un fichier `ready.json` atomique indique qu’il peut être appliqué. Un téléchargement invalide est supprimé et n’altère jamais l’installation courante.
 
 Les métadonnées sont toujours relues par le serveur depuis le manifeste distant et ne sont jamais acceptées depuis le navigateur. Le bootstrap Windows vérifie également le moteur Node.js téléchargé avec le fichier officiel `SHASUMS256.txt` de nodejs.org.
+
+Le launcher attend la réponse HTTP réelle du serveur pendant 60 secondes et surveille simultanément le processus Node. Les sorties sont conservées dans `%LOCALAPPDATA%\CoAAddonManager\logs` ; en cas d’arrêt ou de délai dépassé, stdout et stderr sont affichés au lieu d’un diagnostic générique sur le port.
 
 ## Générer une release
 

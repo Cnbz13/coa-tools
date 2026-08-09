@@ -7,6 +7,11 @@ CoA Addon Manager pour Windows
    nodejs.org, vérifié par SHA-256 puis installé dans le dossier runtime.
 4. Le tableau de bord s'ouvre ensuite dans votre navigateur.
 
+Si le port 4173 est déjà utilisé, un port libre est choisi automatiquement.
+Les journaux serveur et le dernier état de lancement sont enregistrés dans :
+%LOCALAPPDATA%\CoAAddonManager\logs
+%LOCALAPPDATA%\CoAAddonManager\launch-state.json
+
 Les données et addons installés sont conservés dans :
 %LOCALAPPDATA%\CoAAddonManager
 

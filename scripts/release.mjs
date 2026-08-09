@@ -30,7 +30,10 @@ async function filesIn(directory, prefix = '') {
     if (item.isDirectory()) files.push(...await filesIn(absolute, relative));
     else if (item.isFile()) {
       let bytes = await readFile(absolute);
-      if (/\.(?:cmd|ps1)$/i.test(item.name)) bytes = Buffer.from(bytes.toString('utf8').replace(/\r?\n/g, '\r\n'), 'utf8');
+      if (/\.(?:cmd|ps1)$/i.test(item.name)) {
+        bytes = Buffer.from(bytes.toString('utf8').replace(/\r?\n/g, '\r\n'), 'utf8');
+        if (/\.ps1$/i.test(item.name)) bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), bytes]);
+      }
       files.push({ name: relative, bytes });
     }
   }

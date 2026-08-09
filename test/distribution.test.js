@@ -11,9 +11,24 @@ test('release manifest describes the three independent installable components', 
   for (const artifact of manifest.artifacts) {
     assert.equal(artifact.version, pkg.version);
     assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
+    assert.notEqual(artifact.sha256, '0'.repeat(64));
     assert.equal(artifact.url.endsWith(`/${artifact.file}`), true);
     assert.ok(artifact.targetFolder);
   }
+});
+
+test('Windows launcher captures Node failures and supports dynamic ports and UTF-8', async () => {
+  const launcher = await readFile('packaging/windows/launcher/Start-CoAAddonManager.ps1', 'utf8');
+  const command = await readFile('packaging/windows/CoAAddonManager.cmd', 'utf8');
+  const workflow = await readFile('.github/workflows/release.yml', 'utf8');
+  assert.match(launcher, /Get-FreePort/);
+  assert.match(launcher, /RedirectStandardOutput/);
+  assert.match(launcher, /RedirectStandardError/);
+  assert.match(launcher, /serverProcess\.HasExited/);
+  assert.match(launcher, /AddSeconds\(60\)/);
+  assert.match(command, /chcp 65001/);
+  assert.match(workflow, /runs-on: windows-latest/);
+  assert.match(workflow, /test-windows-package\.ps1/);
 });
 
 test('WoW addon metadata matches the package version', async () => {

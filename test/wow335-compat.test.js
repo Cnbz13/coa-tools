@@ -58,19 +58,33 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
 });
 
-test('GridCoA re-enables typed debuffs and displays every harmful CoA aura through genuine Grid', async () => {
+test('GridCoA shows one center icon only for debuffs the current character can dispel', async () => {
   const toc = await readFile('addons/GridCoA/GridCoA.toc', 'utf8');
   const lua = await readFile('addons/GridCoA/GridCoA.lua', 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
   assert.match(toc, /^## RequiredDeps: Grid$/m);
+  assert.match(toc, /^## SavedVariables: GridCoADB$/m);
   for (const required of [
     'Grid:GetModule("GridStatus")', 'GridStatus:GetModule("GridStatusAuras")',
     'Grid:GetModule("GridFrame")', 'Grid:GetModule("GridRoster")',
     '"debuff_magic"', '"debuff_curse"', '"debuff_disease"', '"debuff_poison"',
-    'settings.enable = true', 'statusmap.icon[status] = true', 'UnitAura(unit, index, "HARMFUL")',
+    'GetNumSpellTabs', 'GetSpellTabInfo', 'GetSpellName', 'GetSpellLink',
+    'GridCoASpellScannerTooltip', 'GameTooltipTemplate',
+    'ParseDispelTypes', 'classicDispelDefinitions', 'CanDispelType(debuffType, unit)',
+    'settings.enable = false', 'statusmap.icon[mappedStatus] = false', 'statusmap.icon[STATUS] = true',
+    'UnitAura(unit, index, "HARMFUL")', 'if dispellable or learned then',
     'GridStatus:SendStatusGained', 'GridStatus:SendStatusLost', 'PARTY_MEMBERS_CHANGED',
-    'RAID_ROSTER_UPDATE', 'UNIT_AURA', 'debuff_coa_harmful'
+    'RAID_ROSTER_UPDATE', 'UNIT_AURA', 'SPELLS_CHANGED', 'LEARNED_SPELL_IN_TAB',
+    'COMBAT_LOG_EVENT_UNFILTERED', 'SPELL_DISPEL', 'GridCoADB.knownDispellable',
+    'GridCoADB.learnedDispelSpells', 'pcall(tooltip.SetSpell, tooltip, index, book)',
+    'debuff_coa_dispellable', 'SLASH_GRIDCOA1 = "/gridcoa"'
   ]) assert.ok(lua.includes(required), `GridCoA is missing ${required}`);
+  for (const spellId of [4987, 527, 2782, 51886, 475, 19505]) {
+    assert.match(lua, new RegExp(`id = ${spellId}`), `GridCoA is missing classic dispel ${spellId}`);
+  }
+  assert.doesNotMatch(lua, /statusmap\.icon\[status\] = true/);
+  assert.match(lua, /local dispellable = debuffType and CanDispelType\(debuffType, unit\)/);
+  assert.match(lua, /local learned = not debuffType and KnownAuraCanBeDispelled\(key, unit\)/);
   for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `GridCoA contains forbidden Retail API: ${api}`);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText)\b/);

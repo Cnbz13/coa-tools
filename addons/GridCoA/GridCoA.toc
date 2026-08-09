@@ -1,8 +1,9 @@
 ## Interface: 30300
 ## Title: Grid - Compatibilite CoA
-## Notes: Affiche dans Grid les affaiblissements et controles Project Ascension, y compris les auras sans type
+## Notes: Affiche uniquement les affaiblissements que les sorts appris du personnage peuvent dissiper
 ## Author: CoA Tools
-## Version: 1.3.1
+## Version: 1.3.2
 ## RequiredDeps: Grid
+## SavedVariables: GridCoADB
 
 GridCoA.lua

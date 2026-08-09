@@ -9,8 +9,8 @@ import { extractZip } from '../lib/zip.js';
 
 export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
 const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'event-alert']);
+const EVENT_ALERT_COMPANION_FOLDER = 'EventAlertCoA';
 const EVENT_ALERT_LEGACY_FOLDER = 'CoAEventAlert';
-const EVENT_ALERT_SCRIPT = '<Script file="EventAlertCoA.lua"/>';
 const EVENT_ALERT_UPSTREAM_PATH = '/files/456/081/EventAlert-4.3.6.zip';
 const EVENT_ALERT_UPSTREAM_URL = `https://edge.forgecdn.net${EVENT_ALERT_UPSTREAM_PATH}`;
 const EVENT_ALERT_UPSTREAM_SHA256 = '48c529fe42dedae8d7ed779f529e6cb55ba13a1d185b654804080a3bb9e4aa97';
@@ -158,20 +158,23 @@ export class AddonManager {
     const { manifest, cached, error } = await this.getManifest();
     const managedArtifacts = (manifest?.artifacts || []).filter(item => MANAGED_COMPONENTS.has(item.component));
     const managedFolders = new Set(managedArtifacts.map(item => item.targetFolder.toLowerCase()));
-    if (managedArtifacts.some(item => item.component === 'event-alert')) managedFolders.add(EVENT_ALERT_LEGACY_FOLDER.toLowerCase());
+    if (managedArtifacts.some(item => item.component === 'event-alert')) {
+      managedFolders.add(EVENT_ALERT_COMPANION_FOLDER.toLowerCase());
+      managedFolders.add(EVENT_ALERT_LEGACY_FOLDER.toLowerCase());
+    }
     const managed = [];
     for (const artifact of managedArtifacts) {
       const targetInstalled = local.find(item => item.folder.toLowerCase() === artifact.targetFolder.toLowerCase()) || null;
-      const legacyInstalled = artifact.component === 'event-alert'
-        ? local.find(item => item.folder.toLowerCase() === EVENT_ALERT_LEGACY_FOLDER.toLowerCase()) || null
+      const companionInstalled = artifact.component === 'event-alert'
+        ? local.find(item => item.folder.toLowerCase() === EVENT_ALERT_COMPANION_FOLDER.toLowerCase()) || null
         : null;
-      const installed = targetInstalled || legacyInstalled;
+      const installed = artifact.component === 'event-alert'
+        ? targetInstalled && companionInstalled ? targetInstalled : null
+        : targetInstalled;
       const localVersion = artifact.component === 'event-alert'
-        ? targetInstalled?.coaCompatibilityVersion || legacyInstalled?.version || null
+        ? installed ? companionInstalled.version : null
         : installed?.version || null;
-      const comparison = installed
-        ? artifact.component === 'event-alert' && !targetInstalled?.coaCompatibilityVersion ? 1 : compareAddonVersions(artifact.version, localVersion)
-        : 1;
+      const comparison = installed ? compareAddonVersions(artifact.version, localVersion) : 1;
       const backups = await this.listBackups(artifact.component);
       managed.push({
         kind: 'managed', component: artifact.component, name: artifact.name, folder: artifact.targetFolder,
@@ -260,21 +263,29 @@ export class AddonManager {
     return toc.name;
   }
 
-  async patchEventAlert(directory, compatibilityVersion) {
-    const xmlFile = path.join(directory, 'EventAlert.xml');
-    const tocFile = path.join(directory, 'EventAlert.toc');
-    let xml = await readFile(xmlFile, 'utf8');
-    if (!xml.includes(EVENT_ALERT_SCRIPT)) {
-      const loader = /(<Script file="EventAlertSpellArray\.lua"\/>\r?\n)/;
-      if (!loader.test(xml)) throw new Error('EventAlert 4.3.6 inattendu : point de chargement CoA introuvable');
-      xml = xml.replace(loader, `$1${EVENT_ALERT_SCRIPT}\r\n`);
-      await writeFile(xmlFile, xml);
-    }
-    let toc = await readFile(tocFile, 'utf8');
-    const metadata = `## X-CoA-Compatibility-Version: ${compatibilityVersion}`;
-    if (/^## X-CoA-Compatibility-Version:.*$/m.test(toc)) toc = toc.replace(/^## X-CoA-Compatibility-Version:.*$/m, metadata);
-    else toc = toc.replace(/(^## Version:.*$)/m, `$1\r\n${metadata}`);
-    await writeFile(tocFile, toc);
+  async enableAddonForProfiles(addonsDir, addonFolder) {
+    const accountRoot = path.resolve(addonsDir, '..', '..', 'WTF', 'Account');
+    if (!(await isDirectory(accountRoot))) return 0;
+    const addonLine = `${addonFolder}: enabled`;
+    const entryPattern = new RegExp(`^${addonFolder}:\\s*(?:enabled|disabled)\\s*$`, 'mi');
+    let updated = 0;
+    const visit = async directory => {
+      for (const entry of await readdir(directory, { withFileTypes: true })) {
+        const item = path.join(directory, entry.name);
+        if (entry.isDirectory()) await visit(item);
+        else if (entry.isFile() && entry.name.toLowerCase() === 'addons.txt') {
+          try {
+            const current = await readFile(item, 'utf8');
+            const next = entryPattern.test(current)
+              ? current.replace(entryPattern, addonLine)
+              : `${current}${current && !/\r?\n$/.test(current) ? '\r\n' : ''}${addonLine}\r\n`;
+            if (next !== current) { await writeFile(item, next); updated++; }
+          } catch { /* A locked character profile must not invalidate the addon installation. */ }
+        }
+      }
+    };
+    await visit(accountRoot);
+    return updated;
   }
 
   runExclusive(task) {
@@ -324,6 +335,7 @@ export class AddonManager {
     if (!/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '') || artifact.targetFolder !== 'EventAlert') throw new Error('Nom de dossier EventAlert invalide');
     const local = await this.scan(detection.directory);
     const eventAlert = local.find(item => item.folder.toLowerCase() === 'eventalert');
+    const companion = local.find(item => item.folder.toLowerCase() === EVENT_ALERT_COMPANION_FOLDER.toLowerCase());
     const legacy = local.find(item => item.folder.toLowerCase() === EVENT_ALERT_LEGACY_FOLDER.toLowerCase());
     const transaction = path.join(this.transactionsRoot, randomUUID());
     const upstreamArchive = path.join(transaction, path.basename(upstream.file));
@@ -339,24 +351,32 @@ export class AddonManager {
       await extractZip(patchArchive, patchExtracted);
       const prepared = path.join(upstreamExtracted, upstream.targetFolder);
       await this.assertToc(prepared, upstream.targetFolder);
-      const compatibilityFile = path.join(patchExtracted, upstream.targetFolder, 'EventAlertCoA.lua');
+      const compatibilityFolder = path.join(patchExtracted, EVENT_ALERT_COMPANION_FOLDER);
+      const compatibilityFile = path.join(compatibilityFolder, 'EventAlertCoA.lua');
+      const compatibilityToc = path.join(compatibilityFolder, 'EventAlertCoA.toc');
       if ((await stat(compatibilityFile)).size < 1) throw new Error('Patch EventAlert CoA vide');
-      await cp(compatibilityFile, path.join(prepared, 'EventAlertCoA.lua'), { force: true });
-      await this.patchEventAlert(prepared, artifact.version);
+      await this.assertToc(compatibilityFolder, EVENT_ALERT_COMPANION_FOLDER);
+      const toc = await readFile(compatibilityToc, 'utf8');
+      if (!/^## (?:RequiredDeps|Dependencies): EventAlert$/m.test(toc)) throw new Error('Dépendance EventAlert manquante dans le correctif CoA');
+      if (!new RegExp(`^## Version: ${artifact.version.replaceAll('.', '\\.')}$`, 'm').test(toc)) throw new Error('Version du correctif EventAlert CoA incohérente');
       backup = await this.createBackupSet('event-alert', [
-        { targetFolder: 'EventAlert', source: path.join(detection.directory, 'EventAlert'), version: eventAlert?.coaCompatibilityVersion || eventAlert?.version },
+        { targetFolder: 'EventAlert', source: path.join(detection.directory, 'EventAlert'), version: eventAlert?.version },
+        { targetFolder: EVENT_ALERT_COMPANION_FOLDER, source: path.join(detection.directory, EVENT_ALERT_COMPANION_FOLDER), version: companion?.version },
         { targetFolder: EVENT_ALERT_LEGACY_FOLDER, source: path.join(detection.directory, EVENT_ALERT_LEGACY_FOLDER), version: legacy?.version }
-      ], eventAlert?.coaCompatibilityVersion || legacy?.version);
+      ], companion?.version || eventAlert?.version);
+      let enabledProfiles = 0;
       try {
         await this.replaceFolder(detection.directory, 'EventAlert', prepared);
+        await this.replaceFolder(detection.directory, EVENT_ALERT_COMPANION_FOLDER, compatibilityFolder);
         await rm(path.join(detection.directory, EVENT_ALERT_LEGACY_FOLDER), { recursive: true, force: true });
+        enabledProfiles = await this.enableAddonForProfiles(detection.directory, EVENT_ALERT_COMPANION_FOLDER);
       } catch (error) {
-        if (backup) await this.restoreBackupSet(detection.directory, backup, ['EventAlert', EVENT_ALERT_LEGACY_FOLDER]);
+        if (backup) await this.restoreBackupSet(detection.directory, backup, ['EventAlert', EVENT_ALERT_COMPANION_FOLDER, EVENT_ALERT_LEGACY_FOLDER]);
         throw error;
       }
       return {
-        operation: eventAlert || legacy ? 'replaced' : 'installed', component: 'event-alert', version: artifact.version,
-        upstreamVersion: upstream.version, backup: backup?.id || null, inventory: await this.inventory()
+        operation: eventAlert || companion ? 'replaced' : 'installed', component: 'event-alert', version: artifact.version,
+        upstreamVersion: upstream.version, enabledProfiles, backup: backup?.id || null, inventory: await this.inventory()
       };
     } finally { await rm(transaction, { recursive: true, force: true }); }
   }
@@ -372,12 +392,14 @@ export class AddonManager {
     if (component === 'event-alert') {
       const local = await this.scan(detection.directory);
       const eventAlert = local.find(item => item.folder.toLowerCase() === 'eventalert');
+      const companion = local.find(item => item.folder.toLowerCase() === EVENT_ALERT_COMPANION_FOLDER.toLowerCase());
       const legacy = local.find(item => item.folder.toLowerCase() === EVENT_ALERT_LEGACY_FOLDER.toLowerCase());
       await this.createBackupSet(component, [
-        { targetFolder: 'EventAlert', source: path.join(detection.directory, 'EventAlert'), version: eventAlert?.coaCompatibilityVersion || eventAlert?.version },
+        { targetFolder: 'EventAlert', source: path.join(detection.directory, 'EventAlert'), version: eventAlert?.version },
+        { targetFolder: EVENT_ALERT_COMPANION_FOLDER, source: path.join(detection.directory, EVENT_ALERT_COMPANION_FOLDER), version: companion?.version },
         { targetFolder: EVENT_ALERT_LEGACY_FOLDER, source: path.join(detection.directory, EVENT_ALERT_LEGACY_FOLDER), version: legacy?.version }
-      ], eventAlert?.coaCompatibilityVersion || legacy?.version, 'pre-rollback');
-      await this.restoreBackupSet(detection.directory, selected, ['EventAlert', EVENT_ALERT_LEGACY_FOLDER]);
+      ], companion?.version || eventAlert?.version, 'pre-rollback');
+      await this.restoreBackupSet(detection.directory, selected, ['EventAlert', EVENT_ALERT_COMPANION_FOLDER, EVENT_ALERT_LEGACY_FOLDER]);
       return { operation: 'restored', component, backup: selected.id, inventory: await this.inventory() };
     }
     const source = path.join(this.backupsRoot, component, selected.id, selected.targetFolder);

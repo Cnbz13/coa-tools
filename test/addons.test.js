@@ -28,7 +28,7 @@ test('TOC metadata and addon versions are parsed tolerantly', () => {
   assert.equal(compareAddonVersions('1.0.4', '1.0.4'), 0);
 });
 
-test('manager composes genuine EventAlert 4.3.6 with the CoA patch and backs up the legacy addon', async () => {
+test('manager installs genuine EventAlert with a repair-resistant CoA companion and backs up both folders', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'coa-eventalert-manager-'));
   const addonsDir = path.join(root, 'Ascension', 'Interface', 'AddOns');
   let server;
@@ -42,9 +42,10 @@ test('manager composes genuine EventAlert 4.3.6 with the CoA patch and backs up 
     await writeZip(path.join(root, 'upstream-stage'), upstreamArchive);
     const upstreamBytes = await readFile(upstreamArchive);
 
-    const patchStage = path.join(root, 'patch-stage', 'EventAlert');
+    const patchStage = path.join(root, 'patch-stage', 'EventAlertCoA');
     await mkdir(patchStage, { recursive: true });
     await writeFile(path.join(patchStage, 'EventAlertCoA.lua'), '-- CoA patch fixture\n');
+    await writeFile(path.join(patchStage, 'EventAlertCoA.toc'), '## Interface: 30300\n## Title: EventAlert - Compatibilite CoA\n## Version: 1.2.1\n## RequiredDeps: EventAlert\n\nEventAlertCoA.lua\n');
     const patchArchive = path.join(root, 'EventAlertCoA.zip');
     await writeZip(path.join(root, 'patch-stage'), patchArchive);
     const patchBytes = await readFile(patchArchive);
@@ -54,6 +55,9 @@ test('manager composes genuine EventAlert 4.3.6 with the CoA patch and backs up 
       await writeFile(path.join(addonsDir, folder, `${folder}.toc`), `## Interface: 30300\n## Title: Old ${folder}\n## Version: 1.1.1\n`);
       await writeFile(path.join(addonsDir, folder, 'local.txt'), `old ${folder}`);
     }
+    const addonState = path.join(root, 'Ascension', 'WTF', 'Account', 'Test', 'Realm', 'Character', 'AddOns.txt');
+    await mkdir(path.dirname(addonState), { recursive: true });
+    await writeFile(addonState, 'EventAlert: enabled\r\nCoAEventAlert: disabled\r\nEventAlertCoA: disabled\r\n');
 
     const archives = { '/EventAlert-4.3.6.zip': upstreamBytes, '/EventAlertCoA.zip': patchBytes };
     let manifest;
@@ -69,8 +73,8 @@ test('manager composes genuine EventAlert 4.3.6 with the CoA patch and backs up 
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const origin = `http://127.0.0.1:${server.address().port}`;
     manifest = {
-      version: '1.2.0', artifacts: [{
-        name: 'EventAlert 4.3.6 + compatibilité CoA', component: 'event-alert', version: '1.2.0',
+      version: '1.2.1', artifacts: [{
+        name: 'EventAlert 4.3.6 + compatibilité CoA', component: 'event-alert', version: '1.2.1',
         targetFolder: 'EventAlert', file: 'EventAlertCoA.zip', url: `${origin}/EventAlertCoA.zip`,
         sha256: sha256(patchBytes), size: patchBytes.length,
         upstream: {
@@ -85,15 +89,28 @@ test('manager composes genuine EventAlert 4.3.6 with the CoA patch and backs up 
     });
 
     const before = await manager.inventory();
-    assert.equal(before.managed[0].action, 'update');
+    assert.equal(before.managed[0].action, 'install');
     assert.equal(before.regular.some(item => item.folder === 'CoAEventAlert'), false);
     const installed = await manager.install('event-alert');
     assert.ok(installed.backup);
-    assert.match(await readFile(path.join(addonsDir, 'EventAlert', 'EventAlert.xml'), 'utf8'), /EventAlertCoA\.lua/);
-    assert.match(await readFile(path.join(addonsDir, 'EventAlert', 'EventAlert.toc'), 'utf8'), /X-CoA-Compatibility-Version: 1\.2\.0/);
-    assert.match(await readFile(path.join(addonsDir, 'EventAlert', 'EventAlertCoA.lua'), 'utf8'), /CoA patch fixture/);
+    assert.equal(installed.enabledProfiles, 1);
+    assert.doesNotMatch(await readFile(path.join(addonsDir, 'EventAlert', 'EventAlert.xml'), 'utf8'), /EventAlertCoA\.lua/);
+    assert.doesNotMatch(await readFile(path.join(addonsDir, 'EventAlert', 'EventAlert.toc'), 'utf8'), /X-CoA-Compatibility-Version/);
+    assert.match(await readFile(path.join(addonsDir, 'EventAlertCoA', 'EventAlertCoA.toc'), 'utf8'), /RequiredDeps: EventAlert/);
+    assert.match(await readFile(path.join(addonsDir, 'EventAlertCoA', 'EventAlertCoA.toc'), 'utf8'), /Version: 1\.2\.1/);
+    assert.match(await readFile(path.join(addonsDir, 'EventAlertCoA', 'EventAlertCoA.lua'), 'utf8'), /CoA patch fixture/);
     assert.equal(await stat(path.join(addonsDir, 'CoAEventAlert')).then(() => true, () => false), false);
+    assert.match(await readFile(addonState, 'utf8'), /^EventAlertCoA: enabled$/m);
     assert.equal(installed.inventory.managed[0].action, 'reinstall');
+
+    // Project Ascension may restore every official EventAlert file on launch.
+    // The companion remains loadable and the manager still recognizes it.
+    await writeFile(path.join(addonsDir, 'EventAlert', 'EventAlert.xml'), '<Ui>official repair</Ui>\n');
+    await writeFile(path.join(addonsDir, 'EventAlert', 'EventAlert.toc'), '## Interface: 30300\n## Title: EventAlert\n## Version: 4.3.6\n\nEventAlert.xml\n');
+    const afterRepair = await manager.inventory();
+    assert.equal(afterRepair.managed[0].installed, true);
+    assert.equal(afterRepair.managed[0].localVersion, '1.2.1');
+    assert.equal(afterRepair.managed[0].action, 'reinstall');
 
     await manager.rollback('event-alert', installed.backup);
     assert.equal(await readFile(path.join(addonsDir, 'EventAlert', 'local.txt'), 'utf8'), 'old EventAlert');

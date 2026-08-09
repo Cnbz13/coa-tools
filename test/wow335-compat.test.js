@@ -35,16 +35,22 @@ test('Combat Assistant uses the 3.3.5 spellbook and never casts automatically', 
 });
 
 test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its UI', async () => {
-  const lua = await readFile('patches/EventAlertCoA/EventAlert/EventAlertCoA.lua', 'utf8');
+  const toc = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.toc', 'utf8');
+  const lua = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.lua', 'utf8');
+  assert.match(toc, /^## Interface: 30300$/m);
+  assert.match(toc, /^## RequiredDeps: EventAlert$/m);
+  assert.match(toc, /^EventAlertCoA\.lua$/m);
   for (const required of [
     'GetNumSpellTabs', 'GetSpellTabInfo', 'GetSpellName', 'GetSpellLink',
-    'UnitClass', 'EventAlert_LoadSpellArray', 'EA_Items[playerClassToken]', 'EA_AltItems[playerClassToken]',
-    'EA_CustomItems[playerClassToken]', 'EventAlert_PositionFrames', 'EventAlert_DoAlert',
+    'UnitClass', 'EA_Items[spellId]', 'EA_AltItems[spellId]', 'EA_CustomItems[spellId]',
+    'EventAlert_PositionFrames', 'EventAlert_DoAlert', 'frame.spellCounter',
     'COMBAT_LOG_EVENT_UNFILTERED', 'SPELL_AURA_APPLIED', 'SPELL_AURA_APPLIED_DOSE', 'SPELL_AURA_REFRESH',
-    'COMBAT_TEXT_UPDATE', 'SPELL_ACTIVE', 'sourceGUID == playerGUID', 'WasDirectlyCast(spellName)',
-    'IsOwnedSource(sourceGUID, select(5, ...))', 'COMBATLOG_OBJECT_AFFILIATION_MINE', 'UnitGUID("pet")',
+    'COMBAT_TEXT_UPDATE', 'SPELL_ACTIVE', 'sourceGUID == playerGUID', 'WasDirectlyCast(spellId, spellName)',
+    'IsOwnedSource(sourceGUID, sourceFlags)', 'COMBATLOG_OBJECT_AFFILIATION_MINE', 'UnitGUID("pet")',
     'coa status', 'coa learn', 'coa scan'
   ]) assert.ok(lua.includes(required), `EventAlert CoA patch is missing ${required}`);
+  assert.equal(lua.includes('EA_Items[playerClassToken]'), false, 'Genuine EventAlert uses flat spell-ID tables');
+  assert.equal(lua.includes('EventAlert_LoadSpellArray ='), false, 'Companion must not replace the genuine spell loader');
   for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `EventAlert patch contains forbidden Retail API: ${api}`);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.equal(lua.includes('CoAEventAlertFrame'), false);

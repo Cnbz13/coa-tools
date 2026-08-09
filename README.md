@@ -1,6 +1,6 @@
 # CoA Tools
 
-> Depuis la version 1.2.0, le manager installe le **véritable EventAlert 4.3.6** pour WoW 3.3.5 depuis sa publication CurseForge, puis applique une couche de compatibilité CoA. Elle conserve l’interface, les sons, les options et `/ea` d’origine, ajoute les classes CoA et apprend automatiquement leurs procs et réactions `SPELL_ACTIVE`.
+> Depuis la version 1.2.1, le manager installe le **véritable EventAlert 4.3.6** pour WoW 3.3.5 depuis sa publication CurseForge, accompagné d’un chargeur de compatibilité CoA minimal. Le chargeur survit aux réparations du dossier officiel par Ascension, conserve l’interface, les sons, les options et `/ea` d’origine, et apprend automatiquement les procs et réactions `SPELL_ACTIVE` de CoA.
 
 Suite locale sans télémétrie regroupant trois outils :
 

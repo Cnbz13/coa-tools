@@ -1,12 +1,12 @@
--- CoA compatibility layer for the genuine EventAlert 4.3.6 addon.
--- This file deliberately reuses EventAlert's frames, options, sounds and SavedVariables.
+-- Thin Project Ascension compatibility layer for the genuine EventAlert 4.3.6 addon.
+-- EventAlert remains responsible for every icon, sound, option and saved position.
 
-local COA_COMPAT_VERSION = "1.2.0"
+local COA_COMPAT_VERSION = "1.2.1"
 local BOOK = BOOKTYPE_SPELL or "spell"
 local AUTO_LEARN_DEFAULT = true
 local recentCasts = {}
 local spellbookIds = {}
-local playerClassToken = "OTHER"
+local initialized = false
 
 local function Now()
     return GetTime and GetTime() or 0
@@ -18,13 +18,17 @@ local function Chat(message)
     end
 end
 
-local function CurrentClassToken()
-    local _, token = UnitClass("player")
-    return token or EA_CLASS_OTHER or "OTHER"
+local function IsEventAlertReady()
+    return type(EA_Config) == "table"
+        and type(EA_Items) == "table"
+        and type(EA_AltItems) == "table"
+        and type(EA_CustomItems) == "table"
+        and type(EventAlert_PositionFrames) == "function"
+        and type(EventAlert_DoAlert) == "function"
 end
 
 local function EnsureConfiguration()
-    EA_Config = EA_Config or {}
+    if not IsEventAlertReady() then return false end
     EA_Config.CoA = EA_Config.CoA or {}
     if EA_Config.CoA.AutoLearn == nil then EA_Config.CoA.AutoLearn = AUTO_LEARN_DEFAULT end
     if EA_Config.CoA.Initialized == nil then
@@ -32,40 +36,9 @@ local function EnsureConfiguration()
         EA_Config.CoA.Initialized = true
     end
     EA_Config.CoA.Version = COA_COMPAT_VERSION
-end
-
-local function EnsureClassTables()
-    playerClassToken = CurrentClassToken()
-    EA_Items = EA_Items or {}
-    EA_AltItems = EA_AltItems or {}
-    EA_CustomItems = EA_CustomItems or {}
-    if type(EA_Items[playerClassToken]) ~= "table" then EA_Items[playerClassToken] = {} end
-    if type(EA_AltItems[playerClassToken]) ~= "table" then EA_AltItems[playerClassToken] = {} end
-    if type(EA_CustomItems[playerClassToken]) ~= "table" then EA_CustomItems[playerClassToken] = {} end
-    if EA_CLASS_OTHER and type(EA_Items[EA_CLASS_OTHER]) ~= "table" then EA_Items[EA_CLASS_OTHER] = {} end
-    return playerClassToken
-end
-
-local function MigrateFlatTable(source, destination)
-    -- A community Ascension port stored IDs at the root. Preserve those user choices
-    -- while returning to the genuine EventAlert 4.3.6 class-based data model.
-    local spellId, enabled
-    for spellId, enabled in pairs(source) do
-        if type(spellId) == "number" then
-            if destination[spellId] == nil then destination[spellId] = enabled end
-            source[spellId] = nil
-        end
-    end
-end
-
-local originalLoadSpellArray = EventAlert_LoadSpellArray
-function EventAlert_LoadSpellArray()
-    originalLoadSpellArray()
-    EnsureConfiguration()
-    local token = EnsureClassTables()
-    MigrateFlatTable(EA_Items, EA_Items[token])
-    MigrateFlatTable(EA_AltItems, EA_AltItems[token])
-    MigrateFlatTable(EA_CustomItems, EA_CustomItems[token])
+    EA_TempBuffsTable = EA_TempBuffsTable or {}
+    EA_PreLoadAlts = EA_PreLoadAlts or {}
+    return true
 end
 
 local function SpellIdFromBook(slot)
@@ -99,58 +72,65 @@ local function EnsureAlertFrame(spellId)
     local frameName = "EAFrame_" .. spellId
     if _G[frameName] then return _G[frameName] end
     if not EA_Main_Frame then return nil end
+
     local frame = CreateFrame("FRAME", frameName, EA_Main_Frame)
     if EA_Config.AllowESC == true then tinsert(UISpecialFrames, frameName) end
     frame:SetFrameStrata("DIALOG")
+
     frame.spellName = frame:CreateFontString(frameName .. "_Name", "OVERLAY")
     frame.spellName:SetFontObject(ChatFontNormal)
     frame.spellName:SetPoint("BOTTOM", 0, -15)
+
     frame.spellTimer = frame:CreateFontString(frameName .. "_Timer", "OVERLAY")
     frame.spellTimer:SetFontObject(ChatFontNormal)
-    frame.spellTimer:SetPoint("TOP", 0, 15)
+    frame.spellTimer:SetPoint("TOP", 0, 20)
+
+    frame.spellCounter = frame:CreateFontString(frameName .. "_Counter", "OVERLAY")
+    frame.spellCounter:SetFontObject(ChatFontNormal)
+    frame.spellCounter:SetPoint("RIGHT", 20, 0)
+
     frame:SetScript("OnEvent", EventAlert_OnEvent)
     return frame
 end
 
 local function RegisterAuraProc(spellId, spellName)
-    if not spellId then return false end
-    local token = EnsureClassTables()
-    local learned = EA_CustomItems[token][spellId] == nil
-    EA_CustomItems[token][spellId] = true
+    if not spellId or not EnsureConfiguration() then return false end
+    local learned = EA_CustomItems[spellId] == nil
+    EA_CustomItems[spellId] = true
     EnsureAlertFrame(spellId)
-    if learned then Chat("proc appris : " .. tostring(spellName or GetSpellInfo(spellId) or spellId) .. " [" .. spellId .. "]") end
+    if learned then
+        Chat("proc appris : " .. tostring(spellName or GetSpellInfo(spellId) or spellId) .. " [" .. spellId .. "]")
+    end
     return learned
 end
 
 local function RegisterActiveSpell(spellId, spellName)
-    if not spellId then return false end
-    local token = EnsureClassTables()
-    local learned = EA_AltItems[token][spellId] == nil
-    EA_AltItems[token][spellId] = true
-    EA_PreLoadAlts = EA_PreLoadAlts or {}
+    if not spellId or not EnsureConfiguration() then return false end
+    local learned = EA_AltItems[spellId] == nil
+    EA_AltItems[spellId] = true
     if spellName then EA_PreLoadAlts[spellName] = tostring(spellId) end
     EnsureAlertFrame(spellId)
-    if learned then Chat("reaction apprise : " .. tostring(spellName or GetSpellInfo(spellId) or spellId) .. " [" .. spellId .. "]") end
+    if learned then
+        Chat("reaction apprise : " .. tostring(spellName or GetSpellInfo(spellId) or spellId) .. " [" .. spellId .. "]")
+    end
     return learned
 end
 
 local function Activate(spellId)
-    if not spellId or IsActive(spellId) or not _G["EAFrame_" .. spellId] then return end
+    if not spellId or IsActive(spellId) then return end
+    if not EnsureAlertFrame(spellId) then return end
     table.insert(EA_TempBuffsTable, spellId)
     EventAlert_PositionFrames()
     EventAlert_DoAlert()
 end
 
-local function WasDirectlyCast(spellName)
-    local castAt = spellName and recentCasts[spellName]
+local function WasDirectlyCast(spellId, spellName)
+    local castAt = recentCasts[spellId] or (spellName and recentCasts[spellName])
     return castAt and Now() - castAt < 2.5
 end
 
 local function IsTracked(spellId)
-    local token = EnsureClassTables()
-    return EA_Items[token][spellId]
-        or (EA_CLASS_OTHER and EA_Items[EA_CLASS_OTHER][spellId])
-        or EA_CustomItems[token][spellId]
+    return EA_Items[spellId] or EA_CustomItems[spellId]
 end
 
 local function IsOwnedSource(sourceGUID, sourceFlags)
@@ -158,20 +138,24 @@ local function IsOwnedSource(sourceGUID, sourceFlags)
     if sourceFlags and bit and bit.band and COMBATLOG_OBJECT_AFFILIATION_MINE then
         return bit.band(sourceFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) ~= 0
     end
-    -- Some CoA triggered auras omit their source GUID on the 3.3.5 combat log.
+    -- Several CoA triggered auras omit the source GUID on the 3.3.5 combat log.
     return sourceGUID == nil and UnitAffectingCombat and UnitAffectingCombat("player")
 end
 
 local function HandleCombatLog(...)
+    if not EnsureConfiguration() then return end
     local subEvent = select(2, ...)
     local sourceGUID = select(3, ...)
+    local sourceFlags = select(5, ...)
     local destGUID = select(6, ...)
     local spellId = tonumber(select(9, ...))
     local spellName = select(10, ...)
     local playerGUID = UnitGUID("player")
 
-    if subEvent == "SPELL_CAST_SUCCESS" and sourceGUID == playerGUID and spellName then
-        recentCasts[spellName] = Now()
+    if subEvent == "SPELL_CAST_SUCCESS" and sourceGUID == playerGUID then
+        local castAt = Now()
+        if spellId then recentCasts[spellId] = castAt end
+        if spellName then recentCasts[spellName] = castAt end
         return
     end
 
@@ -179,21 +163,25 @@ local function HandleCombatLog(...)
     local refreshed = subEvent == "SPELL_AURA_REFRESH"
     if (applied or refreshed) and destGUID == playerGUID and spellId then
         local tracked = IsTracked(spellId)
-        if not tracked and EA_Config.CoA.AutoLearn and IsOwnedSource(sourceGUID, select(5, ...)) and not WasDirectlyCast(spellName) then
+        if not tracked and EA_Config.CoA.AutoLearn and IsOwnedSource(sourceGUID, sourceFlags)
+            and not WasDirectlyCast(spellId, spellName) then
             RegisterAuraProc(spellId, spellName)
             tracked = true
         end
-        -- The upstream 3.3.5 handler already displays APPLIED and APPLIED_DOSE.
-        -- REFRESH is a CoA event used by several stacking procs, so refresh it here.
-        if refreshed and tracked then Activate(spellId) end
+        -- This companion loads after EventAlert. Activate here so the very first
+        -- occurrence is visible; IsActive prevents duplicates on known procs.
+        if tracked then Activate(spellId) end
     end
 end
 
 local function HandleSpellActive(spellName)
-    if not spellName then return end
+    if not spellName or not EnsureConfiguration() then return end
     local spellId = spellbookIds[spellName]
     if not spellId then ScanSpellbook(); spellId = spellbookIds[spellName] end
-    if spellId then RegisterActiveSpell(spellId, spellName) end
+    if spellId then
+        RegisterActiveSpell(spellId, spellName)
+        Activate(spellId)
+    end
 end
 
 local function CountEntries(values)
@@ -203,27 +191,45 @@ local function CountEntries(values)
 end
 
 local function CoAStatus()
-    local token = EnsureClassTables()
-    Chat("compatibilite " .. COA_COMPAT_VERSION .. " ; classe " .. token
-        .. " ; " .. CountEntries(EA_CustomItems[token]) .. " proc(s) appris ; "
-        .. CountEntries(EA_AltItems[token]) .. " reaction(s) ; apprentissage "
+    if not EnsureConfiguration() then
+        Chat("EventAlert 4.3.6 n'est pas charge")
+        return
+    end
+    local _, classToken = UnitClass("player")
+    Chat("compatibilite " .. COA_COMPAT_VERSION .. " chargee ; classe " .. tostring(classToken or "OTHER")
+        .. " ; " .. CountEntries(EA_CustomItems) .. " proc(s) personnalise(s) ; "
+        .. CountEntries(EA_AltItems) .. " reaction(s) ; apprentissage "
         .. (EA_Config.CoA.AutoLearn and "ON" or "OFF"))
 end
 
 local originalSlashHandler = EventAlert_SlashHandler
-function EventAlert_SlashHandler(message)
+local function CoASlashHandler(message)
     local normalized = string.lower(tostring(message or ""))
     if normalized == "coa" or normalized == "coa status" then
         CoAStatus()
     elseif normalized == "coa learn" then
-        EA_Config.CoA.AutoLearn = not EA_Config.CoA.AutoLearn
-        Chat("apprentissage automatique " .. (EA_Config.CoA.AutoLearn and "active" or "desactive"))
+        if EnsureConfiguration() then
+            EA_Config.CoA.AutoLearn = not EA_Config.CoA.AutoLearn
+            Chat("apprentissage automatique " .. (EA_Config.CoA.AutoLearn and "active" or "desactive"))
+        end
     elseif normalized == "coa scan" then
         ScanSpellbook()
         CoAStatus()
     else
         originalSlashHandler(message)
     end
+end
+
+local function Initialize()
+    if not EnsureConfiguration() then return false end
+    ScanSpellbook()
+    EventAlert_SlashHandler = CoASlashHandler
+    SlashCmdList["EVENTALERT"] = CoASlashHandler
+    if not initialized then
+        initialized = true
+        Chat("compatibilite CoA " .. COA_COMPAT_VERSION .. " chargee avec EventAlert 4.3.6")
+    end
+    return true
 end
 
 local eventFrame = CreateFrame("Frame", "EventAlertCoAEventFrame")
@@ -235,14 +241,15 @@ eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 eventFrame:RegisterEvent("COMBAT_TEXT_UPDATE")
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
-        if select(1, ...) == "EventAlert" then EnsureConfiguration() end
+        local addonName = select(1, ...)
+        if addonName == "EventAlert" or addonName == "EventAlertCoA" then Initialize() end
     elseif event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "SPELLS_CHANGED" then
-        EnsureConfiguration()
-        EnsureClassTables()
-        ScanSpellbook()
+        Initialize()
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
         HandleCombatLog(...)
     elseif event == "COMBAT_TEXT_UPDATE" and select(1, ...) == "SPELL_ACTIVE" then
         HandleSpellActive(select(2, ...))
     end
 end)
+
+Initialize()

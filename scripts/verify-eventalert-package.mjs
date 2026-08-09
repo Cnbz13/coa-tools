@@ -15,6 +15,7 @@ let server;
 
 try {
   const legacy = path.join(addonsDir, 'CoAEventAlert');
+  const companion = path.join(addonsDir, 'EventAlertCoA');
   await mkdir(legacy, { recursive: true });
   await writeFile(path.join(legacy, 'CoAEventAlert.toc'), '## Interface: 30300\n## Title: Legacy CoA Event Alert\n## Version: 1.1.1\n');
 
@@ -42,12 +43,22 @@ try {
   });
   const result = await manager.install('event-alert');
   const installed = path.join(addonsDir, 'EventAlert');
-  for (const file of ['EventAlert.lua', 'EventAlert.xml', 'EventAlert.toc', 'EventAlertSpellArray.lua', 'EventAlertCoA.lua']) {
+  for (const file of ['EventAlert.lua', 'EventAlert.xml', 'EventAlert.toc', 'EventAlertSpellArray.lua']) {
     assert.ok((await stat(path.join(installed, file))).isFile(), `${file} was not installed`);
   }
-  assert.match(await readFile(path.join(installed, 'EventAlert.xml'), 'utf8'), /<Script file="EventAlertCoA\.lua"\/>/);
-  assert.match(await readFile(path.join(installed, 'EventAlert.toc'), 'utf8'), new RegExp(`X-CoA-Compatibility-Version: ${manifest.version.replaceAll('.', '\\.')}`));
-  assert.equal(await stat(legacy).then(() => true, () => false), false, 'legacy CoAEventAlert must be removed');
+  assert.ok((await stat(path.join(companion, 'EventAlertCoA.lua'))).isFile(), 'CoA compatibility loader was not installed');
+  const companionToc = await readFile(path.join(companion, 'EventAlertCoA.toc'), 'utf8');
+  assert.match(companionToc, /^## RequiredDeps: EventAlert$/m);
+  assert.match(companionToc, new RegExp(`^## Version: ${manifest.version.replaceAll('.', '\\.')}$`, 'm'));
+  assert.doesNotMatch(await readFile(path.join(installed, 'EventAlert.xml'), 'utf8'), /EventAlertCoA\.lua/);
+  assert.equal(await stat(legacy).then(() => true, () => false), false, 'obsolete CoAEventAlert must be removed');
+
+  // Ascension may repair the official folder on launch. The separate loader must survive.
+  await writeFile(path.join(installed, 'EventAlert.xml'), '<Ui>official launcher repair</Ui>\n');
+  await writeFile(path.join(installed, 'EventAlert.toc'), '## Interface: 30300\n## Title: EventAlert\n## Version: 4.3.6\n\nEventAlert.xml\n');
+  const repairedInventory = await manager.inventory();
+  assert.equal(repairedInventory.managed[0].installed, true);
+  assert.equal(repairedInventory.managed[0].localVersion, manifest.version);
   assert.equal(result.upstreamVersion, '4.3.6');
   assert.equal(result.inventory.managed[0].action, 'reinstall');
   console.log(`EventAlert ${result.upstreamVersion} + CoA ${manifest.version}: genuine package installed and verified`);

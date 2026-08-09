@@ -46,6 +46,10 @@ test('WoW addon metadata matches the package version', async () => {
     assert.match(toc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));
     assert.match(toc, new RegExp(`^${name}\\.lua$`, 'm'));
   }
-  const patch = await readFile('patches/EventAlertCoA/EventAlert/EventAlertCoA.lua', 'utf8');
+  const compatibilityToc = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.toc', 'utf8');
+  const patch = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.lua', 'utf8');
+  assert.match(compatibilityToc, /^## Interface: 30300$/m);
+  assert.match(compatibilityToc, /^## RequiredDeps: EventAlert$/m);
+  assert.match(compatibilityToc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));
   assert.match(patch, new RegExp(`local COA_COMPAT_VERSION = "${pkg.version.replaceAll('.', '\\.')}"`));
 });

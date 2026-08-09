@@ -31,6 +31,8 @@ test('Combat Assistant uses the 3.3.5 spellbook and never casts automatically', 
     'March of the Dead', 'SLASH_COACOMBATASSISTANT1 = "/cca"'
   ]) assert.ok(lua.includes(required), `Combat Assistant is missing ${required}`);
   for (const command of ['status', 'scan', 'unlock', 'lock', 'memory', 'debug', 'aoe']) assert.match(lua, new RegExp(`command == "${command}"`));
+  assert.doesNotMatch(lua, /math\.mod\s*\(/, 'Ascension Lua does not expose math.mod; use the Lua 5.1 modulo operator');
+  assert.match(lua, /math\.floor\(elapsed \/ 60\), elapsed % 60/);
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
 });
 

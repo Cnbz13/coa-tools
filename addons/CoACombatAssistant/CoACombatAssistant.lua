@@ -176,7 +176,7 @@ local function EnsureDatabase()
     CoACombatAssistantDB.settings = CoACombatAssistantDB.settings or {}
     CoACombatAssistantDB.settings.aoeThreshold = tonumber(CoACombatAssistantDB.settings.aoeThreshold) or DEFAULT_AOE_THRESHOLD
     CoACombatAssistantDB.settings.maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
-    CoACombatAssistantDB.version = "1.3.3"
+    CoACombatAssistantDB.version = "1.3.4"
 
     if not CoACombatAssistantDB.position and CoACombatAssistantDB.ui then
         local old = CoACombatAssistantDB.ui
@@ -1048,7 +1048,7 @@ local function RefreshDisplay()
     if startedAt then
         CaptureHostileTarget()
         local elapsed = math.floor(GetTime() - startedAt)
-        timerText:SetText(string.format("%02d:%02d", math.floor(elapsed / 60), math.mod(elapsed, 60)))
+        timerText:SetText(string.format("%02d:%02d", math.floor(elapsed / 60), elapsed % 60))
     end
     playerGUID = UnitGUID("player") or playerGUID
     RefreshPetGUID()

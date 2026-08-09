@@ -6,6 +6,9 @@ local ENEMY_TIMEOUT = 8
 local SUMMON_TIMEOUT = 300
 local DEFAULT_AOE_THRESHOLD = 3
 local DEFAULT_MAX_ARMY_SIZE = 4
+local GLOBAL_RECENT_CAST_LOCK = 1.65
+local ASSUMED_SELF_BUFF_SECONDS = 90
+local ASSUMED_TARGET_DEBUFF_SECONDS = 12
 
 local function Lower(value)
     return string.lower(value or "")
@@ -96,6 +99,12 @@ local activeEnemies = {}
 local currentMobs = {}
 local ownedSummons = {}
 local lastCasts = {}
+local assumedSelfBuffs = {}
+local confirmedSelfBuffs = {}
+local assumedTargetDebuffs = {}
+local confirmedTargetDebuffs = {}
+local lastPlayerCastName = nil
+local lastPlayerCastAt = nil
 local currentMode = "ST"
 local currentEnemyCount = 0
 local currentRecommendation = nil
@@ -109,27 +118,45 @@ local character = { level = 0, className = "Inconnue", classToken = "UNKNOWN", s
 -- Priorités strictement construites à partir du spellbook Animation observé en jeu.
 -- Aucun motif générique "Command:" ou "Animate:" n'est utilisé comme fallback.
 local animationPriority = {
-    { name = "Bone Ward", score = 118, selfBuffMissing = "Bone Ward", recentLock = 2.5, reason = "protection personnelle absente" },
-    { name = "Sacrifice Undead", score = 116, maxPlayerHealth = 32, requiresSummon = 1, requiresCombat = true, reason = "survie critique" },
-    { name = "Call of The Scourge", score = 112, mode = "AOE", minEnemies = 4, requiresCombat = true, reason = "groupe important d'ennemis" },
-    { name = "March of the Dead", score = 110, mode = "AOE", minEnemies = 3, requiresCombat = true, reason = "phase AOE avec trois cibles ou plus" },
-    { name = "Grave March", score = 106, mode = "AOE", minEnemies = 3, requiresSummon = 2, requiresCombat = true, reason = "plusieurs invocations en AOE" },
-    { name = "Crypt Swarm", score = 104, mode = "AOE", minEnemies = 3, requiresTarget = true, reason = "dégâts de zone prioritaires" },
-    { name = "Corpse Explosion", score = 100, mode = "AOE", minEnemies = 3, requiresTarget = true, maxTargetHealth = 45, phase = "established", reason = "cible affaiblie dans un groupe" },
-    { name = "Raise: Crypt Fiend", score = 98, desiredSummons = 2, summonNames = { "Crypt Fiend" }, recentLock = 2.5, reason = "invoquer les deux Crypt Fiends" },
-    { name = "Raise: Greater Skeletal Warrior", score = 96, desiredSummons = 1, summonNames = { "Greater Skeletal Warrior" }, recentLock = 2.5, reason = "guerrier squelette supérieur absent" },
-    { name = "Animate: Skeletal Archer", score = 94, desiredSummons = 1, summonNames = { "Skeletal Archer" }, recentLock = 2.5, reason = "archer squelette absent" },
-    { name = "Raise: Abomination", score = 92, desiredSummons = 1, summonNames = { "Abomination" }, recentLock = 2.5, reason = "abomination absente" },
-    { name = "Raise: Lesser Skeletal Warrior", score = 90, desiredSummons = 1, summonNames = { "Lesser Skeletal Warrior" }, recentLock = 2.5, reason = "aucune armée active", onlyWithoutSummon = true },
-    { name = "Foul Mandate", score = 88, requiresTarget = true, targetDebuffMissing = "Foul Mandate", reason = "ouvrir avec Foul Mandate" },
-    { name = "Blight", score = 86, requiresTarget = true, targetDebuffMissing = "Blight", reason = "appliquer Blight" },
-    { name = "Harvest Plague", score = 84, requiresTarget = true, targetDebuffPresentAny = { "Blight", "Foul Mandate" }, phase = "established", reason = "exploiter les maladies actives" },
-    { name = "Command: Undead", score = 82, requiresTarget = true, requiresSummon = 1, phase = "established", recentLock = 4.5, reason = "ordonner l'attaque aux invocations actives" },
-    { name = "Lichfrost", score = 78, requiresTarget = true, reason = "attaque monocible disponible" },
-    { name = "Razorice", score = 76, requiresTarget = true, reason = "attaque monocible de complément" },
-    { name = "Ghoulify", score = 72, requiresTarget = true, maxTargetHealth = 35, phase = "established", reason = "cible à faible santé" },
-    { name = "Glacial Tap", score = 70, maxMana = 35, requiresCombat = true, reason = "ressource faible" },
-    { name = "Runic Harvest", score = 68, maxMana = 45, requiresCombat = true, reason = "récupération de ressource" }
+    -- Défense et armée : ces règles disparaissent dès que l'effet ou l'invocation est confirmé.
+    { name = "Bone Ward", score = 150, selfBuffMissing = "Bone Ward", reason = "protection personnelle absente" },
+    { name = "Sacrifice Undead", score = 148, maxPlayerHealth = 32, requiresSummon = 1, requiresCombat = true, reason = "survie critique" },
+    { name = "Raise: Crypt Fiend", score = 142, desiredSummons = 2, summonNames = { "Crypt Fiend" }, recentLock = 3.0, reason = "compléter les deux Crypt Fiends" },
+    { name = "Animate: Skeletal Archer", score = 140, desiredSummons = 1, summonNames = { "Skeletal Archer" }, recentLock = 3.0, reason = "archer temporaire disponible" },
+    { name = "Raise: Greater Skeletal Warrior", score = 138, desiredSummons = 1, summonNames = { "Greater Skeletal Warrior" }, recentLock = 3.0, reason = "guerrier squelette supérieur absent" },
+    { name = "Raise: Abomination", score = 136, desiredSummons = 1, summonNames = { "Abomination" }, recentLock = 3.0, reason = "abomination absente" },
+    { name = "Raise: Lesser Skeletal Warrior", score = 134, desiredSummons = 1, summonNames = { "Lesser Skeletal Warrior" }, recentLock = 3.0, reason = "aucune armée active", onlyWithoutSummon = true },
+    { name = "Unholy Frenzy", score = 132, selfBuffMissing = "Unholy Frenzy", eliteOrBoss = true, requiresSummon = 1, requiresCombat = true, recentLock = 5.0, reason = "burst contre une cible élite ou boss" },
+
+    -- Ouverture/entretien, d'après les sorts réellement observés dans le spellbook.
+    { name = "Foul Mandate", score = 130, selfBuffMissing = "Foul Mandate", reason = "mandat personnel absent" },
+    { name = "Blight", score = 128, requiresTarget = true, targetDebuffMissing = "Blight", reason = "maladie principale absente" },
+    { name = "Harvest Plague", score = 126, requiresTarget = true, targetDebuffMissing = "Harvest Plague", targetDebuffPresentAny = { "Blight" }, reason = "entretenir Harvest Plague" },
+
+    -- AOE importante ; Call of The Scourge n'est pas une attaque de rotation.
+    { name = "March of the Dead", score = 124, mode = "AOE", minEnemies = 5, requiresCombat = true, reason = "cinq ennemis actifs ou plus" },
+    { name = "Grave March", score = 122, mode = "AOE", minEnemies = 3, requiresSummon = 2, requiresCombat = true, reason = "invocations engagées sur plusieurs cibles" },
+    { name = "Corpse Explosion", score = 120, mode = "AOE", minEnemies = 3, requiresTarget = true, maxTargetHealth = 45, phase = "established", reason = "cible affaiblie dans un groupe" },
+
+    -- Boucle Animation : dépenser avec Command, générer avec Crypt Swarm, puis dégâts de secours.
+    { name = "Command: Undead", score = 118, requiresTarget = true, requiresSummon = 1, requiresCombat = true, reason = "dépense principale avec les invocations" },
+    { name = "Crypt Swarm", score = 116, requiresTarget = true, requiresCombat = true, reason = "dégâts et génération de puissance runique" },
+    { name = "Lichfrost", score = 114, requiresTarget = true, targetDebuffPresentAny = { "Blight" }, reason = "dégâts directs avec Blight actif" },
+    { name = "Glacial Tap", score = 112, requiresTarget = true, requiresCombat = true, maxRunic = 70, reason = "générer de la puissance runique sans surcap" },
+    { name = "Runic Harvest", score = 110, maxRunic = 70, reason = "préparer la puissance runique entre deux combats" },
+    { name = "Razorice", score = 108, requiresTarget = true, reason = "dégâts directs de complément" },
+    { name = "Ghoulify", score = 106, requiresTarget = true, maxTargetHealth = 35, phase = "established", reason = "finir une cible affaiblie" }
+}
+
+local trackedSelfBuffs = {
+    [Lower("Bone Ward")] = true,
+    [Lower("Foul Mandate")] = true,
+    [Lower("Unholy Frenzy")] = true
+}
+
+local trackedTargetDebuffs = {
+    [Lower("Blight")] = true,
+    [Lower("Harvest Plague")] = true
 }
 
 local function EnsureDatabase()
@@ -142,7 +169,7 @@ local function EnsureDatabase()
     CoACombatAssistantDB.settings = CoACombatAssistantDB.settings or {}
     CoACombatAssistantDB.settings.aoeThreshold = tonumber(CoACombatAssistantDB.settings.aoeThreshold) or DEFAULT_AOE_THRESHOLD
     CoACombatAssistantDB.settings.maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
-    CoACombatAssistantDB.version = "1.0.7"
+    CoACombatAssistantDB.version = "1.0.8"
 
     if not CoACombatAssistantDB.position and CoACombatAssistantDB.ui then
         local old = CoACombatAssistantDB.ui
@@ -468,6 +495,9 @@ local function LearnedSpell(name)
     return knownSpells[Lower(name)]
 end
 
+local Percent
+local TargetIsValid
+
 local function HasAura(unit, auraName, harmful)
     if not auraName then return false end
     local wanted = Lower(auraName)
@@ -481,14 +511,78 @@ local function HasAura(unit, auraName, harmful)
     return false
 end
 
-local function Percent(current, maximum)
+local function HasSelfBuff(auraName)
+    if HasAura("player", auraName, false) then return true end
+    local key = Lower(auraName)
+    if confirmedSelfBuffs[key] then return true end
+    local assumedUntil = assumedSelfBuffs[key]
+    if assumedUntil and assumedUntil > GetTime() then return true end
+    assumedSelfBuffs[key] = nil
+    return false
+end
+
+local function TargetDebuffTable(container, guid, create)
+    if not guid then return nil end
+    if create and not container[guid] then container[guid] = {} end
+    return container[guid]
+end
+
+local function HasTargetDebuff(auraName)
+    if not TargetIsValid or not TargetIsValid() then return false end
+    if HasAura("target", auraName, true) then return true end
+    local guid = UnitGUID("target")
+    local key = Lower(auraName)
+    local confirmed = TargetDebuffTable(confirmedTargetDebuffs, guid, false)
+    if confirmed and confirmed[key] then return true end
+    local assumed = TargetDebuffTable(assumedTargetDebuffs, guid, false)
+    local assumedUntil = assumed and assumed[key]
+    if assumedUntil and assumedUntil > GetTime() then return true end
+    if assumed then assumed[key] = nil end
+    return false
+end
+
+local function RecordPlayerCast(spellName)
+    if not spellName or spellName == "" then return end
+    local now = GetTime()
+    local key = Lower(spellName)
+    lastCasts[key] = now
+    lastPlayerCastName = spellName
+    lastPlayerCastAt = now
+
+    -- Ascension peut confirmer le lancement avant que UnitBuff/UnitDebuff expose
+    -- l'aura. Cette courte mémoire empêche l'icône de rester bloquée sur le sort.
+    if trackedSelfBuffs[key] then
+        assumedSelfBuffs[key] = now + ASSUMED_SELF_BUFF_SECONDS
+    end
+    if trackedTargetDebuffs[key] and TargetIsValid() then
+        local guid = UnitGUID("target")
+        local assumed = TargetDebuffTable(assumedTargetDebuffs, guid, true)
+        assumed[key] = now + ASSUMED_TARGET_DEBUFF_SECONDS
+    end
+end
+
+local function CurrentRunicPower()
+    if not UnitPower or not UnitPowerMax then return nil, nil, nil end
+    local powerTypes = { 10, 6 }
+    local _, powerType
+    for _, powerType in ipairs(powerTypes) do
+        local maximum = tonumber(UnitPowerMax("player", powerType)) or 0
+        if maximum > 0 then
+            local current = tonumber(UnitPower("player", powerType)) or 0
+            return Percent(current, maximum), current, maximum
+        end
+    end
+    return nil, nil, nil
+end
+
+Percent = function(current, maximum)
     current = tonumber(current) or 0
     maximum = tonumber(maximum) or 0
     if maximum <= 0 then return 100 end
     return current * 100 / maximum
 end
 
-local function TargetIsValid()
+TargetIsValid = function()
     if not UnitExists("target") or UnitIsDead("target") then return false end
     if UnitCanAttack and not UnitCanAttack("player", "target") then return false end
     return true
@@ -537,7 +631,7 @@ local function Explain(candidate, reason)
     table.insert(candidate.reasons, reason)
 end
 
-local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth, playerMana)
+local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth, playerMana, runicPercent)
     local spell = LearnedSpell(rule.name)
     local candidate = {
         name = rule.name,
@@ -558,6 +652,12 @@ local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth
     if rule.mode and rule.mode ~= currentMode then Reject(candidate, "réservé au mode " .. rule.mode) end
     if rule.minEnemies and currentEnemyCount < rule.minEnemies then Reject(candidate, "pas assez de cibles") end
     if rule.requiresTarget and not TargetIsValid() then Reject(candidate, "aucune cible hostile valide") end
+    if rule.eliteOrBoss then
+        local classification = TargetIsValid() and UnitClassification and UnitClassification("target") or nil
+        if classification ~= "elite" and classification ~= "rareelite" and classification ~= "worldboss" then
+            Reject(candidate, "réservé aux cibles élites ou boss")
+        end
+    end
     if rule.requiresSummon and summonCount < rule.requiresSummon then Reject(candidate, "invocation requise") end
     if rule.onlyWithoutSummon and summonCount > 0 then Reject(candidate, "une invocation est déjà active") end
     if rule.desiredSummons then
@@ -575,20 +675,21 @@ local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth
     if rule.maxTargetHealth and targetHealth > rule.maxTargetHealth then Reject(candidate, "santé de la cible trop élevée") end
     if rule.maxPlayerHealth and playerHealth > rule.maxPlayerHealth then Reject(candidate, "santé du joueur suffisante") end
     if rule.maxMana and playerMana > rule.maxMana then Reject(candidate, "ressource suffisante") end
-    if rule.selfBuffMissing and HasAura("player", rule.selfBuffMissing, false) then Reject(candidate, "buff déjà actif") end
-    if rule.targetDebuffMissing and TargetIsValid() and HasAura("target", rule.targetDebuffMissing, true) then Reject(candidate, "debuff déjà actif") end
+    if rule.maxRunic and runicPercent and runicPercent > rule.maxRunic then Reject(candidate, "puissance runique proche du maximum") end
+    if rule.minRunic and runicPercent and runicPercent < rule.minRunic then Reject(candidate, "puissance runique insuffisante") end
+    if rule.selfBuffMissing and HasSelfBuff(rule.selfBuffMissing) then Reject(candidate, "buff déjà actif") end
+    if rule.targetDebuffMissing and TargetIsValid() and HasTargetDebuff(rule.targetDebuffMissing) then Reject(candidate, "debuff déjà actif") end
     if rule.targetDebuffPresentAny and TargetIsValid() then
         local found = false
         local _, aura
         for _, aura in ipairs(rule.targetDebuffPresentAny) do
-            if HasAura("target", aura, true) then found = true break end
+            if HasTargetDebuff(aura) then found = true break end
         end
         if not found then Reject(candidate, "maladie préalable absente") end
     end
-    if rule.recentLock then
-        local last = lastCasts[Lower(rule.name)]
-        if last and GetTime() - last < rule.recentLock then Reject(candidate, "lancé récemment") end
-    end
+    local recentLock = rule.recentLock or GLOBAL_RECENT_CAST_LOCK
+    local last = lastCasts[Lower(rule.name)]
+    if last and GetTime() - last < recentLock then Reject(candidate, "lancé récemment : proposer l'action suivante") end
 
     candidate.state = SpellState(spell, rule.requiresTarget)
     if candidate.state.inRange == false then Reject(candidate, "cible hors de portée") end
@@ -610,12 +711,13 @@ local function BuildRecommendationQueue()
     local targetHealth = Percent(UnitHealth("target"), UnitHealthMax("target"))
     local playerHealth = Percent(UnitHealth("player"), UnitHealthMax("player"))
     local playerMana = Percent(UnitMana("player"), UnitManaMax("player"))
+    local runicPercent, runicCurrent, runicMaximum = CurrentRunicPower()
     local candidates = {}
     local rejected = {}
     local _, rule
 
     for _, rule in ipairs(animationPriority) do
-        local candidate = EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth, playerMana)
+        local candidate = EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth, playerMana, runicPercent)
         if candidate.available then
             table.insert(candidates, candidate)
         else
@@ -637,6 +739,9 @@ local function BuildRecommendationQueue()
         mode = currentMode,
         enemyCount = currentEnemyCount,
         summonCount = summonCount,
+        runicPercent = runicPercent,
+        runicCurrent = runicCurrent,
+        runicMaximum = runicMaximum,
         phase = phase,
         candidates = candidates,
         rejected = rejected,
@@ -802,6 +907,38 @@ local function IsCombatInteraction(subevent)
         or subevent == "SPELL_STOLEN"
 end
 
+local function TrackCombatAura(subevent, sourceOwned, destGUID, spellName, auraType)
+    if not spellName then return end
+    local key = Lower(spellName)
+    local applied = subevent == "SPELL_AURA_APPLIED"
+        or subevent == "SPELL_AURA_REFRESH"
+        or subevent == "SPELL_AURA_APPLIED_DOSE"
+    local removed = subevent == "SPELL_AURA_REMOVED"
+        or subevent == "SPELL_AURA_REMOVED_DOSE"
+
+    if destGUID == playerGUID and trackedSelfBuffs[key] and (not auraType or auraType == "BUFF") then
+        if applied then
+            confirmedSelfBuffs[key] = true
+            assumedSelfBuffs[key] = nil
+        elseif removed then
+            confirmedSelfBuffs[key] = nil
+            assumedSelfBuffs[key] = nil
+        end
+    end
+
+    if trackedTargetDebuffs[key] and destGUID then
+        local confirmed = TargetDebuffTable(confirmedTargetDebuffs, destGUID, applied)
+        local assumed = TargetDebuffTable(assumedTargetDebuffs, destGUID, false)
+        if applied and sourceOwned and (not auraType or auraType == "DEBUFF") then
+            confirmed[key] = true
+            if assumed then assumed[key] = nil end
+        elseif removed then
+            if confirmed then confirmed[key] = nil end
+            if assumed then assumed[key] = nil end
+        end
+    end
+end
+
 local function HandleCombatLog(...)
     local _, subevent, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags = ...
     if not subevent then return end
@@ -833,7 +970,11 @@ local function HandleCombatLog(...)
 
     if subevent == "SPELL_CAST_SUCCESS" and sourceGUID == playerGUID then
         local spellName = select(10, ...)
-        if spellName then lastCasts[Lower(spellName)] = GetTime() end
+        RecordPlayerCast(spellName)
+    end
+
+    if string.find(subevent, "SPELL_AURA_", 1, true) then
+        TrackCombatAura(subevent, sourceOwned, destGUID, select(10, ...), select(12, ...))
     end
 
     if not IsCombatInteraction(subevent) then return end
@@ -860,6 +1001,8 @@ frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 frame:RegisterEvent("UNIT_PET")
+frame:RegisterEvent("UNIT_AURA")
+frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
 frame:SetScript("OnEvent", function(self, event, ...)
@@ -902,6 +1045,16 @@ frame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "UNIT_PET" then
         local unit = ...
         if unit == "player" then RefreshPetGUID() end
+    elseif event == "UNIT_AURA" then
+        local unit = ...
+        if unit == "player" or unit == "target" then RefreshDisplay() end
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+        local unit, spellName = ...
+        if unit == "player" then
+            if type(spellName) == "number" and GetSpellInfo then spellName = GetSpellInfo(spellName) end
+            RecordPlayerCast(spellName)
+            RefreshDisplay()
+        end
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
         HandleCombatLog(...)
     end
@@ -942,6 +1095,14 @@ end
 local function PrintDebug()
     RefreshDisplay()
     Chat("Décision : " .. currentMode .. ", " .. currentEnemyCount .. " cible(s), " .. (lastDecision.summonCount or 0) .. " invocation(s), phase " .. (lastDecision.phase or "?") .. ".")
+    if lastDecision.runicMaximum then
+        Chat("Puissance runique : " .. Round(lastDecision.runicCurrent) .. "/" .. Round(lastDecision.runicMaximum) .. ".")
+    else
+        Chat("Puissance runique : API non exposée, IsUsableSpell décide.")
+    end
+    if lastPlayerCastName and lastPlayerCastAt then
+        Chat("Dernier sort confirmé : " .. lastPlayerCastName .. " (il y a " .. string.format("%.1f", GetTime() - lastPlayerCastAt) .. "s).")
+    end
     if currentRecommendation then
         Chat("CHOISI " .. currentRecommendation.name .. " : " .. Join(currentRecommendation.reasons, ", "))
     else

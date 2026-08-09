@@ -51,7 +51,7 @@ test('Combat Assistant tracks owned pets, summons and guardians into persistent 
 test('Combat Assistant provides an exact Animation priority and one contextual 3.3.5 spell icon', async () => {
   const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
   const observedAnimationSpells = [
-    'Animate: Skeletal Archer', 'Bone Ward', 'Call of The Scourge', 'Command: Undead',
+    'Animate: Skeletal Archer', 'Bone Ward', 'Command: Undead',
     'Corpse Explosion', 'Crypt Swarm', 'Foul Mandate', 'Grave March', 'Harvest Plague',
     'Lichfrost', 'March of the Dead', 'Raise: Abomination', 'Raise: Crypt Fiend',
     'Raise: Greater Skeletal Warrior', 'Razorice', 'Runic Harvest'
@@ -63,7 +63,8 @@ test('Combat Assistant provides an exact Animation priority and one contextual 3
     'UI-ActionButton-Border', 'GetActionInfo', 'GetBindingKey',
     'CreateSpellVisual(frame, 56', 'frame:SetWidth(64)', 'engineFrame:SetScript("OnUpdate"',
     'currentRecommendation = currentQueue[1] and currentQueue[1].ready',
-    'requiresSummon = 1', 'minEnemies = 3', 'settings.aoeThreshold'
+    'requiresSummon = 1', 'minEnemies = 3', 'settings.aoeThreshold',
+    'UnitPower("player", powerType)', 'UnitPowerMax("player", powerType)'
   ]) assert.ok(lua.includes(required), `Priority/visual engine is missing ${required}`);
   assert.equal(lua.includes('secondVisual'), false, 'Compact mode must not render a second icon');
   assert.equal(lua.includes('thirdVisual'), false, 'Compact mode must not render a third icon');
@@ -75,9 +76,37 @@ test('Crypt Fiend recommendation stops after two matching summons and respects t
   for (const required of [
     'CountMatchingSummons', 'NormalizedSummonName', 'desiredSummons = 2',
     'summonNames = { "Crypt Fiend" }', 'matching >= rule.desiredSummons',
-    'settings.maxArmySize', 'recentLock = 2.5'
+    'settings.maxArmySize', 'recentLock = 3.0'
   ]) assert.ok(lua.includes(required), `Per-type summon tracking is missing ${required}`);
   assert.doesNotMatch(lua, /Raise: Crypt Fiend"[^\n]+maxSummons/);
+});
+
+test('successful casts immediately advance the recommendation and confirm buffs/debuffs', async () => {
+  const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
+  for (const required of [
+    'UNIT_SPELLCAST_SUCCEEDED', 'RecordPlayerCast(spellName)',
+    'local GLOBAL_RECENT_CAST_LOCK = 1.65', 'rule.recentLock or GLOBAL_RECENT_CAST_LOCK',
+    'local assumedSelfBuffs = {}', 'local assumedTargetDebuffs = {}',
+    'ASSUMED_SELF_BUFF_SECONDS', 'ASSUMED_TARGET_DEBUFF_SECONDS',
+    'SPELL_AURA_APPLIED', 'SPELL_AURA_REFRESH', 'SPELL_AURA_REMOVED',
+    'HasSelfBuff(rule.selfBuffMissing)', 'HasTargetDebuff(rule.targetDebuffMissing)',
+    'lancé récemment : proposer l\'action suivante'
+  ]) assert.ok(lua.includes(required), `Cast/aura progression is missing ${required}`);
+  assert.match(lua, /name = "Foul Mandate"[^\n]+selfBuffMissing = "Foul Mandate"/);
+  assert.doesNotMatch(lua, /name = "Foul Mandate"[^\n]+targetDebuffMissing/);
+});
+
+test('Animation priority follows the learned level-30 generator/spender loop', async () => {
+  const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
+  const priority = lua.slice(lua.indexOf('local animationPriority = {'), lua.indexOf('local trackedSelfBuffs'));
+  const score = (name) => Number(priority.match(new RegExp(`name = "${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^\\n]+score = (\\d+)`))?.[1]);
+  assert.ok(score('Command: Undead') > score('Crypt Swarm'));
+  assert.ok(score('Crypt Swarm') > score('Lichfrost'));
+  assert.match(priority, /name = "Command: Undead"[^\n]+requiresSummon = 1[^\n]+requiresCombat = true/);
+  assert.match(priority, /name = "Crypt Swarm"[^\n]+requiresTarget = true[^\n]+requiresCombat = true/);
+  assert.doesNotMatch(priority, /name = "Crypt Swarm"[^\n]+mode = "AOE"/);
+  assert.doesNotMatch(priority, /name = "Call of The Scourge"/);
+  assert.match(priority, /name = "Harvest Plague"[^\n]+targetDebuffMissing = "Harvest Plague"/);
 });
 
 test('UI Manager provides persistent movers and never applies frames during combat', async () => {

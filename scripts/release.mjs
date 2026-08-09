@@ -58,7 +58,7 @@ for (const item of packages) {
 
 const manifest = {
   schemaVersion: 1, name: 'CoA Tools', version, channel: process.env.RELEASE_CHANNEL || 'stable',
-  publishedAt: process.env.RELEASE_DATE || '2026-08-09T00:00:00.000Z', minimumNodeVersion: '24.14.0',
+  publishedAt: process.env.RELEASE_DATE || '2026-08-10T00:00:00.000Z', minimumNodeVersion: '24.14.0',
   releaseUrl: `https://github.com/Cnbz13/coa-tools/releases/tag/v${version}`, artifacts
 };
 await writeFile(path.join(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);

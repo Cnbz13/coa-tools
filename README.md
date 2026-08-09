@@ -28,9 +28,9 @@ Commandes complémentaires : `/ea coa`, `/ea coa learn`, `/ea coa scan`. Toutes 
 
 ## CoA Combat Assistant
 
-L’interface se limite à une icône contextuelle de 56 px avec cooldown, glow et touche d’action. Elle apparaît lorsqu’un buff, une invocation ou une action contre la cible est utile, puis disparaît automatiquement lorsqu’il n’y a rien à faire. Les détails restent accessibles avec les commandes de diagnostic.
+L’interface se limite à une icône contextuelle de 56 px avec cooldown, glow et touche d’action. Elle n’affiche que des actions offensives contre une cible hostile valide, puis disparaît automatiquement lorsqu’il n’y a rien à attaquer. Les buffs, soins et invocations ne bloquent plus la rotation. Les détails restent accessibles avec les commandes de diagnostic.
 
-Le profil Nécromancien Animation est construit uniquement à partir des sorts réellement appris. Il évalue la cible, la portée, les ressources, les buffs/debuffs, les cooldowns, la santé, les invocations actives par type, la phase d’ouverture et le nombre d’ennemis. Les deux Crypt Fiends sont notamment suivis par GUID et nom. Il ne lance jamais automatiquement un sort.
+Le profil Nécromancien Animation est construit uniquement à partir des sorts réellement appris. Sa boucle offensive suit les informations actuellement disponibles : `Blight` en ouverture sur une cible durable, `Command: Undead` lorsque la puissance runique et une invocation sont disponibles, puis `Crypt Swarm` comme filler/générateur. Il évalue aussi la cible, la portée, les cooldowns, la santé, la mémoire des résistances et le nombre d’ennemis. Il ne lance jamais automatiquement un sort.
 
 La mémoire suit le joueur, son pet, ses summons et ses guardians via le combat log 3.3.5. Pour chaque créature, elle conserve le GUID, le nom, les rencontres, les morts observées, les dégâts, le temps de combat, la dernière rencontre et la zone.
 
@@ -55,6 +55,18 @@ Chaque sous-dossier qui contient un fichier `.toc` est scanné réellement. Le n
 Une installation ou mise à jour CoA télécharge le ZIP officiel, vérifie obligatoirement sa taille et son SHA-256, contrôle son chemin d’extraction et exige un `.toc` dans le dossier cible avant remplacement. Une sauvegarde automatique précède chaque remplacement et peut être restaurée depuis l’interface.
 
 Les installations individuelles et la mise à jour globale sont suivies en direct : addon courant, étape, pourcentage, octets téléchargés et temps écoulé restent visibles, même après un rafraîchissement de l’interface. Un téléchargement réseau est interrompu avec une erreur explicite après deux minutes sans résultat.
+
+## Veille hebdomadaire CoA
+
+Le manager présente les changements susceptibles d’affecter Combat Assistant, EventAlertCoA, GridCoA ou UI Manager dans l’onglet **Mises à jour**. Chaque proposition indique la source, la date, les addons concernés, le niveau de confiance et la raison technique. Aucune règle d’addon n’est modifiée ou publiée automatiquement à partir d’un patch note.
+
+La veille lit en priorité le [changelog officiel Conquest of Azeroth](https://ascension.gg/en/changelog/4), puis les [actualités officielles Ascension](https://ascension.gg/en/news/board). Elle utilise leurs API publiques, regroupe les changements rang par rang, conserve les empreintes des publications déjà vues dans `watch/state.json` et publie le rapport lisible dans `watch/report.json`.
+
+Le workflow `Veille CoA hebdomadaire` s’exécute chaque lundi, teste le parseur et les règles d’impact, puis ne commit que le rapport et l’état anti-doublon. Une vérification manuelle peut être déclenchée depuis le manager ou localement :
+
+```bash
+npm run watch:coa
+```
 
 ## Développement local
 
@@ -91,7 +103,7 @@ Pour publier :
 3. Pousser le commit puis le tag correspondant.
 4. Le workflow `Release` teste, crée les cinq ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
 
-Le workflow peut aussi être lancé manuellement avec une version. Le client utilise par défaut le manifeste de la dernière release ; `COA_UPDATE_MANIFEST` permet de cibler un autre canal.
+Le workflow peut aussi être lancé manuellement avec une version. Le client utilise par défaut le manifeste de la dernière release ; `COA_UPDATE_MANIFEST` permet de cibler un autre canal. `COA_WATCH_REPORT` permet de remplacer l’URL du rapport de veille.
 
 ## Vérification
 

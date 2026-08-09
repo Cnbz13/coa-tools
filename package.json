@@ -1,6 +1,6 @@
 {
   "name": "coa-tools",
-  "version": "1.3.4",
+  "version": "1.4.0",
   "private": true,
   "type": "module",
   "description": "Local companion suite for combat, UI and addon management.",
@@ -11,6 +11,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test",
+    "watch:coa": "node scripts/coa-watch.mjs",
     "validate:manifest": "node scripts/validate-manifest.mjs",
     "release": "node scripts/release.mjs"
   },

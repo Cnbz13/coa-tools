@@ -113,10 +113,8 @@ test('Combat Assistant tracks owned pets, summons and guardians into persistent 
 test('Combat Assistant provides an exact Animation priority and one contextual 3.3.5 spell icon', async () => {
   const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
   const observedAnimationSpells = [
-    'Animate: Skeletal Archer', 'Bone Ward', 'Command: Undead',
-    'Corpse Explosion', 'Crypt Swarm', 'Foul Mandate', 'Grave March', 'Harvest Plague',
-    'Lichfrost', 'March of the Dead', 'Raise: Abomination', 'Raise: Crypt Fiend',
-    'Raise: Greater Skeletal Warrior', 'Razorice', 'Runic Harvest'
+    'Blight', 'Command: Undead', 'Corpse Explosion', 'Crypt Swarm',
+    'Grave March', 'Lichfrost', 'March of the Dead', 'Razorice'
   ];
   for (const spell of observedAnimationSpells) assert.ok(lua.includes(`name = "${spell}"`), `Animation priority is missing ${spell}`);
   for (const required of [
@@ -133,14 +131,14 @@ test('Combat Assistant provides an exact Animation priority and one contextual 3
   assert.doesNotMatch(lua, /FindFallbackSpell|string\.find\(Lower\(spell\.name\),\s*"command:"/);
 });
 
-test('Crypt Fiend recommendation stops after two matching summons and respects the army cap', async () => {
+test('summons remain tracked for combat ownership but never become icon recommendations', async () => {
   const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
   for (const required of [
-    'CountMatchingSummons', 'NormalizedSummonName', 'desiredSummons = 2',
-    'summonNames = { "Crypt Fiend" }', 'matching >= rule.desiredSummons',
-    'settings.maxArmySize', 'recentLock = 3.0'
-  ]) assert.ok(lua.includes(required), `Per-type summon tracking is missing ${required}`);
-  assert.doesNotMatch(lua, /Raise: Crypt Fiend"[^\n]+maxSummons/);
+    'CountMatchingSummons', 'NormalizedSummonName', 'RegisterOwnedSummon',
+    'SPELL_SUMMON', 'CountOwnedSummons', 'IsOwnedActor'
+  ]) assert.ok(lua.includes(required), `Summon combat tracking is missing ${required}`);
+  const priority = lua.slice(lua.indexOf('local animationPriority = {'), lua.indexOf('local trackedSelfBuffs'));
+  assert.doesNotMatch(priority, /name = "(?:Raise:|Animate:|Bone Ward|Foul Mandate|Unholy Frenzy|Runic Harvest)/);
 });
 
 test('successful casts immediately advance the recommendation and confirm buffs/debuffs', async () => {
@@ -154,24 +152,19 @@ test('successful casts immediately advance the recommendation and confirm buffs/
     'HasSelfBuff(rule.selfBuffMissing)', 'HasTargetDebuff(rule.targetDebuffMissing)',
     'lancé récemment : proposer l\'action suivante'
   ]) assert.ok(lua.includes(required), `Cast/aura progression is missing ${required}`);
-  assert.match(lua, /name = "Foul Mandate"[^\n]+selfBuffMissing = "Foul Mandate"/);
-  assert.doesNotMatch(lua, /name = "Foul Mandate"[^\n]+targetDebuffMissing/);
+  assert.match(lua, /name = "Blight"[^\n]+targetDebuffMissing = "Blight"/);
 });
 
-test('preparation buffs and minions never block the hostile-target combat rotation', async () => {
+test('the compact recommendation is strictly offensive and disappears without a hostile target', async () => {
   const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
-  for (const spell of [
-    'Bone Ward', 'Foul Mandate', 'Raise: Crypt Fiend', 'Animate: Skeletal Archer',
-    'Raise: Greater Skeletal Warrior', 'Raise: Abomination', 'Raise: Lesser Skeletal Warrior', 'Runic Harvest'
-  ]) {
-    assert.match(lua, new RegExp(`name = "${spell.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^\\n]+preparationOnly = true`), `${spell} must be preparation-only`);
-  }
+  const priority = lua.slice(lua.indexOf('local animationPriority = {'), lua.indexOf('local trackedSelfBuffs'));
+  assert.doesNotMatch(priority, /name = "(?:Raise:|Animate:|Bone Ward|Foul Mandate|Unholy Frenzy|Runic Harvest|Sacrifice Undead)/);
+  for (const line of priority.split('\n').filter(line => line.includes('{ name ='))) assert.match(line, /requiresTarget = true/);
   for (const required of [
-    'local function SpellKey', '[Rr]ank%s+', 'local combatActive = startedAt ~= nil',
-    'rule.preparationOnly and (combatActive or TargetIsValid())',
-    'préparation uniquement hors combat et sans cible hostile', 'lastCasts[SpellKey(rule.name)]'
-  ]) assert.ok(lua.includes(required), `Combat phase separation is missing ${required}`);
-  assert.doesNotMatch(lua, /name = "(?:Command: Undead|Crypt Swarm|Lichfrost|Razorice)"[^\n]+preparationOnly/);
+    'TargetIsValid()', 'currentRecommendation = currentQueue[1] and currentQueue[1].ready',
+    'CoACombatAssistantDB.visible and currentRecommendation', 'frame:Hide()',
+    'lastCasts[SpellKey(rule.name)]'
+  ]) assert.ok(lua.includes(required), `Offensive-only display is missing ${required}`);
 });
 
 test('Animation priority follows the learned level-30 generator/spender loop', async () => {
@@ -180,11 +173,11 @@ test('Animation priority follows the learned level-30 generator/spender loop', a
   const score = (name) => Number(priority.match(new RegExp(`name = "${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^\\n]+score = (\\d+)`))?.[1]);
   assert.ok(score('Command: Undead') > score('Crypt Swarm'));
   assert.ok(score('Crypt Swarm') > score('Lichfrost'));
-  assert.match(priority, /name = "Command: Undead"[^\n]+requiresSummon = 1[^\n]+requiresCombat = true/);
-  assert.match(priority, /name = "Crypt Swarm"[^\n]+requiresTarget = true[^\n]+requiresCombat = true/);
+  assert.match(priority, /name = "Command: Undead"[^\n]+requiresSummon = 1[^\n]+minRunic = 20/);
+  assert.match(priority, /name = "Crypt Swarm"[^\n]+requiresTarget = true[^\n]+directDamage = true/);
   assert.doesNotMatch(priority, /name = "Crypt Swarm"[^\n]+mode = "AOE"/);
   assert.doesNotMatch(priority, /name = "Call of The Scourge"/);
-  assert.match(priority, /name = "Harvest Plague"[^\n]+targetDebuffMissing = "Harvest Plague"/);
+  assert.match(priority, /name = "Blight"[^\n]+openingOnly = true/);
 });
 
 test('target profiles learn creature durability, danger and per-spell outcomes', async () => {
@@ -204,12 +197,12 @@ test('recommendations react to health, expected lifetime and learned immunities'
   const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
   for (const required of [
     'AdaptCandidateToTarget', 'rule.minTargetHealth', 'rule.longSetup', 'rule.directDamage',
-    'rule.execute', 'rule.channel', 'cible trop proche de mourir',
+    'rule.channel', 'cible trop proche de mourir',
     'ce type de créature meurt trop vite', 'sort souvent immunisé', 'sort souvent résisté',
     'efficacité observée sur ce type de créature'
   ]) assert.ok(lua.includes(required), `Adaptive scoring is missing ${required}`);
-  assert.match(lua, /name = "Blight"[^\n]+minTargetHealth = 30[^\n]+longSetup = true/);
-  assert.match(lua, /name = "Ghoulify"[^\n]+directDamage = true[^\n]+execute = true/);
+  assert.match(lua, /name = "Blight"[^\n]+minTargetHealth = 70[^\n]+openingOnly = true[^\n]+longSetup = true/);
+  assert.match(lua, /rule\.openingOnly and phase == "established"/);
   assert.match(lua, /AdaptCandidateToTarget\(candidate, targetProfile, targetHealth\)/);
 });
 

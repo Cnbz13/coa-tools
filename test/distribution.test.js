@@ -56,6 +56,18 @@ test('addon manager exposes recoverable progress for individual and global updat
   assert.match(addons, /phasePercent/);
 });
 
+test('addon manager exposes sourced CoA watch recommendations without automatic addon edits', async () => {
+  const server = await readFile('src/server.js', 'utf8');
+  const app = await readFile('public/app.js', 'utf8');
+  const html = await readFile('public/index.html', 'utf8');
+  assert.match(server, /pathname === '\/api\/watch'/);
+  assert.match(server, /pathname === '\/api\/watch\/check'/);
+  assert.match(app, /loadCoaWatch/);
+  assert.match(app, /Les recommandations restent soumises à validation/);
+  assert.match(html, /id="checkCoaWatch"/);
+  assert.match(html, /aucune logique d’addon n’est modifiée automatiquement/);
+});
+
 test('WoW addon metadata matches the package version', async () => {
   for (const name of ['CoACombatAssistant', 'CoAUIManager', 'GridCoA']) {
     const toc = await readFile(`addons/${name}/${name}.toc`, 'utf8');

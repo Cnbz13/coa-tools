@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { CombatAssistant } from './core/combat.js';
 import { AddonManager } from './core/addons.js';
 import { AddonOperationRegistry } from './core/addon-operations.js';
+import { CoaWatchService } from './core/coa-watch.js';
 import { UiManager } from './core/ui-manager.js';
 import { Updater } from './core/updater.js';
 import { ensureDir, readJson } from './lib/files.js';
@@ -20,6 +21,7 @@ await ensureDir(dataDir);
 const combat = new CombatAssistant();
 const addons = new AddonManager({ dataDir, manifestUrl, environmentPath: process.env.COA_ADDONS_DIR });
 const addonOperations = new AddonOperationRegistry(addons);
+const coaWatch = new CoaWatchService({ dataDir, reportUrl: process.env.COA_WATCH_REPORT });
 const ui = new UiManager(dataDir);
 const updater = new Updater({ currentVersion: pkg.version, manifestUrl, stagingDir: path.join(root, '.updates') });
 
@@ -64,6 +66,8 @@ async function api(request, response, pathname) {
   }
   if (request.method === 'GET' && pathname === '/api/updates/check') return json(response, 200, await updater.check());
   if (request.method === 'POST' && pathname === '/api/updates/download') return json(response, 200, await updater.downloadLatest());
+  if (request.method === 'GET' && pathname === '/api/watch') return json(response, 200, await coaWatch.report());
+  if (request.method === 'POST' && pathname === '/api/watch/check') return json(response, 200, await coaWatch.check());
   return json(response, 404, { error: 'Not found' });
 }
 

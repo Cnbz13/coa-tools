@@ -8,7 +8,7 @@ const api = async (url, options = {}) => {
 const toast = message => { $('#toast').textContent = message; $('#toast').classList.add('show'); setTimeout(() => $('#toast').classList.remove('show'), 3000); };
 const escapeHtml = value => { const node = document.createElement('span'); node.textContent = value ?? ''; return node.innerHTML; };
 const escapeAttribute = value => escapeHtml(value).replaceAll('`', '&#96;');
-let combat, updateArtifact, addonInventory, addonOperation, addonPollTimer;
+let combat, updateArtifact, addonInventory, addonOperation, addonPollTimer, coaWatch;
 
 document.querySelectorAll('nav button').forEach(button => button.onclick = () => {
   document.querySelectorAll('nav button,.view').forEach(item => item.classList.remove('active'));
@@ -165,4 +165,53 @@ async function checkUpdates(automatic = false) { try { const value = await api('
 async function downloadUpdate() { try { $('#updateStatus').textContent = 'Téléchargement et vérification…'; const value = await api('/api/updates/download', { method: 'POST', body: '{}' }); $('#updateStatus').textContent = `Mise à jour vérifiée et prête : ${value.sha256.slice(0, 16)}…`; $('#downloadUpdate').hidden = true; } catch (error) { $('#updateStatus').textContent = error.message; } }
 $('#checkUpdate').onclick = () => checkUpdates(false);
 $('#downloadUpdate').onclick = downloadUpdate;
-const status = await api('/api/status'); $('#version').textContent = `Version ${status.version}`; await Promise.all([loadCombat(), loadAddons(), loadUi()]); await resumeAddonOperation(); checkUpdates(true); setInterval(() => checkUpdates(true), 6 * 60 * 60 * 1000); setInterval(() => { if (activeAddonOperation()) renderAddonProgress(); }, 1000);
+
+const watchComponentLabels = {
+  'combat-assistant': 'Combat Assistant',
+  'event-alert': 'EventAlertCoA',
+  'grid-compat': 'GridCoA',
+  'ui-manager': 'UI Manager'
+};
+const safeExternalUrl = value => {
+  try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.href : '#'; }
+  catch { return '#'; }
+};
+function renderCoaWatch() {
+  const items = coaWatch?.items || [];
+  const generated = coaWatch?.generatedAt ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(coaWatch.generatedAt)) : 'jamais';
+  const failed = Boolean(coaWatch?.remoteError && !coaWatch?.cached);
+  $('#watchState').textContent = failed ? 'INDISPONIBLE' : coaWatch?.cached ? 'CACHE LOCAL' : 'À JOUR';
+  $('#watchState').classList.toggle('warning', failed || coaWatch?.cached);
+  $('#watchHeadline').textContent = failed
+    ? 'Le rapport de veille n’est pas encore accessible.'
+    : `${coaWatch?.newCount || 0} nouveauté(s), ${coaWatch?.significantCount || 0} changement(s) significatif(s)`;
+  $('#watchDescription').textContent = failed
+    ? coaWatch.remoteError
+    : `Dernière vérification : ${generated}. Les recommandations restent soumises à validation avant modification des addons.`;
+  $('#watchSources').innerHTML = (coaWatch?.sources || []).map(source => `
+    <a href="${escapeAttribute(safeExternalUrl(source.url))}" target="_blank" rel="noreferrer" class="watch-source ${source.status}">
+      <span>${source.status === 'ok' ? '✓' : '!'}</span><b>${escapeHtml(source.name)}</b><small>${source.status === 'ok' ? `${source.checked} élément(s) lus` : escapeHtml(source.error)}</small>
+    </a>`).join('');
+  $('#watchRecommendations').innerHTML = items.length ? items.slice(0, 30).map(item => `
+    <article class="watch-item ${item.significant ? 'significant' : ''}">
+      <div class="watch-item-top"><span class="badge">${item.new ? 'NOUVEAU' : escapeHtml(item.confidence || 'SUIVI').toUpperCase()}</span><time>${escapeHtml(new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(new Date(item.publishedAt)))}</time></div>
+      <h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary)}</p>
+      <div class="impact-list">${(item.impacts || []).map(impact => `<span>${escapeHtml(watchComponentLabels[impact.component] || impact.name)}</span>`).join('')}</div>
+      <p class="watch-reason">${escapeHtml(item.reason)}</p>
+      <a href="${escapeAttribute(safeExternalUrl(item.url))}" target="_blank" rel="noreferrer">Lire la source officielle ↗</a>
+    </article>`).join('') : '<article class="empty-card">Aucun changement ayant un impact sur les addons n’a été détecté dans la période analysée.</article>';
+}
+async function loadCoaWatch() {
+  try { coaWatch = await api('/api/watch'); renderCoaWatch(); }
+  catch (error) { coaWatch = { items: [], sources: [], remoteError: error.message }; renderCoaWatch(); }
+}
+$('#checkCoaWatch').onclick = async event => {
+  const button = event.currentTarget;
+  button.disabled = true; button.textContent = 'Analyse en cours…';
+  $('#watchHeadline').textContent = 'Lecture du changelog et des actualités officielles…';
+  try { coaWatch = await api('/api/watch/check', { method: 'POST', body: '{}' }); renderCoaWatch(); toast('Veille CoA terminée'); }
+  catch (error) { toast(error.message); await loadCoaWatch(); }
+  finally { button.disabled = false; button.textContent = 'Vérifier maintenant'; }
+};
+
+const status = await api('/api/status'); $('#version').textContent = `Version ${status.version}`; await Promise.all([loadCombat(), loadAddons(), loadUi()]); await resumeAddonOperation(); loadCoaWatch(); checkUpdates(true); setInterval(() => checkUpdates(true), 6 * 60 * 60 * 1000); setInterval(() => { if (activeAddonOperation()) renderAddonProgress(); }, 1000);

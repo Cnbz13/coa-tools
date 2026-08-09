@@ -23,7 +23,16 @@
       <details class="advanced"><summary>Configuration avancée du dossier</summary><div class="advanced-content"><p>Utilisez cette option uniquement si Project Ascension n’est pas détecté automatiquement.</p><div class="path-editor"><input id="addonPath" placeholder="C:\…\Interface\AddOns"><button id="browseAddonPath">Parcourir…</button><button id="saveAddonPath" class="primary">Utiliser ce dossier</button></div></div></details>
     </section>
     <section id="ui" class="view"><div class="section-title"><div><span class="eyebrow">ESPACE PERSONNEL</span><h2>Apparence et disposition</h2></div></div><article class="settings"><label>Thème<select id="theme"><option value="obsidian">Obsidienne</option><option value="ember">Braise</option><option value="frost">Givre</option></select></label><label>Densité<select id="density"><option value="comfortable">Confortable</option><option value="compact">Compacte</option></select></label><button id="saveUi" class="primary">Enregistrer</button></article></section>
-    <section id="updates" class="view"><div class="section-title"><div><span class="eyebrow">CANAL STABLE</span><h2>Mises à jour sécurisées</h2></div><button id="checkUpdate" class="primary">Rechercher</button></div><article class="update-card"><div class="shield">✓</div><div><h3>Vérification SHA-256</h3><p id="updateStatus">Chaque artefact est téléchargé en staging et vérifié avant installation.</p></div><button id="downloadUpdate" hidden>Télécharger</button></article></section>
+    <section id="updates" class="view">
+      <div class="section-title"><div><span class="eyebrow">CANAL STABLE</span><h2>Mises à jour sécurisées</h2></div><button id="checkUpdate" class="primary">Rechercher</button></div>
+      <article class="update-card"><div class="shield">✓</div><div><h3>Vérification SHA-256</h3><p id="updateStatus">Chaque artefact est téléchargé en staging et vérifié avant installation.</p></div><button id="downloadUpdate" hidden>Télécharger</button></article>
+      <div class="section-title watch-title"><div><span class="eyebrow">VEILLE HEBDOMADAIRE</span><h2>Changements Project Ascension / CoA</h2></div><button id="checkCoaWatch">Vérifier maintenant</button></div>
+      <article class="watch-summary">
+        <div><span id="watchState" class="badge">CHARGEMENT</span><h3 id="watchHeadline">Lecture du dernier rapport…</h3><p id="watchDescription">Les changements sont proposés pour validation : aucune logique d’addon n’est modifiée automatiquement.</p></div>
+        <div id="watchSources" class="watch-sources"></div>
+      </article>
+      <div id="watchRecommendations" class="watch-list"></div>
+    </section>
     <div id="toast"></div>
   </main><script type="module" src="/app.js"></script>
 </body></html>

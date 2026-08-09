@@ -122,37 +122,28 @@ local lastCombatInteraction = nil
 local EndCombat
 local character = { level = 0, className = "Inconnue", classToken = "UNKNOWN", spec = "Inconnue" }
 
--- Priorités strictement construites à partir du spellbook Animation observé en jeu.
--- Aucun motif générique "Command:" ou "Animate:" n'est utilisé comme fallback.
+-- Rotation Animation volontairement offensive et construite uniquement avec les
+-- sorts réellement observés dans le spellbook. Les buffs, soins et invocations
+-- ne sont jamais affichés dans l'icône de combat.
+-- Sources de logique : changelog CoA (Crypt Swarm = filler Animation) et retours
+-- récents de joueurs (Blight à l'ouverture, Crypt Swarm pour générer, Command
+-- pour dépenser). Aucun motif générique "Command:" ou "Animate:" n'est utilisé.
 local animationPriority = {
-    -- Défense et armée : ces règles disparaissent dès que l'effet ou l'invocation est confirmé.
-    { name = "Bone Ward", score = 150, selfBuffMissing = "Bone Ward", preparationOnly = true, reason = "protection personnelle absente avant la prochaine cible" },
-    { name = "Sacrifice Undead", score = 148, maxPlayerHealth = 32, requiresSummon = 1, requiresCombat = true, reason = "survie critique" },
-    { name = "Raise: Crypt Fiend", score = 142, desiredSummons = 2, summonNames = { "Crypt Fiend" }, recentLock = 3.0, preparationOnly = true, reason = "compléter les deux Crypt Fiends avant le combat" },
-    { name = "Animate: Skeletal Archer", score = 140, desiredSummons = 1, summonNames = { "Skeletal Archer" }, recentLock = 3.0, preparationOnly = true, reason = "préparer l'archer avant la prochaine cible" },
-    { name = "Raise: Greater Skeletal Warrior", score = 138, desiredSummons = 1, summonNames = { "Greater Skeletal Warrior" }, recentLock = 3.0, preparationOnly = true, reason = "préparer le guerrier squelette supérieur" },
-    { name = "Raise: Abomination", score = 136, desiredSummons = 1, summonNames = { "Abomination" }, recentLock = 3.0, preparationOnly = true, reason = "préparer l'abomination" },
-    { name = "Raise: Lesser Skeletal Warrior", score = 134, desiredSummons = 1, summonNames = { "Lesser Skeletal Warrior" }, recentLock = 3.0, preparationOnly = true, reason = "préparer une armée", onlyWithoutSummon = true },
-    { name = "Unholy Frenzy", score = 132, selfBuffMissing = "Unholy Frenzy", eliteOrBoss = true, requiresSummon = 1, requiresCombat = true, recentLock = 5.0, reason = "burst contre une cible élite ou boss" },
+    -- AOE : uniquement quand le compteur réel atteint le seuil configuré.
+    { name = "March of the Dead", score = 146, mode = "AOE", minEnemies = 5, requiresTarget = true, requiresCombat = true, directDamage = true, reason = "attaque AOE prioritaire sur cinq ennemis actifs ou plus" },
+    { name = "Grave March", score = 144, mode = "AOE", minEnemies = 3, requiresTarget = true, requiresSummon = 2, requiresCombat = true, minRunic = 20, directDamage = true, reason = "commande AOE avec invocations et ressource disponible" },
+    { name = "Corpse Explosion", score = 140, mode = "AOE", minEnemies = 3, requiresTarget = true, maxTargetHealth = 45, phase = "established", directDamage = true, reason = "explosion de finition dans un groupe" },
 
-    -- Ouverture/entretien, d'après les sorts réellement observés dans le spellbook.
-    { name = "Foul Mandate", score = 130, selfBuffMissing = "Foul Mandate", preparationOnly = true, reason = "mandat personnel absent avant la prochaine cible" },
-    { name = "Blight", score = 128, requiresTarget = true, targetDebuffMissing = "Blight", minTargetHealth = 30, longSetup = true, reason = "maladie principale absente sur une cible assez durable" },
-    { name = "Harvest Plague", score = 126, requiresTarget = true, targetDebuffMissing = "Harvest Plague", targetDebuffPresentAny = { "Blight" }, minTargetHealth = 35, longSetup = true, reason = "entretenir Harvest Plague sur une cible durable" },
+    -- ST : Blight seulement en ouverture sur une cible durable, puis la boucle
+    -- générateur/dépense documentée pour Animation.
+    { name = "Blight", score = 138, requiresTarget = true, targetDebuffMissing = "Blight", minTargetHealth = 70, openingOnly = true, longSetup = true, directDamage = true, reason = "ouvrir avec Blight sur une cible encore durable" },
+    { name = "Command: Undead", score = 134, requiresTarget = true, requiresSummon = 1, minRunic = 20, directDamage = true, reason = "dépenser la puissance runique avec les invocations" },
+    { name = "Crypt Swarm", score = 130, requiresTarget = true, directDamage = true, channel = true, reason = "filler Animation et génération de puissance runique" },
 
-    -- AOE importante ; Call of The Scourge n'est pas une attaque de rotation.
-    { name = "March of the Dead", score = 124, mode = "AOE", minEnemies = 5, requiresCombat = true, directDamage = true, reason = "cinq ennemis actifs ou plus" },
-    { name = "Grave March", score = 122, mode = "AOE", minEnemies = 3, requiresSummon = 2, requiresCombat = true, directDamage = true, reason = "invocations engagées sur plusieurs cibles" },
-    { name = "Corpse Explosion", score = 120, mode = "AOE", minEnemies = 3, requiresTarget = true, maxTargetHealth = 45, phase = "established", directDamage = true, reason = "cible affaiblie dans un groupe" },
-
-    -- Boucle Animation : dépenser avec Command, générer avec Crypt Swarm, puis dégâts de secours.
-    { name = "Command: Undead", score = 118, requiresTarget = true, requiresSummon = 1, requiresCombat = true, directDamage = true, reason = "dépense principale avec les invocations" },
-    { name = "Crypt Swarm", score = 116, requiresTarget = true, requiresCombat = true, directDamage = true, channel = true, reason = "dégâts et génération de puissance runique" },
-    { name = "Lichfrost", score = 114, requiresTarget = true, targetDebuffPresentAny = { "Blight" }, directDamage = true, reason = "dégâts directs avec Blight actif" },
-    { name = "Glacial Tap", score = 112, requiresTarget = true, requiresCombat = true, maxRunic = 70, reason = "générer de la puissance runique sans surcap" },
-    { name = "Runic Harvest", score = 110, maxRunic = 70, preparationOnly = true, reason = "préparer la puissance runique entre deux combats" },
-    { name = "Razorice", score = 108, requiresTarget = true, directDamage = true, reason = "dégâts directs de complément" },
-    { name = "Ghoulify", score = 106, requiresTarget = true, maxTargetHealth = 35, phase = "established", directDamage = true, execute = true, reason = "finir une cible affaiblie" }
+    -- Secours uniquement si ces sorts sont réellement appris et si les actions
+    -- principales sont temporairement indisponibles.
+    { name = "Lichfrost", score = 104, requiresTarget = true, directDamage = true, fallbackOnly = true, reason = "dégâts de secours appris" },
+    { name = "Razorice", score = 102, requiresTarget = true, directDamage = true, fallbackOnly = true, reason = "dégâts de secours appris" }
 }
 
 local trackedSelfBuffs = {
@@ -176,7 +167,7 @@ local function EnsureDatabase()
     CoACombatAssistantDB.settings = CoACombatAssistantDB.settings or {}
     CoACombatAssistantDB.settings.aoeThreshold = tonumber(CoACombatAssistantDB.settings.aoeThreshold) or DEFAULT_AOE_THRESHOLD
     CoACombatAssistantDB.settings.maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
-    CoACombatAssistantDB.version = "1.3.4"
+    CoACombatAssistantDB.version = "1.4.0"
 
     if not CoACombatAssistantDB.position and CoACombatAssistantDB.ui then
         local old = CoACombatAssistantDB.ui
@@ -840,6 +831,7 @@ local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth
         local maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
         if summonCount >= maxArmySize then Reject(candidate, "armée complète (" .. summonCount .. "/" .. maxArmySize .. ")") end
     end
+    if rule.openingOnly and phase == "established" then Reject(candidate, "réservé à l'ouverture") end
     if rule.phase and rule.phase ~= phase then Reject(candidate, "réservé à la phase " .. rule.phase) end
     if rule.maxTargetHealth and targetHealth > rule.maxTargetHealth then Reject(candidate, "santé de la cible trop élevée") end
     if rule.maxPlayerHealth and playerHealth > rule.maxPlayerHealth then Reject(candidate, "santé du joueur suffisante") end

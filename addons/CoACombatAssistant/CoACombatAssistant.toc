@@ -1,8 +1,8 @@
 ## Interface: 30300
 ## Title: CoA Combat Assistant
-## Notes: Assistant de recommandations et mémoire de combat pour Project Ascension 3.3.5a.
+## Notes: Assistant visuel de rotation et mémoire de combat pour Project Ascension 3.3.5a.
 ## Author: Cnbz13
-## Version: 1.0.5
+## Version: 1.0.6
 ## SavedVariables: CoACombatAssistantDB
 
 CoACombatAssistant.lua

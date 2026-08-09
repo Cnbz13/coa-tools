@@ -46,9 +46,17 @@ try {
         finally { $client.Dispose() }
     } while (-not $portOccupied -and (Get-Date) -lt $portDeadline)
     if (-not $portOccupied) { throw 'Could not reserve port 4173 for the conflict test.' }
+    $startInfo = New-Object Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $env:ComSpec
     $stdout = Join-Path $qaRoot 'launcher.stdout.log'
     $stderr = Join-Path $qaRoot 'launcher.stderr.log'
-    $cmdProcess = Start-Process -FilePath $env:ComSpec -ArgumentList '/d', '/c', 'CoAAddonManager.cmd' -WorkingDirectory $appRoot -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
+    $startInfo.Arguments = '/d /s /c ""CoAAddonManager.cmd" 1>"' + $stdout + '" 2>"' + $stderr + '""'
+    $startInfo.WorkingDirectory = $appRoot
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $cmdProcess = New-Object Diagnostics.Process
+    $cmdProcess.StartInfo = $startInfo
+    if (-not $cmdProcess.Start()) { throw 'Could not start the packaged Windows launcher.' }
     $stateFile = Join-Path $profileRoot 'CoAAddonManager\launch-state.json'
     $deadline = (Get-Date).AddSeconds(120)
     while ((Get-Date) -lt $deadline -and -not (Test-Path -LiteralPath $stateFile)) {
@@ -58,7 +66,11 @@ try {
         }
         Start-Sleep -Milliseconds 250
     }
-    if (-not (Test-Path -LiteralPath $stateFile)) { throw 'Launcher state file was not created in 120 seconds.' }
+    if (-not (Test-Path -LiteralPath $stateFile)) {
+        $capturedOut = if (Test-Path -LiteralPath $stdout) { [IO.File]::ReadAllText($stdout) } else { '(aucune sortie)' }
+        $capturedErr = if (Test-Path -LiteralPath $stderr) { [IO.File]::ReadAllText($stderr) } else { '(aucune erreur)' }
+        throw "Launcher state file was not created in 120 seconds.`nSTDOUT:`n$capturedOut`nSTDERR:`n$capturedErr"
+    }
     $state = Get-Content -LiteralPath $stateFile -Raw -Encoding UTF8 | ConvertFrom-Json
     $nodePid = $state.pid
     $status = Invoke-RestMethod "$($state.url)api/status" -TimeoutSec 5
@@ -76,7 +88,9 @@ try {
 }
 finally {
     if ($nodePid) { Stop-Process -Id $nodePid -Force -ErrorAction SilentlyContinue }
-    if ($cmdProcess -and -not $cmdProcess.HasExited) { Stop-Process -Id $cmdProcess.Id -Force -ErrorAction SilentlyContinue }
+    if ($cmdProcess -and -not $cmdProcess.HasExited) {
+        & "$env:SystemRoot\System32\taskkill.exe" /PID $cmdProcess.Id /T /F 2>$null | Out-Null
+    }
     if ($portJob) { Stop-Job $portJob -ErrorAction SilentlyContinue; Remove-Job $portJob -Force -ErrorAction SilentlyContinue }
     $env:LOCALAPPDATA = $oldLocalAppData
     $env:COA_NO_BROWSER = $oldNoBrowser

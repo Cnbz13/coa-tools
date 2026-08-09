@@ -2,8 +2,8 @@
 
 Suite locale sans télémétrie regroupant trois outils :
 
-- **CoA Combat Assistant** — addon WoW avec chronomètre et suivi des rencontres ;
-- **CoA UI Manager** — addon WoW de réglage rapide de l’interface ;
+- **CoA Combat Assistant** — addon WoW de recommandations visuelles et de mémoire des combats ;
+- **CoA UI Manager** — gestionnaire complet de positions, profils, échelle et alpha ;
 - **CoA Addon Manager** — application Windows qui détecte Project Ascension et gère automatiquement les addons CoA.
 
 ## Artefacts installables
@@ -16,9 +16,25 @@ Chaque release publie trois ZIP indépendants :
 
 Les deux addons ciblent strictement le client Project Ascension / WoW 3.3.5a (`## Interface: 30300`) et Lua 5.1.
 
-Dans le jeu, CoA Combat Assistant fournit `/cca status`, `/cca scan`, `/cca unlock`, `/cca lock` et `/cca memory`. Il analyse le spellbook et le combat log pour proposer une recommandation ST/AOE, avec priorité au Nécromancien Animation, sans jamais lancer de sort.
+## CoA Combat Assistant
 
-CoA UI Manager remplace les fonctions essentielles de MoveAnything : `/cui unlock` affiche les movers, `/cui lock` enregistre, et `/cui profile global|character` change de profil. La molette règle l’échelle, Maj+molette règle l’alpha, et `/cui add NomDuFrame` ajoute un frame Lua personnalisé. Aucun frame n’est déplacé pendant un combat.
+La fenêtre compacte affiche la classe, la spécialisation, le niveau, le mode ST/AOE, le nombre d’ennemis et d’invocations, le temps de combat et la mémoire persistante. Elle montre le prochain sort recommandé avec une grande icône, son cooldown et sa touche d’action, puis les deux sorts suivants.
+
+Le profil Nécromancien Animation est construit uniquement à partir des sorts réellement appris. Il évalue la cible, la portée, les ressources, les buffs/debuffs, les cooldowns, la santé, les invocations actives, la phase d’ouverture et le nombre d’ennemis. Il ne lance jamais automatiquement un sort.
+
+La mémoire suit le joueur, son pet, ses summons et ses guardians via le combat log 3.3.5. Pour chaque créature, elle conserve le GUID, le nom, les rencontres, les morts observées, les dégâts, le temps de combat, la dernière rencontre et la zone.
+
+Commandes :
+
+- `/cca status`, `/cca scan`, `/cca unlock`, `/cca lock` ;
+- `/cca memory [filtre|clear]` pour inspecter ou vider la mémoire ;
+- `/cca debug` pour expliquer la recommandation et les rejets ;
+- `/cca aoe 3` pour régler le seuil AOE ;
+- `/cca show`, `/cca hide`, `/cca reset`.
+
+## CoA UI Manager
+
+CoA UI Manager remplace les fonctions essentielles de MoveAnything : `/cui unlock` affiche les movers, `/cui lock` enregistre, et `/cui profile global|character` change de profil. La molette règle l’échelle, Maj+molette règle l’alpha, et `/cui add NomDuFrame` ajoute un frame Lua personnalisé. Aucun frame sécurisé n’est déplacé pendant un combat.
 
 ## Gestion automatique des addons Ascension
 
@@ -60,7 +76,7 @@ Pour publier :
 
 1. Mettre à jour `version` dans `package.json`, `package-lock.json`, `manifest.json` et les deux fichiers `.toc`.
 2. Exécuter `npm run release` et reporter les tailles et SHA-256 obtenus dans le manifeste versionné.
-3. Pousser un tag correspondant, par exemple `v1.1.0`.
+3. Pousser le commit puis le tag correspondant.
 4. Le workflow `Release` teste, crée les trois ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
 
 Le workflow peut aussi être lancé manuellement avec une version. Le client utilise par défaut le manifeste de la dernière release ; `COA_UPDATE_MANIFEST` permet de cibler un autre canal.

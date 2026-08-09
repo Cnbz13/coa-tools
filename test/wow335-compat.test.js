@@ -21,16 +21,50 @@ for (const name of addons) {
   });
 }
 
-test('Combat Assistant uses the 3.3.5 spellbook and combat-log fallback without casting', async () => {
+test('Combat Assistant uses the 3.3.5 spellbook and never casts automatically', async () => {
   const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
   for (const required of [
     'GetNumSpellTabs', 'GetSpellTabInfo', 'GetSpellName', 'UnitLevel', 'UnitClass',
     'GetNumTalentTabs', 'GetTalentTabInfo', 'PLAYER_REGEN_DISABLED', 'PLAYER_REGEN_ENABLED',
-    'COMBAT_LOG_EVENT_UNFILTERED', 'CoACombatAssistantDB.mobs', 'Command: Animates',
+    'COMBAT_LOG_EVENT_UNFILTERED', 'CoACombatAssistantDB.mobs', 'Command: Undead',
     'March of the Dead', 'SLASH_COACOMBATASSISTANT1 = "/cca"'
   ]) assert.ok(lua.includes(required), `Combat Assistant is missing ${required}`);
-  for (const command of ['status', 'scan', 'unlock', 'lock', 'memory']) assert.match(lua, new RegExp(`command == "${command}"`));
+  for (const command of ['status', 'scan', 'unlock', 'lock', 'memory', 'debug', 'aoe']) assert.match(lua, new RegExp(`command == "${command}"`));
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
+});
+
+test('Combat Assistant tracks owned pets, summons and guardians into persistent mob memory', async () => {
+  const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
+  for (const required of [
+    'local ownedSummons = {}', 'COMBATLOG_OBJECT_AFFILIATION_MINE',
+    'SPELL_SUMMON', 'SPELL_CREATE', 'UNIT_PET', 'RegisterOwnedSummon',
+    'IsOwnedActor(sourceGUID, sourceFlags)', 'IsOwnedActor(destGUID, destFlags)',
+    'UnitGUID("target")', 'TARGET_FALLBACK', 'PARTY_KILL', 'UNIT_DIED'
+  ]) assert.ok(lua.includes(required), `Summon tracking is missing ${required}`);
+  for (const field of [
+    'guid = guid', 'encounters = 0', 'deaths = 0', 'combatTime = 0',
+    'damageTaken = 0', 'damageDone = 0', 'lastEncounter = nowEpoch', 'zone = CurrentZone()'
+  ]) assert.ok(lua.includes(field), `Persistent memory is missing ${field}`);
+  assert.match(lua, /sourceOwned[\s\S]+RememberMob\(destGUID[\s\S]+destOwned[\s\S]+RememberMob\(sourceGUID/);
+});
+
+test('Combat Assistant provides an exact Animation priority queue and 3.3.5 spell visuals', async () => {
+  const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
+  const observedAnimationSpells = [
+    'Animate: Skeletal Archer', 'Bone Ward', 'Call of The Scourge', 'Command: Undead',
+    'Corpse Explosion', 'Crypt Swarm', 'Foul Mandate', 'Grave March', 'Harvest Plague',
+    'Lichfrost', 'March of the Dead', 'Raise: Abomination', 'Raise: Crypt Fiend',
+    'Raise: Greater Skeletal Warrior', 'Razorice', 'Runic Harvest'
+  ];
+  for (const spell of observedAnimationSpells) assert.ok(lua.includes(`name = "${spell}"`), `Animation priority is missing ${spell}`);
+  for (const required of [
+    'GetSpellTexture', 'GetSpellInfo', 'GetSpellCooldown', 'IsUsableSpell',
+    'IsSpellInRange', 'UnitBuff', 'UnitDebuff', 'CooldownFrameTemplate',
+    'UI-ActionButton-Border', 'GetActionInfo', 'GetBindingKey',
+    'currentQueue[2]', 'currentQueue[3]', 'requiresSummon = 1',
+    'minEnemies = 3', 'settings.aoeThreshold'
+  ]) assert.ok(lua.includes(required), `Priority/visual engine is missing ${required}`);
+  assert.doesNotMatch(lua, /FindFallbackSpell|string\.find\(Lower\(spell\.name\),\s*"command:"/);
 });
 
 test('UI Manager provides persistent movers and never applies frames during combat', async () => {

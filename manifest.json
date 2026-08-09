@@ -2,50 +2,50 @@
   "$schema": "./schemas/manifest.schema.json",
   "schemaVersion": 1,
   "name": "CoA Tools",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "channel": "stable",
   "publishedAt": "2026-08-09T00:00:00.000Z",
   "minimumNodeVersion": "24.14.0",
-  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.0.4",
+  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.0.5",
   "artifacts": [
     {
       "name": "CoA Addon Manager for Windows",
       "component": "addon-manager",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "platform": "win32",
       "arch": "x64",
       "targetFolder": "CoAAddonManager",
       "installPath": ".",
-      "file": "CoAAddonManager-v1.0.4-Windows.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.0.4/CoAAddonManager-v1.0.4-Windows.zip",
-      "sha256": "46e823ac13522a91fc79ed4cd6ce8813fb26a948983c85f4d5e8c194156341e5",
-      "size": 68574
+      "file": "CoAAddonManager-v1.0.5-Windows.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.0.5/CoAAddonManager-v1.0.5-Windows.zip",
+      "sha256": "bf59af309670b32d5133f9f4a6a5a51b25861026a5cb4871109a63906884b493",
+      "size": 68626
     },
     {
       "name": "CoA Combat Assistant",
       "component": "combat-assistant",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "platform": "any",
       "arch": "any",
       "targetFolder": "CoACombatAssistant",
       "installPath": "Interface/AddOns",
-      "file": "CoACombatAssistant-v1.0.4.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.0.4/CoACombatAssistant-v1.0.4.zip",
-      "sha256": "df7e3b01be63455164216d86d0c54c0c61bbe24231fc88c9eb075e7b331711de",
-      "size": 4112
+      "file": "CoACombatAssistant-v1.0.5.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.0.5/CoACombatAssistant-v1.0.5.zip",
+      "sha256": "921513a8535731c1d6fa21a113db4ca4be7c3f3b73207fa8cbf280b01a80927e",
+      "size": 17759
     },
     {
       "name": "CoA UI Manager",
       "component": "ui-manager",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "platform": "any",
       "arch": "any",
       "targetFolder": "CoAUIManager",
       "installPath": "Interface/AddOns",
-      "file": "CoAUIManager-v1.0.4.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.0.4/CoAUIManager-v1.0.4.zip",
-      "sha256": "5f65220784ab9a8f85ae3bd08be9fc216a2c62ca714991230c136fbc74df1b39",
-      "size": 3173
+      "file": "CoAUIManager-v1.0.5.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.0.5/CoAUIManager-v1.0.5.zip",
+      "sha256": "adfff6835503653291a6d1ce219122c567d39c82a5c23152f50c424cbd02eb5c",
+      "size": 20117
     }
   ]
 }

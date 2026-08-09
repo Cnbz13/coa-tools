@@ -11,10 +11,14 @@ Suite locale sans télémétrie regroupant trois outils :
 Chaque release publie trois ZIP indépendants :
 
 - `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
-- `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans `World of Warcraft/_retail_/Interface/AddOns` ;
-- `CoAUIManager-vX.Y.Z.zip` : extrayez le dossier `CoAUIManager` dans `World of Warcraft/_retail_/Interface/AddOns`.
+- `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans le dossier `Interface/AddOns` de Project Ascension ;
+- `CoAUIManager-vX.Y.Z.zip` : extrayez le dossier `CoAUIManager` dans le dossier `Interface/AddOns` de Project Ascension.
 
-Dans le jeu, `/coacombat` affiche ou masque l’assistant (`/coacombat reset` réinitialise sa position) et `/coaui` ouvre le gestionnaire d’interface.
+Les deux addons ciblent strictement le client Project Ascension / WoW 3.3.5a (`## Interface: 30300`) et Lua 5.1.
+
+Dans le jeu, CoA Combat Assistant fournit `/cca status`, `/cca scan`, `/cca unlock`, `/cca lock` et `/cca memory`. Il analyse le spellbook et le combat log pour proposer une recommandation ST/AOE, avec priorité au Nécromancien Animation, sans jamais lancer de sort.
+
+CoA UI Manager remplace les fonctions essentielles de MoveAnything : `/cui unlock` affiche les movers, `/cui lock` enregistre, et `/cui profile global|character` change de profil. La molette règle l’échelle, Maj+molette règle l’alpha, et `/cui add NomDuFrame` ajoute un frame Lua personnalisé. Aucun frame n’est déplacé pendant un combat.
 
 ## Gestion automatique des addons Ascension
 
@@ -67,5 +71,7 @@ Le workflow peut aussi être lancé manuellement avec une version. Le client uti
 npm test
 npm run validate:manifest
 ```
+
+Les tests analysent aussi la syntaxe des addons en Lua 5.1 et refusent les API Retail connues, notamment `BackdropTemplate`, `SetShown`, les événements Encounter et tout `.toc` différent de 30300.
 
 Voir [SECURITY.md](SECURITY.md) pour le modèle de confiance des mises à jour.

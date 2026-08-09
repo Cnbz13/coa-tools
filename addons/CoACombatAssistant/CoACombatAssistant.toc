@@ -1,8 +1,8 @@
-## Interface: 110200
+## Interface: 30300
 ## Title: CoA Combat Assistant
-## Notes: Assistant de combat léger avec chronomètre et journal d'événements.
+## Notes: Assistant de recommandations et mémoire de combat pour Project Ascension 3.3.5a.
 ## Author: Cnbz13
-## Version: 1.0.4
+## Version: 1.0.5
 ## SavedVariables: CoACombatAssistantDB
 
 CoACombatAssistant.lua

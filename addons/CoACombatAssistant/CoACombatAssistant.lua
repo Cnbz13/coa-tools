@@ -176,7 +176,7 @@ local function EnsureDatabase()
     CoACombatAssistantDB.settings = CoACombatAssistantDB.settings or {}
     CoACombatAssistantDB.settings.aoeThreshold = tonumber(CoACombatAssistantDB.settings.aoeThreshold) or DEFAULT_AOE_THRESHOLD
     CoACombatAssistantDB.settings.maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
-    CoACombatAssistantDB.version = "1.3.2"
+    CoACombatAssistantDB.version = "1.3.3"
 
     if not CoACombatAssistantDB.position and CoACombatAssistantDB.ui then
         local old = CoACombatAssistantDB.ui
@@ -1065,9 +1065,18 @@ engineFrame:SetScript("OnUpdate", function(_, elapsed)
 end)
 
 local function DamageAmount(subevent, ...)
-    if subevent == "SWING_DAMAGE" then return tonumber(select(1, ...)) or 0 end
-    if subevent == "ENVIRONMENTAL_DAMAGE" then return tonumber(select(2, ...)) or 0 end
-    if string.find(subevent, "_DAMAGE", 1, true) then return tonumber(select(4, ...)) or 0 end
+    if subevent == "SWING_DAMAGE" then
+        local amount = select(1, ...)
+        return tonumber(amount) or 0
+    end
+    if subevent == "ENVIRONMENTAL_DAMAGE" then
+        local amount = select(2, ...)
+        return tonumber(amount) or 0
+    end
+    if string.find(subevent, "_DAMAGE", 1, true) then
+        local amount = select(4, ...)
+        return tonumber(amount) or 0
+    end
     return 0
 end
 

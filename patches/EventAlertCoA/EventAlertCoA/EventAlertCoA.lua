@@ -1,7 +1,7 @@
 -- Thin Project Ascension compatibility layer for the genuine EventAlert 4.3.6 addon.
 -- EventAlert remains responsible for every icon, sound, option and saved position.
 
-local COA_COMPAT_VERSION = "1.3.2"
+local COA_COMPAT_VERSION = "1.3.3"
 local BOOK = BOOKTYPE_SPELL or "spell"
 local AUTO_LEARN_DEFAULT = true
 local recentCasts = {}
@@ -148,7 +148,11 @@ local function HandleCombatLog(...)
     local sourceGUID = select(3, ...)
     local sourceFlags = select(5, ...)
     local destGUID = select(6, ...)
-    local spellId = tonumber(select(9, ...))
+    -- select() returns every argument from this position onward. Passing it
+    -- directly to tonumber() accidentally supplied spellName as the numeric
+    -- base on Ascension (for example 91810, "Keeper's Scroll...", 1, "BUFF").
+    local rawSpellId = select(9, ...)
+    local spellId = tonumber(rawSpellId)
     local spellName = select(10, ...)
     local playerGUID = UnitGUID("player")
 

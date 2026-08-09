@@ -55,6 +55,8 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.equal(lua.includes('CoAEventAlertFrame'), false);
   assert.equal(lua.includes('SLASH_COAEVENTALERT'), false);
+  assert.match(lua, /local rawSpellId = select\(9, \.\.\.\)[\s\S]+local spellId = tonumber\(rawSpellId\)/);
+  assert.doesNotMatch(lua, /tonumber\s*\(\s*select\s*\(/, 'select must be truncated before tonumber to avoid treating spellName as its base');
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
 });
 
@@ -92,6 +94,7 @@ test('GridCoA shows one center icon only for debuffs the current character can d
 
 test('Combat Assistant tracks owned pets, summons and guardians into persistent mob memory', async () => {
   const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
+  assert.doesNotMatch(lua, /tonumber\s*\(\s*select\s*\(/, 'combat-log values must be truncated before tonumber');
   for (const required of [
     'local ownedSummons = {}', 'COMBATLOG_OBJECT_AFFILIATION_MINE',
     'SPELL_SUMMON', 'SPELL_CREATE', 'UNIT_PET', 'RegisterOwnedSummon',

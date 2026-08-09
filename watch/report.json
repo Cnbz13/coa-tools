@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-09T21:57:13.456Z",
-  "previousCheckAt": null,
-  "newCount": 33,
-  "rawNewCount": 33,
-  "significantCount": 32,
+  "generatedAt": "2026-08-09T22:09:54.091Z",
+  "previousCheckAt": "2026-08-09T21:57:13.456Z",
+  "newCount": 0,
+  "rawNewCount": 0,
+  "significantCount": 0,
   "sources": [
     {
       "id": "ascension-coa-changelog",
       "name": "Changelog officiel Conquest of Azeroth",
       "url": "https://ascension.gg/en/changelog/4",
       "status": "ok",
-      "checked": 300,
+      "checked": 200,
       "primary": true
     },
     {
@@ -44,7 +44,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70382"
       ]
@@ -69,7 +69,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70375"
       ]
@@ -94,7 +94,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70372"
       ]
@@ -124,7 +124,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées. GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70357"
       ]
@@ -154,7 +154,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées. GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70276"
       ]
@@ -179,7 +179,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70275"
       ]
@@ -204,7 +204,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70274"
       ]
@@ -229,7 +229,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70269"
       ]
@@ -254,7 +254,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70257"
       ]
@@ -279,7 +279,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70256"
       ]
@@ -304,7 +304,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70254"
       ]
@@ -329,7 +329,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70248"
       ]
@@ -354,7 +354,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70242"
       ]
@@ -379,7 +379,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70232"
       ]
@@ -404,7 +404,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70193"
       ]
@@ -429,7 +429,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70192"
       ]
@@ -454,7 +454,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70191"
       ]
@@ -479,7 +479,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70190"
       ]
@@ -504,7 +504,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70187"
       ]
@@ -529,7 +529,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70186"
       ]
@@ -554,7 +554,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70185"
       ]
@@ -579,7 +579,7 @@
       "significant": false,
       "confidence": "moyenne",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70176"
       ]
@@ -604,7 +604,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70173"
       ]
@@ -629,7 +629,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70169"
       ]
@@ -654,7 +654,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70167"
       ]
@@ -679,7 +679,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70086"
       ]
@@ -704,7 +704,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70081"
       ]
@@ -729,7 +729,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70063"
       ]
@@ -754,7 +754,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70027"
       ]
@@ -779,7 +779,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "69954"
       ]
@@ -804,7 +804,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "69949"
       ]
@@ -829,7 +829,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "69948"
       ]
@@ -854,7 +854,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "69931"
       ]

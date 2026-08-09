@@ -5,7 +5,7 @@ local MEMORY_LIMIT = 250
 local ENEMY_TIMEOUT = 8
 local SUMMON_TIMEOUT = 300
 local DEFAULT_AOE_THRESHOLD = 3
-local DEFAULT_DESIRED_SUMMONS = 3
+local DEFAULT_MAX_ARMY_SIZE = 4
 
 local function Lower(value)
     return string.lower(value or "")
@@ -30,40 +30,13 @@ local function Chat(message)
 end
 
 local frame = CreateFrame("Frame", "CoACombatAssistantFrame", UIParent)
-frame:SetWidth(430)
-frame:SetHeight(235)
+frame:SetWidth(64)
+frame:SetHeight(64)
 frame:SetPoint("CENTER", UIParent, "CENTER", 0, 180)
 frame:SetMovable(true)
-frame:EnableMouse(true)
+frame:EnableMouse(false)
 frame:RegisterForDrag("LeftButton")
 frame:SetClampedToScreen(true)
-frame:SetBackdrop({
-    bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-    edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-    tile = true, tileSize = 16, edgeSize = 12,
-    insets = { left = 3, right = 3, top = 3, bottom = 3 }
-})
-frame:SetBackdropColor(0.03, 0.04, 0.07, 0.95)
-frame:SetBackdropBorderColor(0.75, 0.55, 0.25, 0.9)
-
-local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-title:SetPoint("TOP", frame, "TOP", 0, -10)
-title:SetText("CoA Combat Assistant")
-
-local characterText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-characterText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -35)
-characterText:SetWidth(320)
-characterText:SetJustifyH("LEFT")
-
-local timerText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-timerText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -15, -34)
-timerText:SetText("00:00")
-
-local modeText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-modeText:SetPoint("TOPLEFT", frame, "TOPLEFT", 15, -55)
-modeText:SetWidth(400)
-modeText:SetJustifyH("LEFT")
-modeText:SetText("ST • 0 cible • 0 invocation")
 
 local function CreateSpellVisual(parent, size, point, relativeTo, relativePoint, x, y)
     local visual = CreateFrame("Frame", nil, parent)
@@ -94,47 +67,21 @@ local function CreateSpellVisual(parent, size, point, relativeTo, relativePoint,
     return visual
 end
 
-local mainVisual = CreateSpellVisual(frame, 54, "TOPLEFT", frame, "TOPLEFT", 16, -79)
+local mainVisual = CreateSpellVisual(frame, 56, "CENTER", frame, "CENTER", 0, 0)
 
-local recommendationText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-recommendationText:SetPoint("TOPLEFT", frame, "TOPLEFT", 82, -78)
-recommendationText:SetWidth(330)
-recommendationText:SetJustifyH("LEFT")
-recommendationText:SetText("Analyse du spellbook…")
+-- Le moteur conserve ces informations pour /cca status et /cca debug, mais
+-- l'interface en jeu n'affiche volontairement que l'icône recommandée.
+local hiddenText = { SetText = function() end }
+local characterText = hiddenText
+local timerText = hiddenText
+local modeText = hiddenText
+local recommendationText = hiddenText
+local recommendationReasonText = hiddenText
+local memoryText = hiddenText
+local stateText = hiddenText
 
-local recommendationReasonText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-recommendationReasonText:SetPoint("TOPLEFT", frame, "TOPLEFT", 82, -102)
-recommendationReasonText:SetWidth(330)
-recommendationReasonText:SetHeight(30)
-recommendationReasonText:SetJustifyH("LEFT")
-recommendationReasonText:SetJustifyV("TOP")
-
-local queueLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-queueLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 82, -134)
-queueLabel:SetText("Ensuite")
-
-local secondVisual = CreateSpellVisual(frame, 32, "TOPLEFT", frame, "TOPLEFT", 82, -150)
-local secondText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-secondText:SetPoint("LEFT", secondVisual, "RIGHT", 6, 0)
-secondText:SetWidth(105)
-secondText:SetJustifyH("LEFT")
-
-local thirdVisual = CreateSpellVisual(frame, 32, "TOPLEFT", frame, "TOPLEFT", 237, -150)
-local thirdText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-thirdText:SetPoint("LEFT", thirdVisual, "RIGHT", 6, 0)
-thirdText:SetWidth(105)
-thirdText:SetJustifyH("LEFT")
-
-local memoryText = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-memoryText:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 15, 31)
-memoryText:SetWidth(400)
-memoryText:SetJustifyH("LEFT")
-
-local stateText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-stateText:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 15, 13)
-stateText:SetWidth(400)
-stateText:SetJustifyH("LEFT")
-stateText:SetText("Prêt — /cca status")
+local engineFrame = CreateFrame("Frame")
+frame:Hide()
 
 local initialized = false
 local unlocked = false
@@ -162,18 +109,18 @@ local character = { level = 0, className = "Inconnue", classToken = "UNKNOWN", s
 -- Priorités strictement construites à partir du spellbook Animation observé en jeu.
 -- Aucun motif générique "Command:" ou "Animate:" n'est utilisé comme fallback.
 local animationPriority = {
-    { name = "Bone Ward", score = 118, selfBuffMissing = "Bone Ward", reason = "protection personnelle absente" },
-    { name = "Sacrifice Undead", score = 116, maxPlayerHealth = 32, requiresSummon = 1, reason = "survie critique" },
-    { name = "Call of The Scourge", score = 112, mode = "AOE", minEnemies = 4, reason = "groupe important d'ennemis" },
-    { name = "March of the Dead", score = 110, mode = "AOE", minEnemies = 3, reason = "phase AOE avec trois cibles ou plus" },
-    { name = "Grave March", score = 106, mode = "AOE", minEnemies = 3, requiresSummon = 2, reason = "plusieurs invocations en AOE" },
+    { name = "Bone Ward", score = 118, selfBuffMissing = "Bone Ward", recentLock = 2.5, reason = "protection personnelle absente" },
+    { name = "Sacrifice Undead", score = 116, maxPlayerHealth = 32, requiresSummon = 1, requiresCombat = true, reason = "survie critique" },
+    { name = "Call of The Scourge", score = 112, mode = "AOE", minEnemies = 4, requiresCombat = true, reason = "groupe important d'ennemis" },
+    { name = "March of the Dead", score = 110, mode = "AOE", minEnemies = 3, requiresCombat = true, reason = "phase AOE avec trois cibles ou plus" },
+    { name = "Grave March", score = 106, mode = "AOE", minEnemies = 3, requiresSummon = 2, requiresCombat = true, reason = "plusieurs invocations en AOE" },
     { name = "Crypt Swarm", score = 104, mode = "AOE", minEnemies = 3, requiresTarget = true, reason = "dégâts de zone prioritaires" },
     { name = "Corpse Explosion", score = 100, mode = "AOE", minEnemies = 3, requiresTarget = true, maxTargetHealth = 45, phase = "established", reason = "cible affaiblie dans un groupe" },
-    { name = "Raise: Crypt Fiend", score = 98, maxSummons = DEFAULT_DESIRED_SUMMONS, reason = "compléter les invocations actives" },
-    { name = "Raise: Greater Skeletal Warrior", score = 96, maxSummons = DEFAULT_DESIRED_SUMMONS, reason = "compléter les invocations actives" },
-    { name = "Animate: Skeletal Archer", score = 94, maxSummons = DEFAULT_DESIRED_SUMMONS, reason = "compléter les invocations actives" },
-    { name = "Raise: Abomination", score = 92, maxSummons = DEFAULT_DESIRED_SUMMONS, reason = "compléter les invocations actives" },
-    { name = "Raise: Lesser Skeletal Warrior", score = 90, maxSummons = DEFAULT_DESIRED_SUMMONS, reason = "aucune armée active", onlyWithoutSummon = true },
+    { name = "Raise: Crypt Fiend", score = 98, desiredSummons = 2, summonNames = { "Crypt Fiend" }, recentLock = 2.5, reason = "invoquer les deux Crypt Fiends" },
+    { name = "Raise: Greater Skeletal Warrior", score = 96, desiredSummons = 1, summonNames = { "Greater Skeletal Warrior" }, recentLock = 2.5, reason = "guerrier squelette supérieur absent" },
+    { name = "Animate: Skeletal Archer", score = 94, desiredSummons = 1, summonNames = { "Skeletal Archer" }, recentLock = 2.5, reason = "archer squelette absent" },
+    { name = "Raise: Abomination", score = 92, desiredSummons = 1, summonNames = { "Abomination" }, recentLock = 2.5, reason = "abomination absente" },
+    { name = "Raise: Lesser Skeletal Warrior", score = 90, desiredSummons = 1, summonNames = { "Lesser Skeletal Warrior" }, recentLock = 2.5, reason = "aucune armée active", onlyWithoutSummon = true },
     { name = "Foul Mandate", score = 88, requiresTarget = true, targetDebuffMissing = "Foul Mandate", reason = "ouvrir avec Foul Mandate" },
     { name = "Blight", score = 86, requiresTarget = true, targetDebuffMissing = "Blight", reason = "appliquer Blight" },
     { name = "Harvest Plague", score = 84, requiresTarget = true, targetDebuffPresentAny = { "Blight", "Foul Mandate" }, phase = "established", reason = "exploiter les maladies actives" },
@@ -181,8 +128,8 @@ local animationPriority = {
     { name = "Lichfrost", score = 78, requiresTarget = true, reason = "attaque monocible disponible" },
     { name = "Razorice", score = 76, requiresTarget = true, reason = "attaque monocible de complément" },
     { name = "Ghoulify", score = 72, requiresTarget = true, maxTargetHealth = 35, phase = "established", reason = "cible à faible santé" },
-    { name = "Glacial Tap", score = 70, maxMana = 35, reason = "ressource faible" },
-    { name = "Runic Harvest", score = 68, maxMana = 45, reason = "récupération de ressource" }
+    { name = "Glacial Tap", score = 70, maxMana = 35, requiresCombat = true, reason = "ressource faible" },
+    { name = "Runic Harvest", score = 68, maxMana = 45, requiresCombat = true, reason = "récupération de ressource" }
 }
 
 local function EnsureDatabase()
@@ -194,8 +141,8 @@ local function EnsureDatabase()
     CoACombatAssistantDB.spellbook = CoACombatAssistantDB.spellbook or {}
     CoACombatAssistantDB.settings = CoACombatAssistantDB.settings or {}
     CoACombatAssistantDB.settings.aoeThreshold = tonumber(CoACombatAssistantDB.settings.aoeThreshold) or DEFAULT_AOE_THRESHOLD
-    CoACombatAssistantDB.settings.desiredSummons = tonumber(CoACombatAssistantDB.settings.desiredSummons) or DEFAULT_DESIRED_SUMMONS
-    CoACombatAssistantDB.version = "1.0.6"
+    CoACombatAssistantDB.settings.maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
+    CoACombatAssistantDB.version = "1.0.7"
 
     if not CoACombatAssistantDB.position and CoACombatAssistantDB.ui then
         local old = CoACombatAssistantDB.ui
@@ -244,6 +191,29 @@ local function CountOwnedSummons()
             ownedSummons[guid] = nil
         else
             count = count + 1
+        end
+    end
+    return count
+end
+
+local function NormalizedSummonName(value)
+    return string.gsub(Lower(value), "[^%w]", "")
+end
+
+local function CountMatchingSummons(rule)
+    if not rule or not rule.summonNames then return CountOwnedSummons() end
+    CountOwnedSummons()
+    local count = 0
+    local guid, data, index, wanted
+    for guid, data in pairs(ownedSummons) do
+        local unitName = NormalizedSummonName(data.name)
+        local spellName = NormalizedSummonName(data.spellName)
+        for index, wanted in ipairs(rule.summonNames) do
+            local match = NormalizedSummonName(wanted)
+            if match ~= "" and (string.find(unitName, match, 1, true) or string.find(spellName, match, 1, true)) then
+                count = count + 1
+                break
+            end
         end
     end
     return count
@@ -307,7 +277,7 @@ local function RefreshPetGUID()
     end
 end
 
-local function IsOwnedActor(guid, flags)
+local function IsOwnedActor(guid, flags, name)
     if not guid then return false end
     if guid == playerGUID or guid == petGUID then return true end
     if ownedSummons[guid] then
@@ -315,7 +285,7 @@ local function IsOwnedActor(guid, flags)
         return true
     end
     if HasMineFlag(flags) then
-        RegisterOwnedSummon(guid, nil, flags, nil, "Affiliation joueur")
+        RegisterOwnedSummon(guid, name, flags, nil, "Affiliation joueur")
         return true
     end
     return false
@@ -541,7 +511,9 @@ local function SpellState(spell, requiresTarget)
         local start, duration, enabled = GetSpellCooldown(spell.name)
         state.start = tonumber(start) or 0
         state.duration = tonumber(duration) or 0
-        if enabled == 0 or state.duration > 0 and state.start + state.duration > GetTime() + 0.05 then
+        -- Les cooldowns très courts correspondent généralement au GCD 3.3.5 :
+        -- l'icône suivante reste visible pendant ce délai.
+        if enabled == 0 or state.duration > 1.6 and state.start + state.duration > GetTime() + 0.05 then
             state.ready = false
         end
     end
@@ -582,14 +554,22 @@ local function EvaluateRule(rule, summonCount, phase, targetHealth, playerHealth
     end
     if spell.passive then Reject(candidate, "sort passif") end
     if rule.minLevel and character.level < rule.minLevel then Reject(candidate, "niveau insuffisant") end
+    if rule.requiresCombat and not startedAt then Reject(candidate, "réservé au combat") end
     if rule.mode and rule.mode ~= currentMode then Reject(candidate, "réservé au mode " .. rule.mode) end
     if rule.minEnemies and currentEnemyCount < rule.minEnemies then Reject(candidate, "pas assez de cibles") end
     if rule.requiresTarget and not TargetIsValid() then Reject(candidate, "aucune cible hostile valide") end
     if rule.requiresSummon and summonCount < rule.requiresSummon then Reject(candidate, "invocation requise") end
     if rule.onlyWithoutSummon and summonCount > 0 then Reject(candidate, "une invocation est déjà active") end
-    if rule.maxSummons then
-        local desired = tonumber(CoACombatAssistantDB.settings.desiredSummons) or rule.maxSummons
-        if summonCount >= desired then Reject(candidate, "armée déjà complète") end
+    if rule.desiredSummons then
+        local matching = CountMatchingSummons(rule)
+        candidate.matchingSummons = matching
+        if matching >= rule.desiredSummons then
+            Reject(candidate, rule.desiredSummons .. " invocation(s) de ce type déjà active(s)")
+        else
+            Explain(candidate, matching .. "/" .. rule.desiredSummons .. " invocation(s) de ce type")
+        end
+        local maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
+        if summonCount >= maxArmySize then Reject(candidate, "armée complète (" .. summonCount .. "/" .. maxArmySize .. ")") end
     end
     if rule.phase and rule.phase ~= phase then Reject(candidate, "réservé à la phase " .. rule.phase) end
     if rule.maxTargetHealth and targetHealth > rule.maxTargetHealth then Reject(candidate, "santé de la cible trop élevée") end
@@ -652,7 +632,7 @@ local function BuildRecommendationQueue()
     currentQueue = {}
     local index
     for index = 1, math.min(3, #candidates) do currentQueue[index] = candidates[index] end
-    currentRecommendation = currentQueue[1]
+    currentRecommendation = currentQueue[1] and currentQueue[1].ready and currentQueue[1] or nil
     lastDecision = {
         mode = currentMode,
         enemyCount = currentEnemyCount,
@@ -725,13 +705,20 @@ local function RefreshEnemyMode()
 
     local summonCount = lastDecision.summonCount or 0
     modeText:SetText(currentMode .. " • " .. count .. " cible" .. (count > 1 and "s" or "") .. " • " .. summonCount .. " invocation" .. (summonCount > 1 and "s" or ""))
-    UpdateSpellVisual(mainVisual, currentQueue[1])
-    UpdateSpellVisual(secondVisual, currentQueue[2])
-    UpdateSpellVisual(thirdVisual, currentQueue[3])
-    recommendationText:SetText(CandidateLabel(currentQueue[1]))
-    recommendationReasonText:SetText(currentQueue[1] and Join(currentQueue[1].reasons, " • ") or "Aucun sort Animation appris et pertinent")
-    secondText:SetText(CandidateLabel(currentQueue[2]))
-    thirdText:SetText(CandidateLabel(currentQueue[3]))
+    UpdateSpellVisual(mainVisual, currentRecommendation)
+    recommendationText:SetText(CandidateLabel(currentRecommendation))
+    recommendationReasonText:SetText(currentRecommendation and Join(currentRecommendation.reasons, " • ") or "Aucune action utile")
+
+    if unlocked then
+        frame:EnableMouse(true)
+        frame:Show()
+    elseif CoACombatAssistantDB.visible and currentRecommendation then
+        frame:EnableMouse(false)
+        frame:Show()
+    else
+        frame:EnableMouse(false)
+        frame:Hide()
+    end
 
     if startedAt and count == 0 and lastCombatInteraction and now - lastCombatInteraction > ENEMY_TIMEOUT then
         if not UnitAffectingCombat or not UnitAffectingCombat("player") then EndCombat() end
@@ -754,7 +741,6 @@ end
 
 EndCombat = function()
     if not startedAt then return end
-    CaptureHostileTarget()
     local now = GetTime()
     local duration = math.floor(now - startedAt)
     local mobCount = 0
@@ -792,7 +778,7 @@ local function RefreshDisplay()
     memoryText:SetText("Mémoire : " .. CountMemory() .. " créature(s) • Spellbook : " .. #spellOrder .. " sorts • AOE ≥ " .. CoACombatAssistantDB.settings.aoeThreshold)
 end
 
-frame:SetScript("OnUpdate", function(_, elapsed)
+engineFrame:SetScript("OnUpdate", function(_, elapsed)
     if not initialized then return end
     lastUpdate = lastUpdate + elapsed
     if lastUpdate < UPDATE_INTERVAL then return end
@@ -819,8 +805,8 @@ end
 local function HandleCombatLog(...)
     local _, subevent, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags = ...
     if not subevent then return end
-    local sourceOwned = IsOwnedActor(sourceGUID, sourceFlags)
-    local destOwned = IsOwnedActor(destGUID, destFlags)
+    local sourceOwned = IsOwnedActor(sourceGUID, sourceFlags, sourceName)
+    local destOwned = IsOwnedActor(destGUID, destFlags, destName)
 
     if subevent == "SPELL_SUMMON" or subevent == "SPELL_CREATE" then
         if sourceOwned and destGUID then
@@ -889,7 +875,13 @@ frame:SetScript("OnEvent", function(self, event, ...)
             self:ClearAllPoints()
             self:SetPoint(CoACombatAssistantDB.position[1], UIParent, CoACombatAssistantDB.position[2], CoACombatAssistantDB.position[3], CoACombatAssistantDB.position[4])
         end
-        if CoACombatAssistantDB.visible then self:Show() else self:Hide() end
+        if unlocked then
+            self:EnableMouse(true)
+            self:Show()
+        else
+            self:EnableMouse(false)
+            self:Hide()
+        end
     elseif not initialized then
         return
     elseif event == "PLAYER_LOGIN" or event == "SPELLS_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
@@ -972,14 +964,17 @@ local function SetUnlocked(value)
     unlocked = value and true or false
     CoACombatAssistantDB.locked = not unlocked
     if unlocked then
+        frame:EnableMouse(true)
         frame:Show()
         CoACombatAssistantDB.visible = true
         stateText:SetText("Déverrouillé — glissez la fenêtre puis /cca lock")
         Chat("Fenêtre déverrouillée.")
     else
         SavePosition()
+        frame:EnableMouse(false)
         stateText:SetText("Verrouillé — recommandations uniquement")
         Chat("Fenêtre verrouillée et position enregistrée.")
+        RefreshDisplay()
     end
 end
 
@@ -1019,18 +1014,18 @@ local function SlashHandler(message)
         frame:SetPoint("CENTER", UIParent, "CENTER", 0, 180)
         Chat("Position réinitialisée.")
     elseif command == "show" then
-        frame:Show()
         CoACombatAssistantDB.visible = true
+        RefreshDisplay()
     elseif command == "hide" then
         frame:Hide()
         CoACombatAssistantDB.visible = false
     elseif command == "" then
-        if frame:IsVisible() then
+        if CoACombatAssistantDB.visible then
             frame:Hide()
             CoACombatAssistantDB.visible = false
         else
-            frame:Show()
             CoACombatAssistantDB.visible = true
+            RefreshDisplay()
         end
     else
         Chat("/cca status | scan | unlock | lock | memory [filtre|clear] | debug | aoe [seuil] | show | hide | reset")

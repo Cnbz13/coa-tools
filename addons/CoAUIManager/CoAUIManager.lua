@@ -120,7 +120,9 @@ local function ApplyTarget(name)
     end
     local setting = FrameSetting(name, false)
     if not setting then
-        RestoreOriginal(name, target)
+        -- Une frame sans réglage appartient à son addon. La restaurer ici
+        -- écrasait notamment la position sauvegardée par Combat Assistant à
+        -- chaque PLAYER_REGEN_ENABLED.
         return true
     end
     if setting.point then
@@ -445,7 +447,8 @@ end
 local function ResetFrame(name)
     if not name then Chat("Sélectionnez d'abord un mover.") return end
     ActiveProfile().frames[name] = nil
-    ApplyTarget(name)
+    local target = ResolveFrame(name)
+    if target then RestoreOriginal(name, target) end
     if movers[name] then SyncMover(name) end
     Chat(name .. " réinitialisé dans le profil actif.")
 end

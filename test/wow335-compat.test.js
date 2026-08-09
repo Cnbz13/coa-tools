@@ -38,7 +38,7 @@ test('Combat Assistant tracks owned pets, summons and guardians into persistent 
   for (const required of [
     'local ownedSummons = {}', 'COMBATLOG_OBJECT_AFFILIATION_MINE',
     'SPELL_SUMMON', 'SPELL_CREATE', 'UNIT_PET', 'RegisterOwnedSummon',
-    'IsOwnedActor(sourceGUID, sourceFlags)', 'IsOwnedActor(destGUID, destFlags)',
+    'IsOwnedActor(sourceGUID, sourceFlags, sourceName)', 'IsOwnedActor(destGUID, destFlags, destName)',
     'UnitGUID("target")', 'TARGET_FALLBACK', 'PARTY_KILL', 'UNIT_DIED'
   ]) assert.ok(lua.includes(required), `Summon tracking is missing ${required}`);
   for (const field of [
@@ -48,7 +48,7 @@ test('Combat Assistant tracks owned pets, summons and guardians into persistent 
   assert.match(lua, /sourceOwned[\s\S]+RememberMob\(destGUID[\s\S]+destOwned[\s\S]+RememberMob\(sourceGUID/);
 });
 
-test('Combat Assistant provides an exact Animation priority queue and 3.3.5 spell visuals', async () => {
+test('Combat Assistant provides an exact Animation priority and one contextual 3.3.5 spell icon', async () => {
   const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
   const observedAnimationSpells = [
     'Animate: Skeletal Archer', 'Bone Ward', 'Call of The Scourge', 'Command: Undead',
@@ -61,10 +61,23 @@ test('Combat Assistant provides an exact Animation priority queue and 3.3.5 spel
     'GetSpellTexture', 'GetSpellInfo', 'GetSpellCooldown', 'IsUsableSpell',
     'IsSpellInRange', 'UnitBuff', 'UnitDebuff', 'CooldownFrameTemplate',
     'UI-ActionButton-Border', 'GetActionInfo', 'GetBindingKey',
-    'currentQueue[2]', 'currentQueue[3]', 'requiresSummon = 1',
-    'minEnemies = 3', 'settings.aoeThreshold'
+    'CreateSpellVisual(frame, 56', 'frame:SetWidth(64)', 'engineFrame:SetScript("OnUpdate"',
+    'currentRecommendation = currentQueue[1] and currentQueue[1].ready',
+    'requiresSummon = 1', 'minEnemies = 3', 'settings.aoeThreshold'
   ]) assert.ok(lua.includes(required), `Priority/visual engine is missing ${required}`);
+  assert.equal(lua.includes('secondVisual'), false, 'Compact mode must not render a second icon');
+  assert.equal(lua.includes('thirdVisual'), false, 'Compact mode must not render a third icon');
   assert.doesNotMatch(lua, /FindFallbackSpell|string\.find\(Lower\(spell\.name\),\s*"command:"/);
+});
+
+test('Crypt Fiend recommendation stops after two matching summons and respects the army cap', async () => {
+  const lua = await readFile('addons/CoACombatAssistant/CoACombatAssistant.lua', 'utf8');
+  for (const required of [
+    'CountMatchingSummons', 'NormalizedSummonName', 'desiredSummons = 2',
+    'summonNames = { "Crypt Fiend" }', 'matching >= rule.desiredSummons',
+    'settings.maxArmySize', 'recentLock = 2.5'
+  ]) assert.ok(lua.includes(required), `Per-type summon tracking is missing ${required}`);
+  assert.doesNotMatch(lua, /Raise: Crypt Fiend"[^\n]+maxSummons/);
 });
 
 test('UI Manager provides persistent movers and never applies frames during combat', async () => {
@@ -84,4 +97,6 @@ test('UI Manager provides persistent movers and never applies frames during comb
   for (const command of ['unlock', 'lock', 'profile', 'add', 'select', 'scale', 'alpha', 'size', 'reset']) {
     assert.match(lua, new RegExp(`command == "${command}"`));
   }
+  assert.doesNotMatch(lua, /if not setting then\s*RestoreOriginal/, 'Unconfigured addon frames must keep their own position');
+  assert.match(lua, /local function ResetFrame[\s\S]+RestoreOriginal\(name, target\)/, 'Explicit reset must still restore the captured position');
 });

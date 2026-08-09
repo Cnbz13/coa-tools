@@ -18,9 +18,9 @@ Les deux addons ciblent strictement le client Project Ascension / WoW 3.3.5a (`#
 
 ## CoA Combat Assistant
 
-La fenêtre compacte affiche la classe, la spécialisation, le niveau, le mode ST/AOE, le nombre d’ennemis et d’invocations, le temps de combat et la mémoire persistante. Elle montre le prochain sort recommandé avec une grande icône, son cooldown et sa touche d’action, puis les deux sorts suivants.
+L’interface se limite à une icône contextuelle de 56 px avec cooldown, glow et touche d’action. Elle apparaît lorsqu’un buff, une invocation ou une action contre la cible est utile, puis disparaît automatiquement lorsqu’il n’y a rien à faire. Les détails restent accessibles avec les commandes de diagnostic.
 
-Le profil Nécromancien Animation est construit uniquement à partir des sorts réellement appris. Il évalue la cible, la portée, les ressources, les buffs/debuffs, les cooldowns, la santé, les invocations actives, la phase d’ouverture et le nombre d’ennemis. Il ne lance jamais automatiquement un sort.
+Le profil Nécromancien Animation est construit uniquement à partir des sorts réellement appris. Il évalue la cible, la portée, les ressources, les buffs/debuffs, les cooldowns, la santé, les invocations actives par type, la phase d’ouverture et le nombre d’ennemis. Les deux Crypt Fiends sont notamment suivis par GUID et nom. Il ne lance jamais automatiquement un sort.
 
 La mémoire suit le joueur, son pet, ses summons et ses guardians via le combat log 3.3.5. Pour chaque créature, elle conserve le GUID, le nom, les rencontres, les morts observées, les dégâts, le temps de combat, la dernière rencontre et la zone.
 

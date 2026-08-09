@@ -9,6 +9,13 @@
     <section id="addons" class="view">
       <div class="section-title"><div><span class="eyebrow">PROJECT ASCENSION</span><h2>Gestionnaire d’addons</h2></div><div class="button-row"><button id="refreshAddons">Rescanner</button><button id="updateAllAddons" class="primary">Tout mettre à jour</button></div></div>
       <article class="path-card"><div><span id="addonDetection" class="badge">DÉTECTION</span><h3 id="addonPathLabel">Recherche du dossier AddOns…</h3><p id="addonScanSummary">Analyse en cours.</p></div></article>
+      <article id="addonProgress" class="addon-progress" hidden>
+        <div class="progress-heading"><div><span class="eyebrow">OPÉRATION SUIVIE</span><h3 id="addonProgressTitle">Mise à jour</h3></div><strong id="addonProgressPercent">0%</strong></div>
+        <p id="addonProgressMessage">Préparation…</p>
+        <progress id="addonProgressBar" max="100" value="0"></progress>
+        <div class="progress-details"><span id="addonProgressStep">En attente</span><span id="addonProgressBytes"></span><span>Temps : <b id="addonProgressElapsed">00:00</b></span></div>
+        <small>Délai réseau maximal : 2 minutes par fichier. En cas d’échec, l’erreur exacte et la restauration du backup restent affichées ici.</small>
+      </article>
       <div class="catalog-heading"><div><span class="eyebrow">COMPOSANTS COA</span><h3>Installations gérées et vérifiées</h3></div><small id="manifestStatus"></small></div>
       <div id="managedAddonList" class="managed-grid"></div>
       <div class="catalog-heading"><div><span class="eyebrow">INSTALLATION ASCENSION</span><h3>Addons déjà présents</h3></div><input id="addonSearch" type="search" placeholder="Filtrer les addons"></div>

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
 import { cp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { Readable } from 'node:stream';
+import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { ensureDir, readJson, writeJsonAtomic } from '../lib/files.js';
 import { extractZip } from '../lib/zip.js';
@@ -192,13 +192,30 @@ export class AddonManager {
     };
   }
 
-  async download(artifact, destination) {
+  async download(artifact, destination, onProgress = null) {
     if (!artifact || !/^[a-f0-9]{64}$/.test(artifact.sha256 || '') || !Number.isInteger(artifact.size)) throw new Error('Métadonnées de téléchargement invalides');
     const url = new URL(artifact.url);
     if (!this.downloadPolicy(url)) throw new Error('URL de téléchargement non approuvée');
-    const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
+    let response;
+    try {
+      response = await fetch(url, { signal: AbortSignal.timeout(120000) });
+    } catch (error) {
+      if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+        throw new Error(`Délai réseau dépassé après 2 minutes pour ${artifact.file}`);
+      }
+      throw error;
+    }
     if (!response.ok || !response.body) throw new Error(`Téléchargement impossible (HTTP ${response.status})`);
-    await pipeline(Readable.fromWeb(response.body), createWriteStream(destination));
+    let received = 0;
+    const meter = new Transform({
+      transform(chunk, encoding, callback) {
+        received += chunk.length;
+        if (onProgress) onProgress(received, artifact.size);
+        callback(null, chunk);
+      }
+    });
+    if (onProgress) onProgress(0, artifact.size);
+    await pipeline(Readable.fromWeb(response.body), meter, createWriteStream(destination));
     const bytes = await readFile(destination);
     const digest = createHash('sha256').update(bytes).digest('hex');
     if (digest !== artifact.sha256) throw new Error('Échec de la vérification SHA-256');
@@ -294,15 +311,18 @@ export class AddonManager {
     return result;
   }
 
-  install(component) { return this.runExclusive(() => this.installNow(component)); }
-  async installNow(component) {
+  install(component, onProgress) { return this.runExclusive(() => this.installNow(component, onProgress)); }
+  async installNow(component, onProgress = null, includeInventory = true) {
+    const report = update => { if (onProgress) onProgress({ component, ...update }); };
+    report({ step: 'detect', message: 'Détection du dossier Project Ascension…', phasePercent: 2 });
     if (!MANAGED_COMPONENTS.has(component)) throw new Error('Composant CoA inconnu');
     const detection = await this.detectDirectory();
     if (!detection.exists) throw new Error('Aucun dossier Project Ascension AddOns détecté');
+    report({ step: 'manifest', message: 'Lecture du manifeste GitHub…', phasePercent: 5 });
     const { manifest } = await this.getManifest();
     const artifact = manifest?.artifacts?.find(item => item.component === component);
     if (!artifact) throw new Error('Artefact distant introuvable dans le manifeste');
-    if (component === 'event-alert') return this.installEventAlert(detection, artifact);
+    if (component === 'event-alert') return this.installEventAlert(detection, artifact, onProgress, includeInventory);
     if (!/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '')) throw new Error('Nom de dossier cible invalide');
     if (component === 'grid-compat' && !(await isDirectory(path.join(detection.directory, 'Grid')))) {
       throw new Error('Grid doit être installé avant sa compatibilité CoA');
@@ -314,24 +334,39 @@ export class AddonManager {
     await ensureDir(transaction);
     let backup = null;
     try {
-      await this.download(artifact, archive);
+      report({ step: 'download', message: `Téléchargement de ${artifact.file}…`, phasePercent: 10, bytesDone: 0, bytesTotal: artifact.size });
+      await this.download(artifact, archive, (bytesDone, bytesTotal) => report({
+        step: 'download', message: `Téléchargement de ${artifact.file}…`,
+        phasePercent: 10 + (bytesTotal ? bytesDone / bytesTotal * 42 : 0), bytesDone, bytesTotal
+      }));
+      report({ step: 'checksum', message: 'Archive téléchargée et SHA-256 vérifié', phasePercent: 54 });
+      report({ step: 'extract', message: 'Extraction sécurisée de l’archive…', phasePercent: 58 });
       await extractZip(archive, extracted);
       const extractedFolder = path.join(extracted, artifact.targetFolder);
+      report({ step: 'validate', message: `Validation du dossier ${artifact.targetFolder} et de son fichier .toc…`, phasePercent: 66 });
       await this.assertToc(extractedFolder, artifact.targetFolder);
       const destination = path.join(detection.directory, artifact.targetFolder);
+      report({ step: 'backup', message: local ? `Backup de ${artifact.targetFolder}…` : 'Aucune version précédente à sauvegarder', phasePercent: 74 });
       backup = await this.createBackup(component, artifact.targetFolder, destination, local?.version);
+      report({ step: 'install', message: `Installation de ${artifact.targetFolder}…`, phasePercent: 82 });
       try { await this.replaceFolder(detection.directory, artifact.targetFolder, extractedFolder); }
       catch (error) {
+        report({ step: 'restore', message: 'Échec détecté, restauration automatique du backup…', phasePercent: 84 });
         if (backup) await this.replaceFolder(detection.directory, artifact.targetFolder, backup.folder);
         throw error;
       }
+      report({ step: 'enable', message: 'Activation dans les profils Ascension…', phasePercent: 91 });
       let enabledProfiles = await this.enableAddonForProfiles(detection.directory, artifact.targetFolder);
       if (component === 'grid-compat') enabledProfiles += await this.enableAddonForProfiles(detection.directory, 'Grid');
-      return { operation: local ? 'replaced' : 'installed', component, version: artifact.version, enabledProfiles, backup: backup?.id || null, inventory: await this.inventory() };
+      report({ step: 'rescan', message: 'Contrôle final de l’installation…', phasePercent: 96 });
+      const inventory = includeInventory ? await this.inventory() : null;
+      report({ step: 'complete', message: `${artifact.name} v${artifact.version} est prêt`, phasePercent: 100 });
+      return { operation: local ? 'replaced' : 'installed', component, version: artifact.version, enabledProfiles, backup: backup?.id || null, inventory };
     } finally { await rm(transaction, { recursive: true, force: true }); }
   }
 
-  async installEventAlert(detection, artifact) {
+  async installEventAlert(detection, artifact, onProgress = null, includeInventory = true) {
+    const report = update => { if (onProgress) onProgress({ component: 'event-alert', ...update }); };
     const upstream = artifact.upstream;
     if (!upstream || upstream.targetFolder !== 'EventAlert' || upstream.version !== '4.3.6') throw new Error('Métadonnées EventAlert officielles invalides');
     if (this.strictOfficialSources && (
@@ -350,11 +385,25 @@ export class AddonManager {
     await ensureDir(transaction);
     let backup = null;
     try {
-      await this.download(upstream, upstreamArchive);
-      await this.download(artifact, patchArchive);
+      const totalBytes = upstream.size + artifact.size;
+      report({ step: 'download', message: 'Téléchargement de la source officielle EventAlert…', phasePercent: 10, bytesDone: 0, bytesTotal: totalBytes });
+      await this.download(upstream, upstreamArchive, bytesDone => report({
+        step: 'download', message: 'Téléchargement de la source officielle EventAlert…',
+        phasePercent: 10 + bytesDone / totalBytes * 42, bytesDone, bytesTotal: totalBytes
+      }));
+      report({ step: 'download', message: 'Téléchargement de la compatibilité EventAlert CoA…', phasePercent: 10 + upstream.size / totalBytes * 42, bytesDone: upstream.size, bytesTotal: totalBytes });
+      await this.download(artifact, patchArchive, bytesDone => report({
+        step: 'download', message: 'Téléchargement de la compatibilité EventAlert CoA…',
+        phasePercent: 10 + (upstream.size + bytesDone) / totalBytes * 42,
+        bytesDone: upstream.size + bytesDone, bytesTotal: totalBytes
+      }));
+      report({ step: 'checksum', message: 'Archives EventAlert vérifiées par SHA-256', phasePercent: 54 });
+      report({ step: 'extract', message: 'Extraction de la source officielle EventAlert…', phasePercent: 58 });
       await extractZip(upstreamArchive, upstreamExtracted);
+      report({ step: 'extract', message: 'Extraction de la compatibilité CoA…', phasePercent: 62 });
       await extractZip(patchArchive, patchExtracted);
       const prepared = path.join(upstreamExtracted, upstream.targetFolder);
+      report({ step: 'validate', message: 'Validation des fichiers EventAlert et de leur compatibilité…', phasePercent: 68 });
       await this.assertToc(prepared, upstream.targetFolder);
       const compatibilityFolder = path.join(patchExtracted, EVENT_ALERT_COMPANION_FOLDER);
       const compatibilityFile = path.join(compatibilityFolder, 'EventAlertCoA.lua');
@@ -364,6 +413,7 @@ export class AddonManager {
       const toc = await readFile(compatibilityToc, 'utf8');
       if (!/^## (?:RequiredDeps|Dependencies): EventAlert$/m.test(toc)) throw new Error('Dépendance EventAlert manquante dans le correctif CoA');
       if (!new RegExp(`^## Version: ${artifact.version.replaceAll('.', '\\.')}$`, 'm').test(toc)) throw new Error('Version du correctif EventAlert CoA incohérente');
+      report({ step: 'backup', message: 'Backup d’EventAlert et de sa compatibilité…', phasePercent: 76 });
       backup = await this.createBackupSet('event-alert', [
         { targetFolder: 'EventAlert', source: path.join(detection.directory, 'EventAlert'), version: eventAlert?.version },
         { targetFolder: EVENT_ALERT_COMPANION_FOLDER, source: path.join(detection.directory, EVENT_ALERT_COMPANION_FOLDER), version: companion?.version },
@@ -371,17 +421,24 @@ export class AddonManager {
       ], companion?.version || eventAlert?.version);
       let enabledProfiles = 0;
       try {
+        report({ step: 'install', message: 'Installation de la source officielle EventAlert…', phasePercent: 83 });
         await this.replaceFolder(detection.directory, 'EventAlert', prepared);
+        report({ step: 'install', message: 'Installation de la compatibilité EventAlert CoA…', phasePercent: 88 });
         await this.replaceFolder(detection.directory, EVENT_ALERT_COMPANION_FOLDER, compatibilityFolder);
         await rm(path.join(detection.directory, EVENT_ALERT_LEGACY_FOLDER), { recursive: true, force: true });
+        report({ step: 'enable', message: 'Activation d’EventAlert dans les profils Ascension…', phasePercent: 93 });
         enabledProfiles = await this.enableAddonForProfiles(detection.directory, EVENT_ALERT_COMPANION_FOLDER);
       } catch (error) {
+        report({ step: 'restore', message: 'Échec détecté, restauration automatique d’EventAlert…', phasePercent: 94 });
         if (backup) await this.restoreBackupSet(detection.directory, backup, ['EventAlert', EVENT_ALERT_COMPANION_FOLDER, EVENT_ALERT_LEGACY_FOLDER]);
         throw error;
       }
+      report({ step: 'rescan', message: 'Contrôle final d’EventAlert…', phasePercent: 97 });
+      const inventory = includeInventory ? await this.inventory() : null;
+      report({ step: 'complete', message: `EventAlert ${upstream.version} + CoA ${artifact.version} est prêt`, phasePercent: 100 });
       return {
         operation: eventAlert || companion ? 'replaced' : 'installed', component: 'event-alert', version: artifact.version,
-        upstreamVersion: upstream.version, enabledProfiles, backup: backup?.id || null, inventory: await this.inventory()
+        upstreamVersion: upstream.version, enabledProfiles, backup: backup?.id || null, inventory
       };
     } finally { await rm(transaction, { recursive: true, force: true }); }
   }
@@ -416,11 +473,25 @@ export class AddonManager {
     return { operation: 'restored', component, backup: selected.id, inventory: await this.inventory() };
   }
 
-  updateAll() { return this.runExclusive(async () => {
+  updateAll(onProgress) { return this.runExclusive(async () => {
+    const report = update => { if (onProgress) onProgress(update); };
+    report({ step: 'scan', message: 'Recherche des addons à installer ou mettre à jour…', phasePercent: 0, index: 0, total: 0 });
     const current = await this.inventory();
     const components = current.managed.filter(item => ['install', 'update'].includes(item.action)).map(item => item.component);
+    if (!components.length) {
+      report({ step: 'complete', message: 'Tous les addons sont déjà à jour', phasePercent: 100, index: 0, total: 0 });
+      return { operation: 'update-all', updated: [], results: [], inventory: current };
+    }
     const results = [];
-    for (const component of components) results.push(await this.installNow(component));
-    return { operation: 'update-all', updated: components, results, inventory: await this.inventory() };
+    for (let index = 0; index < components.length; index++) {
+      const component = components[index];
+      const relay = update => report({ ...update, component, index: index + 1, total: components.length });
+      relay({ step: 'starting-addon', message: `Préparation de ${component} (${index + 1}/${components.length})…`, phasePercent: 0 });
+      results.push(await this.installNow(component, relay, false));
+    }
+    report({ step: 'rescan', message: 'Contrôle global des versions installées…', phasePercent: 99, index: components.length, total: components.length });
+    const inventory = await this.inventory();
+    report({ step: 'complete', message: `${components.length} addon(s) mis à jour`, phasePercent: 100, index: components.length, total: components.length });
+    return { operation: 'update-all', updated: components, results, inventory };
   }); }
 }

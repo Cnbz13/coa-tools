@@ -54,6 +54,8 @@ Chaque sous-dossier qui contient un fichier `.toc` est scanné réellement. Le n
 
 Une installation ou mise à jour CoA télécharge le ZIP officiel, vérifie obligatoirement sa taille et son SHA-256, contrôle son chemin d’extraction et exige un `.toc` dans le dossier cible avant remplacement. Une sauvegarde automatique précède chaque remplacement et peut être restaurée depuis l’interface.
 
+Les installations individuelles et la mise à jour globale sont suivies en direct : addon courant, étape, pourcentage, octets téléchargés et temps écoulé restent visibles, même après un rafraîchissement de l’interface. Un téléchargement réseau est interrompu avec une erreur explicite après deux minutes sans résultat.
+
 ## Développement local
 
 Prérequis : Node.js 24.14 ou supérieur.
@@ -87,7 +89,7 @@ Pour publier :
 1. Mettre à jour `version` dans `package.json`, `package-lock.json`, `manifest.json` et les deux fichiers `.toc`.
 2. Exécuter `npm run release` et reporter les tailles et SHA-256 obtenus dans le manifeste versionné.
 3. Pousser le commit puis le tag correspondant.
-4. Le workflow `Release` teste, crée les quatre ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
+4. Le workflow `Release` teste, crée les cinq ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
 
 Le workflow peut aussi être lancé manuellement avec une version. Le client utilise par défaut le manifeste de la dernière release ; `COA_UPDATE_MANIFEST` permet de cibler un autre canal.
 

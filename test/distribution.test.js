@@ -40,6 +40,22 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(workflow, /GridCoA-v\$env:RELEASE_VERSION\.zip/);
 });
 
+test('addon manager exposes recoverable progress for individual and global updates', async () => {
+  const server = await readFile('src/server.js', 'utf8');
+  const app = await readFile('public/app.js', 'utf8');
+  const html = await readFile('public/index.html', 'utf8');
+  const addons = await readFile('src/core/addons.js', 'utf8');
+  assert.match(server, /\/api\/addons\/operations\/current/);
+  assert.match(server, /addonOperations\.start\(input\.action, input\.component\)/);
+  assert.match(app, /setTimeout\(pollAddonOperation, 500\)/);
+  assert.match(app, /resumeAddonOperation/);
+  assert.match(app, /addonProgressBytes/);
+  assert.match(html, /id="addonProgressBar"/);
+  assert.match(html, /Délai réseau maximal : 2 minutes par fichier/);
+  assert.match(addons, /Délai réseau dépassé après 2 minutes/);
+  assert.match(addons, /phasePercent/);
+});
+
 test('WoW addon metadata matches the package version', async () => {
   for (const name of ['CoACombatAssistant', 'CoAUIManager', 'GridCoA']) {
     const toc = await readFile(`addons/${name}/${name}.toc`, 'utf8');

@@ -4,6 +4,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { CombatAssistant } from './core/combat.js';
 import { AddonManager } from './core/addons.js';
+import { AddonOperationRegistry } from './core/addon-operations.js';
 import { UiManager } from './core/ui-manager.js';
 import { Updater } from './core/updater.js';
 import { ensureDir, readJson } from './lib/files.js';
@@ -18,6 +19,7 @@ await ensureDir(dataDir);
 
 const combat = new CombatAssistant();
 const addons = new AddonManager({ dataDir, manifestUrl, environmentPath: process.env.COA_ADDONS_DIR });
+const addonOperations = new AddonOperationRegistry(addons);
 const ui = new UiManager(dataDir);
 const updater = new Updater({ currentVersion: pkg.version, manifestUrl, stagingDir: path.join(root, '.updates') });
 
@@ -45,6 +47,16 @@ async function api(request, response, pathname) {
     return json(response, 200, selected ? await addons.setDirectory(selected) : { cancelled: true });
   }
   if (request.method === 'POST' && pathname === '/api/addons/update-all') return json(response, 200, await addons.updateAll());
+  if (request.method === 'GET' && pathname === '/api/addons/operations/current') return json(response, 200, { operation: addonOperations.current() });
+  const operationMatch = pathname.match(/^\/api\/addons\/operations\/([0-9a-f-]+)$/i);
+  if (operationMatch && request.method === 'GET') {
+    const operation = addonOperations.get(operationMatch[1]);
+    return operation ? json(response, 200, { operation }) : json(response, 404, { error: 'Opération addon introuvable' });
+  }
+  if (request.method === 'POST' && pathname === '/api/addons/operations') {
+    const input = await body(request);
+    return json(response, 202, { operation: addonOperations.start(input.action, input.component) });
+  }
   const managedMatch = pathname.match(/^\/api\/addons\/managed\/([^/]+)\/(install|rollback)$/);
   if (managedMatch && request.method === 'POST') {
     const component = decodeURIComponent(managedMatch[1]);

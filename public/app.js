@@ -8,7 +8,7 @@ const api = async (url, options = {}) => {
 const toast = message => { $('#toast').textContent = message; $('#toast').classList.add('show'); setTimeout(() => $('#toast').classList.remove('show'), 3000); };
 const escapeHtml = value => { const node = document.createElement('span'); node.textContent = value ?? ''; return node.innerHTML; };
 const escapeAttribute = value => escapeHtml(value).replaceAll('`', '&#96;');
-let combat, updateArtifact, addonInventory;
+let combat, updateArtifact, addonInventory, addonOperation, addonPollTimer;
 
 document.querySelectorAll('nav button').forEach(button => button.onclick = () => {
   document.querySelectorAll('nav button,.view').forEach(item => item.classList.remove('active'));
@@ -49,8 +49,9 @@ function renderAddons() {
       <div class="button-row"><button class="primary" data-install="${escapeAttribute(item.component)}">${actionLabels[item.action]}</button>${item.canRollback ? `<button data-rollback="${escapeAttribute(item.component)}">Restaurer</button>` : ''}</div>
     </article>`).join('') : '<article class="empty-card">Les composants CoA seront affichés dès que le manifest GitHub sera accessible.</article>';
   renderRegularAddons();
-  document.querySelectorAll('[data-install]').forEach(button => button.onclick = () => runAddonOperation(button, `/api/addons/managed/${encodeURIComponent(button.dataset.install)}/install`, 'Installation'));
-  document.querySelectorAll('[data-rollback]').forEach(button => button.onclick = () => runAddonOperation(button, `/api/addons/managed/${encodeURIComponent(button.dataset.rollback)}/rollback`, 'Restauration'));
+  document.querySelectorAll('[data-install]').forEach(button => button.onclick = () => startAddonOperation(button, { action: 'install', component: button.dataset.install }));
+  document.querySelectorAll('[data-rollback]').forEach(button => button.onclick = () => runImmediateAddonOperation(button, `/api/addons/managed/${encodeURIComponent(button.dataset.rollback)}/rollback`, 'Restauration'));
+  renderAddonProgress();
 }
 function renderRegularAddons() {
   const query = $('#addonSearch').value.trim().toLocaleLowerCase('fr');
@@ -61,16 +62,102 @@ async function loadAddons() {
   try { addonInventory = await api('/api/addons'); renderAddons(); }
   catch (error) { toast(error.message); }
 }
-async function runAddonOperation(button, url, label) {
+async function runImmediateAddonOperation(button, url, label) {
   const original = button.textContent; button.disabled = true; button.textContent = `${label}…`;
   try { const value = await api(url, { method: 'POST', body: '{}' }); addonInventory = value.inventory; renderAddons(); toast(`${label} terminée avec vérification SHA-256`); }
   catch (error) { button.disabled = false; button.textContent = original; toast(error.message); }
+}
+
+const activeAddonOperation = () => ['queued', 'running'].includes(addonOperation?.state);
+const formatBytes = value => {
+  if (!Number.isFinite(value)) return '';
+  if (value < 1024) return `${value} o`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} Kio`;
+  return `${(value / 1024 / 1024).toFixed(1)} Mio`;
+};
+const formatElapsed = startedAt => {
+  const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(startedAt)) / 1000));
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+};
+function addonOperationName() {
+  if (addonOperation?.action === 'update-all') return 'Mise à jour globale';
+  return addonInventory?.managed.find(item => item.component === addonOperation?.component)?.name || addonOperation?.component || 'Addon CoA';
+}
+function renderAddonProgress() {
+  const panel = $('#addonProgress');
+  if (!panel) return;
+  const globalButton = $('#updateAllAddons');
+  const active = activeAddonOperation();
+  globalButton.textContent = active && addonOperation?.action === 'update-all'
+    ? `Mise à jour${addonOperation.total ? ` ${addonOperation.current}/${addonOperation.total}` : ''}…`
+    : 'Tout mettre à jour';
+  panel.hidden = !addonOperation;
+  if (!addonOperation) return;
+  panel.classList.toggle('running', active);
+  panel.classList.toggle('success', addonOperation.state === 'succeeded');
+  panel.classList.toggle('failed', addonOperation.state === 'failed');
+  $('#addonProgressTitle').textContent = addonOperationName();
+  $('#addonProgressMessage').textContent = addonOperation.message;
+  $('#addonProgressBar').value = addonOperation.percent;
+  $('#addonProgressPercent').textContent = `${addonOperation.percent}%`;
+  $('#addonProgressElapsed').textContent = formatElapsed(addonOperation.startedAt);
+  $('#addonProgressStep').textContent = addonOperation.total > 1 && addonOperation.current
+    ? `Addon ${addonOperation.current}/${addonOperation.total} · ${addonOperation.step}`
+    : addonOperation.step;
+  $('#addonProgressBytes').textContent = Number.isFinite(addonOperation.bytesDone) && Number.isFinite(addonOperation.bytesTotal)
+    ? `${formatBytes(addonOperation.bytesDone)} / ${formatBytes(addonOperation.bytesTotal)}` : '';
+  document.querySelectorAll('[data-install], [data-rollback], #updateAllAddons').forEach(button => { button.disabled = active; });
+}
+async function pollAddonOperation() {
+  clearTimeout(addonPollTimer);
+  if (!addonOperation?.id || !activeAddonOperation()) return;
+  try {
+    const value = await api(`/api/addons/operations/${encodeURIComponent(addonOperation.id)}`);
+    addonOperation = value.operation;
+    if (!activeAddonOperation()) {
+      if (addonOperation.state === 'succeeded') {
+        addonInventory = addonOperation.result?.inventory || await api('/api/addons');
+        renderAddons();
+        toast('Mise à jour terminée avec vérification SHA-256');
+      } else {
+        renderAddons();
+        toast(addonOperation.error || 'La mise à jour a échoué');
+      }
+      return;
+    }
+    renderAddonProgress();
+    addonPollTimer = setTimeout(pollAddonOperation, 500);
+  } catch (error) {
+    $('#addonProgressMessage').textContent = `Connexion au manager interrompue : ${error.message}. Nouvelle tentative…`;
+    addonPollTimer = setTimeout(pollAddonOperation, 1500);
+  }
+}
+async function startAddonOperation(button, input) {
+  button.disabled = true;
+  button.textContent = 'Démarrage…';
+  try {
+    const value = await api('/api/addons/operations', { method: 'POST', body: JSON.stringify(input) });
+    addonOperation = value.operation;
+    renderAddonProgress();
+    pollAddonOperation();
+  } catch (error) {
+    renderAddons();
+    toast(error.message);
+  }
+}
+async function resumeAddonOperation() {
+  try {
+    const value = await api('/api/addons/operations/current');
+    addonOperation = value.operation;
+    renderAddonProgress();
+    if (activeAddonOperation()) pollAddonOperation();
+  } catch { /* L’inventaire reste utilisable si aucun historique n’est disponible. */ }
 }
 $('#refreshAddons').onclick = loadAddons;
 $('#addonSearch').oninput = () => addonInventory && renderRegularAddons();
 $('#saveAddonPath').onclick = async () => { try { addonInventory = await api('/api/addons/path', { method: 'PUT', body: JSON.stringify({ path: $('#addonPath').value }) }); renderAddons(); toast('Dossier AddOns mémorisé'); } catch (error) { toast(error.message); } };
 $('#browseAddonPath').onclick = async () => { try { const value = await api('/api/addons/select-path', { method: 'POST', body: '{}' }); if (!value.cancelled) { addonInventory = value; renderAddons(); toast('Dossier AddOns mémorisé'); } } catch (error) { toast(error.message); } };
-$('#updateAllAddons').onclick = async event => runAddonOperation(event.currentTarget, '/api/addons/update-all', 'Mise à jour globale');
+$('#updateAllAddons').onclick = event => startAddonOperation(event.currentTarget, { action: 'update-all' });
 
 async function loadUi() { const value = await api('/api/ui'); $('#theme').value = value.theme; $('#density').value = value.density; document.body.dataset.theme = value.theme; document.body.dataset.density = value.density; }
 $('#saveUi').onclick = async () => { const value = await api('/api/ui', { method: 'PUT', body: JSON.stringify({ theme: $('#theme').value, density: $('#density').value }) }); document.body.dataset.theme = value.theme; document.body.dataset.density = value.density; toast('Interface enregistrée'); };
@@ -78,4 +165,4 @@ async function checkUpdates(automatic = false) { try { const value = await api('
 async function downloadUpdate() { try { $('#updateStatus').textContent = 'Téléchargement et vérification…'; const value = await api('/api/updates/download', { method: 'POST', body: '{}' }); $('#updateStatus').textContent = `Mise à jour vérifiée et prête : ${value.sha256.slice(0, 16)}…`; $('#downloadUpdate').hidden = true; } catch (error) { $('#updateStatus').textContent = error.message; } }
 $('#checkUpdate').onclick = () => checkUpdates(false);
 $('#downloadUpdate').onclick = downloadUpdate;
-const status = await api('/api/status'); $('#version').textContent = `Version ${status.version}`; await Promise.all([loadCombat(), loadAddons(), loadUi()]); checkUpdates(true); setInterval(() => checkUpdates(true), 6 * 60 * 60 * 1000);
+const status = await api('/api/status'); $('#version').textContent = `Version ${status.version}`; await Promise.all([loadCombat(), loadAddons(), loadUi()]); await resumeAddonOperation(); checkUpdates(true); setInterval(() => checkUpdates(true), 6 * 60 * 60 * 1000); setInterval(() => { if (activeAddonOperation()) renderAddonProgress(); }, 1000);

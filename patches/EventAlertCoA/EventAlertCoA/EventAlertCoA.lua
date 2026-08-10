@@ -1,9 +1,11 @@
 -- Thin Project Ascension compatibility layer for the genuine EventAlert 4.3.6 addon.
 -- EventAlert remains responsible for every icon, sound, option and saved position.
 
-local COA_COMPAT_VERSION = "1.4.2"
+local COA_COMPAT_VERSION = "1.4.3"
 local BOOK = BOOKTYPE_SPELL or "spell"
 local AUTO_LEARN_DEFAULT = true
+local PROC_MAX_DURATION = 60
+local SMART_FILTER_VERSION = 1
 local recentCasts = {}
 local spellbookIds = {}
 local initialized = false
@@ -12,6 +14,37 @@ local buffManagerFrame = nil
 local buffManagerRows = {}
 local buffManagerPage = 1
 local BUFFS_PER_PAGE = 10
+local procScannerTooltip = nil
+local RemoveActiveBuff
+
+local ignoredNameFragments = {
+    "keeper's scroll:", "titan scroll:", "crafting speed", "gathering speed"
+}
+
+local ignoredExactNames = {
+    ["heat"] = true,
+    ["ember"] = true
+}
+
+-- Confirmed action windows from public CoA class data and observed spellbooks.
+local confirmedUsefulProcNames = {
+    ["flamecasting"] = true,
+    ["sageweaving"] = true,
+    ["fired up!"] = true,
+    ["superheated"] = true
+}
+
+local actionableTooltipFragments = {
+    "your next", "next spell", "next ability", "becomes instant", "cast time",
+    "critical strike chance", "damage done is increased", "damage dealt is increased",
+    "healing done is increased", "increases all damage", "increases all healing",
+    "costs no", "no mana cost", "can be cast"
+}
+
+local passiveTooltipFragments = {
+    "absorbs", "every sec", "restores", "movement speed", "mounted speed",
+    "armor by", "resistance by", "regenerates", "heals the target for"
+}
 
 local function Now()
     return GetTime and GetTime() or 0
@@ -38,6 +71,15 @@ local function EnsureConfiguration()
     if EA_Config.CoA.AutoLearn == nil then EA_Config.CoA.AutoLearn = AUTO_LEARN_DEFAULT end
     EA_Config.CoA.KnownBuffs = EA_Config.CoA.KnownBuffs or {}
     EA_Config.CoA.DisabledBuffs = EA_Config.CoA.DisabledBuffs or {}
+    EA_Config.CoA.ManualBuffs = EA_Config.CoA.ManualBuffs or {}
+    EA_Config.CoA.FilterReasons = EA_Config.CoA.FilterReasons or {}
+    if EA_Config.CoA.SmartFilterVersion ~= SMART_FILTER_VERSION then
+        local disabledId, disabled
+        for disabledId, disabled in pairs(EA_Config.CoA.DisabledBuffs) do
+            if disabled then EA_Config.CoA.ManualBuffs[tonumber(disabledId) or disabledId] = false end
+        end
+        EA_Config.CoA.SmartFilterVersion = SMART_FILTER_VERSION
+    end
     if EA_Config.CoA.Initialized == nil then
         EA_Config.AllowAltAlerts = true
         EA_Config.CoA.Initialized = true
@@ -54,6 +96,83 @@ local function EnsureConfiguration()
         end
     end
     return true
+end
+
+local function ContainsFragment(text, fragments)
+    text = string.lower(tostring(text or ""))
+    local _, fragment
+    for _, fragment in ipairs(fragments) do
+        if string.find(text, fragment, 1, true) then return true end
+    end
+    return false
+end
+
+local function AuraTooltipText(index)
+    if not GameTooltip then return "" end
+    if not procScannerTooltip then
+        procScannerTooltip = CreateFrame("GameTooltip", "EventAlertCoAProcScannerTooltip", UIParent, "GameTooltipTemplate")
+        procScannerTooltip:SetOwner(UIParent, "ANCHOR_NONE")
+    end
+    procScannerTooltip:ClearLines()
+    if not pcall(procScannerTooltip.SetUnitBuff, procScannerTooltip, "player", index) then return "" end
+    local parts = {}
+    local line
+    for line = 1, (procScannerTooltip:NumLines() or 0) do
+        local left = _G["EventAlertCoAProcScannerTooltipTextLeft" .. line]
+        local right = _G["EventAlertCoAProcScannerTooltipTextRight" .. line]
+        if left and left:GetText() then table.insert(parts, left:GetText()) end
+        if right and right:GetText() then table.insert(parts, right:GetText()) end
+    end
+    procScannerTooltip:Hide()
+    return string.lower(table.concat(parts, " "))
+end
+
+local function FindPlayerAura(spellId, spellName)
+    local index
+    for index = 1, 40 do
+        local auraName, _, _, count, _, duration, expirationTime, caster, _, _, auraSpellId = UnitBuff("player", index)
+        if not auraName then break end
+        auraSpellId = tonumber(auraSpellId)
+        if (auraSpellId and auraSpellId == spellId) or (spellName and auraName == spellName) then
+            return {
+                index = index,
+                name = auraName,
+                count = tonumber(count) or 0,
+                duration = tonumber(duration) or 0,
+                expirationTime = tonumber(expirationTime) or 0,
+                caster = caster,
+                tooltip = AuraTooltipText(index)
+            }
+        end
+    end
+    return nil
+end
+
+local function IsLikelyUsefulProc(spellId, spellName)
+    if not EnsureConfiguration() then return false, "configuration indisponible" end
+    spellId = tonumber(spellId) or spellId
+    local manual = EA_Config.CoA.ManualBuffs[spellId]
+    if manual == true then return true, "selection manuelle" end
+    if manual == false then return false, "desactive manuellement" end
+
+    local lowerName = string.lower(tostring(spellName or GetSpellInfo(spellId) or ""))
+    if ignoredExactNames[lowerName] then return false, "ressource passive" end
+    if ContainsFragment(lowerName, ignoredNameFragments) then return false, "buff systeme persistant" end
+
+    local aura = FindPlayerAura(spellId, spellName)
+    if not aura then return false, "aura non verifiable" end
+    if aura.duration <= 0 then return false, "buff permanent ou passif" end
+    if aura.duration > PROC_MAX_DURATION then return false, "buff longue duree" end
+    if confirmedUsefulProcNames[lowerName] then return true, "proc CoA confirme" end
+
+    local actionable = ContainsFragment(aura.tooltip, actionableTooltipFragments)
+    local passive = ContainsFragment(aura.tooltip, passiveTooltipFragments)
+    if actionable then return true, "fenetre d'action temporaire" end
+    if passive then return false, "effet passif temporaire" end
+    if UnitAffectingCombat and UnitAffectingCombat("player") and aura.duration <= 20 then
+        return true, "proc court observe en combat"
+    end
+    return false, "aucune action immediate detectee"
 end
 
 local function IsBuffDisabled(spellId)
@@ -215,6 +334,39 @@ local function RegisterAuraProc(spellId, spellName)
     return learned
 end
 
+local function AutoIgnoreAura(spellId, spellName, reason)
+    if not spellId or not EnsureConfiguration() then return end
+    spellId = tonumber(spellId) or spellId
+    local name = spellName or GetSpellInfo(spellId) or tostring(spellId)
+    local previousReason = EA_Config.CoA.FilterReasons[spellId]
+    EA_Config.CoA.KnownBuffs[spellId] = name
+    EA_Config.CoA.FilterReasons[spellId] = reason or "non pertinent"
+    EA_Config.CoA.DisabledBuffs[spellId] = true
+    EA_CustomItems[spellId] = nil
+    EA_CustomItems[tostring(spellId)] = nil
+    if RemoveActiveBuff then RemoveActiveBuff(spellId) end
+    if previousReason ~= EA_Config.CoA.FilterReasons[spellId] then
+        Chat("ignore automatiquement : " .. tostring(name) .. " [" .. tostring(spellId) .. "] - "
+            .. tostring(EA_Config.CoA.FilterReasons[spellId]))
+    end
+end
+
+local function ApplyStaticFilterToKnownBuffs()
+    if not EnsureConfiguration() then return end
+    local spellId, name
+    for spellId, name in pairs(EA_Config.CoA.KnownBuffs) do
+        spellId = tonumber(spellId) or spellId
+        if EA_Config.CoA.ManualBuffs[spellId] == nil then
+            local lowerName = string.lower(tostring(name or GetSpellInfo(spellId) or ""))
+            if ignoredExactNames[lowerName] then
+                AutoIgnoreAura(spellId, name, "ressource passive")
+            elseif ContainsFragment(lowerName, ignoredNameFragments) then
+                AutoIgnoreAura(spellId, name, "buff systeme persistant")
+            end
+        end
+    end
+end
+
 local function RegisterActiveSpell(spellId, spellName)
     if not spellId or not EnsureConfiguration() then return false end
     local learned = EA_AltItems[spellId] == nil
@@ -279,10 +431,29 @@ local function HandleCombatLog(...)
     local refreshed = subEvent == "SPELL_AURA_REFRESH"
     if (applied or refreshed) and destGUID == playerGUID and spellId then
         local tracked = IsTracked(spellId)
-        if not tracked and EA_Config.CoA.AutoLearn and IsOwnedSource(sourceGUID, sourceFlags)
-            and not WasDirectlyCast(spellId, spellName) then
-            RegisterAuraProc(spellId, spellName)
-            tracked = true
+        local owned = IsOwnedSource(sourceGUID, sourceFlags)
+        local directlyCast = WasDirectlyCast(spellId, spellName)
+        if tracked and EA_CustomItems[spellId] and not EA_Items[spellId]
+            and EA_Config.CoA.ManualBuffs[spellId] ~= true then
+            local useful, reason
+            if directlyCast then
+                useful, reason = false, "sort lance manuellement"
+            else
+                useful, reason = IsLikelyUsefulProc(spellId, spellName)
+            end
+            if not useful then
+                AutoIgnoreAura(spellId, spellName, reason)
+                tracked = false
+            end
+        elseif not tracked and EA_Config.CoA.AutoLearn and owned and not directlyCast then
+            local useful, reason = IsLikelyUsefulProc(spellId, spellName)
+            if useful then
+                RegisterAuraProc(spellId, spellName)
+                EA_Config.CoA.FilterReasons[spellId] = reason
+                tracked = true
+            else
+                AutoIgnoreAura(spellId, spellName, reason)
+            end
         end
         -- This companion loads after EventAlert. Activate here so the very first
         -- occurrence is visible; IsActive prevents duplicates on known procs.
@@ -306,7 +477,7 @@ local function CountEntries(values)
     return count
 end
 
-local function RemoveActiveBuff(spellId)
+RemoveActiveBuff = function(spellId)
     spellId = tonumber(spellId) or spellId
     local active = EA_TempBuffsTable or {}
     local index
@@ -347,8 +518,11 @@ local function SetLearnedBuffEnabled(spellId, enabled)
     local name = GetSpellInfo(spellId) or EA_Config.CoA.KnownBuffs[spellId] or tostring(spellId)
     EA_Config.CoA.KnownBuffs[spellId] = name
     EA_Config.CoA.DisabledBuffs[tostring(spellId)] = nil
+    EA_Config.CoA.ManualBuffs[tostring(spellId)] = nil
+    EA_Config.CoA.ManualBuffs[spellId] = enabled and true or false
     if enabled then
         EA_Config.CoA.DisabledBuffs[spellId] = nil
+        EA_Config.CoA.FilterReasons[spellId] = "selection manuelle"
         EA_CustomItems[spellId] = true
         EnsureAlertFrame(spellId)
         local index
@@ -359,6 +533,7 @@ local function SetLearnedBuffEnabled(spellId, enabled)
         end
     else
         EA_Config.CoA.DisabledBuffs[spellId] = true
+        EA_Config.CoA.FilterReasons[spellId] = "desactive manuellement"
         EA_CustomItems[spellId] = nil
         EA_CustomItems[tostring(spellId)] = nil
         RemoveActiveBuff(spellId)
@@ -389,8 +564,11 @@ RefreshBuffManager = function()
         entry = entries[(buffManagerPage - 1) * BUFFS_PER_PAGE + rowIndex]
         if entry then
             row.spellId = entry.id
-            row.check:SetChecked(EA_CustomItems[entry.id] == true and not IsBuffDisabled(entry.id))
-            row.text:SetText(entry.name .. "  |cff888888[" .. tostring(entry.id) .. "]|r")
+            local enabled = EA_CustomItems[entry.id] == true and not IsBuffDisabled(entry.id)
+            local reason = EA_Config.CoA.FilterReasons[entry.id]
+            row.check:SetChecked(enabled)
+            row.text:SetText(entry.name .. "  |cff888888[" .. tostring(entry.id) .. "]|r"
+                .. (not enabled and reason and "  |cffff7777" .. tostring(reason) .. "|r" or ""))
             row:Show()
         else
             row.spellId = nil
@@ -444,7 +622,7 @@ local function CreateBuffManager()
 
     local help = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     help:SetPoint("TOPLEFT", frame, "TOPLEFT", 28, -83)
-    help:SetText("Decoche un buff pour le masquer et empecher son reapprentissage.")
+    help:SetText("Le filtre garde les procs utiles. Decoche/recoches pour imposer ton choix.")
 
     local rowIndex
     for rowIndex = 1, BUFFS_PER_PAGE do
@@ -527,6 +705,7 @@ end
 local function Initialize()
     if not EnsureConfiguration() then return false end
     InstallSafePositioner()
+    ApplyStaticFilterToKnownBuffs()
     ScanSpellbook()
     EventAlert_SlashHandler = CoASlashHandler
     SlashCmdList["EVENTALERT"] = CoASlashHandler

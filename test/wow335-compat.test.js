@@ -72,6 +72,21 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
   ]) assert.ok(lua.includes(required), `EventAlert buff manager is missing ${required}`);
   assert.match(lua, /if IsBuffDisabled\(spellId\) then return false end[\s\S]+EA_CustomItems\[spellId\] = true/,
     'ignored buffs must not be learned again');
+  for (const required of [
+    'IsLikelyUsefulProc', 'FindPlayerAura', 'UnitBuff("player", index)',
+    'EventAlertCoAProcScannerTooltip', 'GameTooltipTemplate', 'SetUnitBuff',
+    'PROC_MAX_DURATION = 60', 'ignoredNameFragments', 'ignoredExactNames',
+    'confirmedUsefulProcNames', 'actionableTooltipFragments', 'passiveTooltipFragments', 'AutoIgnoreAura',
+    'EA_Config.CoA.ManualBuffs', 'EA_Config.CoA.FilterReasons',
+    'buff permanent ou passif', 'buff longue duree', 'effet passif temporaire',
+    'proc court observe en combat', 'sort lance manuellement'
+  ]) assert.ok(lua.includes(required), `EventAlert smart proc filter is missing ${required}`);
+  assert.match(lua, /"keeper's scroll:"[\s\S]+\["heat"\] = true[\s\S]+\["ember"\] = true/);
+  for (const proc of ['flamecasting', 'sageweaving', 'fired up!', 'superheated']) {
+    assert.ok(lua.includes(`["${proc}"] = true`), `confirmed CoA proc is missing ${proc}`);
+  }
+  assert.match(lua, /aura\.duration <= 0[\s\S]+aura\.duration > PROC_MAX_DURATION/);
+  assert.match(lua, /if actionable then return true[\s\S]+if passive then return false/);
 });
 
 test('GridCoA shows one center icon only for debuffs the current character can dispel', async () => {

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-09T22:09:54.091Z",
-  "previousCheckAt": "2026-08-09T21:57:13.456Z",
-  "newCount": 0,
-  "rawNewCount": 0,
-  "significantCount": 0,
+  "generatedAt": "2026-08-10T10:02:54.486Z",
+  "previousCheckAt": "2026-08-09T22:09:54.091Z",
+  "newCount": 1,
+  "rawNewCount": 1,
+  "significantCount": 1,
   "sources": [
     {
       "id": "ascension-coa-changelog",
@@ -24,6 +24,31 @@
     }
   ],
   "items": [
+    {
+      "id": "70392",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/09",
+      "summary": "[Pending Restart] - Manafeed now ticks 50% harder, heals for 50% harder but now triggers every 2 seconds up from every 0.5 seconds, lasts for 6 seconds up from 5 and can be interrupted and is now correctly susceptible to spell pushback.",
+      "publishedAt": "2026-08-09T22:32:08",
+      "updatedAt": "2026-08-09T22:32:55",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "70392"
+      ]
+    },
     {
       "id": "70382",
       "sourceId": "ascension-coa-changelog",

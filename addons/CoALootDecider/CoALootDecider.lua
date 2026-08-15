@@ -147,7 +147,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.itemLevelWeight = tonumber(CoALootDeciderDB.itemLevelWeight) or 0.35
     CoALootDeciderDB.customWeights = CoALootDeciderDB.customWeights or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
-    CoALootDeciderDB.version = "0.2.0"
+    CoALootDeciderDB.version = "0.2.1"
 end
 
 local function ReadItemStats(itemLink)
@@ -235,10 +235,23 @@ local function ResolveActiveSpecialization()
         return nil, "API de specialisation CoA indisponible"
     end
 
-    local success, specializationID = pcall(GetSpecialization)
-    specializationID = success and tonumber(specializationID) or nil
-    if not specializationID or specializationID == 0 then
+    -- Ascension suit ici l'API moderne de WoW : GetSpecialization() renvoie
+    -- l'index actif (1, 2, 3...), pas necessairement l'ID du catalogue CoA.
+    local success, specializationIndex = pcall(GetSpecialization)
+    specializationIndex = success and tonumber(specializationIndex) or nil
+    if not specializationIndex or specializationIndex == 0 then
         return nil, "specialisation CoA active introuvable"
+    end
+
+    local specializationID = specializationIndex
+    local specializationName = nil
+    if type(GetSpecializationInfo) == "function" then
+        local infoSuccess, resolvedID, resolvedName = pcall(GetSpecializationInfo, specializationIndex)
+        resolvedID = infoSuccess and tonumber(resolvedID) or nil
+        if resolvedID and resolvedID ~= 0 then specializationID = resolvedID end
+        if infoSuccess and type(resolvedName) == "string" and resolvedName ~= "" then
+            specializationName = resolvedName
+        end
     end
 
     local catalogSuccess, specs = pcall(C_ClassInfo.GetAllSpecs, classToken)
@@ -246,21 +259,36 @@ local function ResolveActiveSpecialization()
         return nil, "catalogue de classe CoA indisponible"
     end
 
-    local _, spec
-    for _, spec in ipairs(specs) do
+    local catalogIndex, spec
+    for catalogIndex, spec in ipairs(specs) do
         local infoSuccess, specInfo = pcall(C_ClassInfo.GetSpecInfo, classToken, spec)
-        if infoSuccess and specInfo and tonumber(specInfo.ID) == specializationID then
+        local catalogID = infoSuccess and specInfo and tonumber(specInfo.ID) or nil
+        local catalogName = infoSuccess and specInfo and specInfo.Name or nil
+        local idMatches = catalogID and (catalogID == specializationID or catalogID == specializationIndex)
+        local keyMatches = tonumber(spec) and (tonumber(spec) == specializationID or tonumber(spec) == specializationIndex)
+        local nameMatches = specializationName and catalogName
+            and Lower(specializationName) == Lower(catalogName)
+        -- Le repli par position n'est utilise que si GetSpecializationInfo n'a
+        -- fourni ni ID distinct ni nom. Les clients Ascension actuels passent
+        -- normalement par l'ID resolu, ce qui reste le chemin le plus sur.
+        local positionMatches = not specializationName and specializationID == specializationIndex
+            and catalogIndex == specializationIndex
+        if infoSuccess and specInfo and (idMatches or keyMatches or nameMatches or positionMatches) then
             return {
                 className = className or classToken or "Classe inconnue",
                 classToken = classToken,
-                specializationID = specializationID,
+                specializationIndex = specializationIndex,
+                specializationID = catalogID or specializationID,
                 specInfo = specInfo,
                 specName = specInfo.Name or tostring(spec),
                 primaryStats = specInfo.PrimaryStats or {}
             }
         end
     end
-    return nil, "specialisation absente du catalogue de la classe " .. tostring(classToken)
+    return nil, "specialisation absente du catalogue " .. tostring(classToken)
+        .. " (index=" .. tostring(specializationIndex)
+        .. ", id=" .. tostring(specializationID)
+        .. ", nom=" .. tostring(specializationName or "inconnu") .. ")"
 end
 
 local function StrictWeights(specialization)

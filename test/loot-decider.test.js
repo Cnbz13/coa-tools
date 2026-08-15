@@ -27,12 +27,15 @@ test('CoA Loot Decider uses the exact CoA specialization catalog and compares th
     'INVTYPE_2HWEAPON = { 16, 17 }', 'ComparisonFor', 'CompatibilityProblem',
     'CoALootDeciderDB.threshold', 'CoALootDeciderDB.customWeights',
     'C_ClassInfo.GetAllSpecs', 'C_ClassInfo.GetSpecInfo', 'GetSpecialization',
+    'GetSpecializationInfo', 'specializationIndex',
     'specInfo.PrimaryStats', 'specInfo.CasterDPS', 'specInfo.MeleeDPS',
     'specInfo.RangedDPS', 'specInfo.Healer', 'specInfo.Tank',
     'PrimaryStats absentes pour'
   ]) assert.ok(lua.includes(required), `missing comparison feature: ${required}`);
   assert.match(lua, /local combined = ScoreItem\(main\) \+ ScoreItem\(off\)/);
   assert.match(lua, /if lowestScore == nil or score < lowestScore/);
+  assert.match(lua, /GetSpecializationInfo, specializationIndex[\s\S]+catalogID == specializationID/,
+    'the active specialization index must be resolved to its CoA catalog ID');
 });
 
 test('CoA Loot Decider rejects incompatible power families before scoring item level', async () => {

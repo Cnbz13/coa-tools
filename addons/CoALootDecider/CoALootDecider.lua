@@ -125,6 +125,12 @@ local EQUIP_SLOTS = {
     INVTYPE_TABARD = { 19 }
 }
 
+-- Le Pyromancien exige un gain nettement plus visible avant de NEED.
+-- Les autres classes utilisent le seuil global prudent de 5%.
+local DEFAULT_CLASS_THRESHOLDS = {
+    PYROMANCER = 10
+}
+
 local function Chat(message)
     if DEFAULT_CHAT_FRAME then
         DEFAULT_CHAT_FRAME:AddMessage("|cff67d9ffCoA Loot Decider:|r " .. tostring(message))
@@ -154,11 +160,19 @@ local function EnsureDatabase()
         CoALootDeciderDB.passUnknown = false
         CoALootDeciderDB.strictSafetyVersion = 2
     end
-    CoALootDeciderDB.threshold = tonumber(CoALootDeciderDB.threshold) or 1
+    -- Migration 0.2.3 : l'ancien seuil global de 1% etait trop permissif.
+    -- Elle ne s'execute qu'une fois ; les reglages suivants restent conserves.
+    if CoALootDeciderDB.thresholdPolicyVersion ~= 3 then
+        CoALootDeciderDB.threshold = 5
+        CoALootDeciderDB.thresholdPolicyVersion = 3
+    else
+        CoALootDeciderDB.threshold = tonumber(CoALootDeciderDB.threshold) or 5
+    end
+    CoALootDeciderDB.thresholdsBySpec = CoALootDeciderDB.thresholdsBySpec or {}
     CoALootDeciderDB.itemLevelWeight = tonumber(CoALootDeciderDB.itemLevelWeight) or 0.35
     CoALootDeciderDB.customWeights = CoALootDeciderDB.customWeights or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
-    CoALootDeciderDB.version = "0.2.2"
+    CoALootDeciderDB.version = "0.2.3"
 end
 
 local function ReadItemStats(itemLink)
@@ -458,6 +472,28 @@ local function ScanEquipment()
     return profile
 end
 
+local function ThresholdKey(targetProfile)
+    if not targetProfile or not targetProfile.valid then return nil end
+    local classPart = targetProfile.classToken or targetProfile.className
+    local specPart = targetProfile.specializationID or targetProfile.specName
+    if not classPart or not specPart then return nil end
+    return tostring(classPart) .. ":" .. tostring(specPart)
+end
+
+local function ActiveThreshold()
+    local globalThreshold = tonumber(CoALootDeciderDB.threshold) or 5
+    if not profile or not profile.valid then return globalThreshold, "global" end
+
+    local key = ThresholdKey(profile)
+    local specThreshold = key and tonumber(CoALootDeciderDB.thresholdsBySpec[key]) or nil
+    if specThreshold then return specThreshold, "specialisation" end
+
+    local classThreshold = DEFAULT_CLASS_THRESHOLDS[profile.classToken]
+    if not classThreshold and Lower(profile.className) == "pyromancer" then classThreshold = 10 end
+    if classThreshold then return classThreshold, "classe" end
+    return globalThreshold, "global"
+end
+
 local function ScoreItem(data)
     if not data or not profile then return 0 end
     local score = data.itemLevel * CoALootDeciderDB.itemLevelWeight
@@ -558,15 +594,18 @@ local function EvaluateItem(itemLink)
     local candidateScore = ScoreItem(candidate)
     local delta = candidateScore - currentScore
     local percent = currentScore > 0 and delta / currentScore * 100 or (candidateScore > 0 and 100 or 0)
-    local minimum = math.max(1, currentScore * (CoALootDeciderDB.threshold / 100))
+    local threshold, thresholdSource = ActiveThreshold()
+    local minimum = math.max(1, currentScore * (threshold / 100))
     local need = currentScore <= 0 and candidateScore > 0 or delta >= minimum
     local reason
     if currentScore <= 0 and candidateScore > 0 then
         reason = "emplacement vide"
     elseif need then
-        reason = "+" .. Round(percent, 1) .. "% (ilvl " .. candidate.itemLevel .. " contre " .. currentLevel .. ")"
+        reason = "+" .. Round(percent, 1) .. "% (ilvl " .. candidate.itemLevel .. " contre " .. currentLevel
+            .. ", seuil " .. threshold .. "%)"
     else
-        reason = Round(percent, 1) .. "% (ilvl " .. candidate.itemLevel .. " contre " .. currentLevel .. ")"
+        reason = Round(percent, 1) .. "% (ilvl " .. candidate.itemLevel .. " contre " .. currentLevel
+            .. ", seuil " .. threshold .. "%)"
     end
 
     return {
@@ -577,6 +616,8 @@ local function EvaluateItem(itemLink)
         currentLevel = currentLevel,
         currentLink = currentLinkOrReason,
         percent = percent,
+        threshold = threshold,
+        thresholdSource = thresholdSource,
         reason = reason,
         confidence = next(candidate.stats or {}) and "haute" or "moyenne"
     }
@@ -785,7 +826,8 @@ local function PrintHelp()
     Chat("/cld confirm - confirme automatiquement les objets lies")
     Chat("/cld scan - rescane l'equipement")
     Chat("/cld test [lien] - compare un objet sans lancer de jet")
-    Chat("/cld threshold 1 - gain minimum en pourcentage")
+    Chat("/cld threshold 15 - seuil de la specialisation actuelle")
+    Chat("/cld threshold auto - revient au seuil de classe/global")
     Chat("/cld weight <stat> <valeur|auto> - surcharge un poids")
     Chat("/cld history - affiche les dix dernieres decisions")
 end
@@ -801,9 +843,10 @@ SlashCmdList.COALOOTDECIDER = function(message)
         PrintHelp()
     elseif command == "status" then
         ScanEquipment()
+        local threshold, thresholdSource = ActiveThreshold()
         Chat("auto=" .. (CoALootDeciderDB.autoRoll and "ACTIF" or "inactif")
             .. ", confirmation=" .. (CoALootDeciderDB.autoConfirm and "active" or "inactive")
-            .. ", seuil=" .. CoALootDeciderDB.threshold .. "%")
+            .. ", seuil=" .. threshold .. "% (" .. thresholdSource .. ")")
         Chat(ProfileSummary())
     elseif command == "auto" then
         ScanEquipment()
@@ -820,12 +863,24 @@ SlashCmdList.COALOOTDECIDER = function(message)
         ScanEquipment()
         Chat("equipement rescane : " .. ProfileSummary())
     elseif command == "threshold" then
-        local threshold = tonumber(rest)
-        if not threshold or threshold < 0 or threshold > 100 then
-            Chat("seuil attendu entre 0 et 100")
+        ScanEquipment()
+        local key = ThresholdKey(profile)
+        if not key then
+            Chat("seuil refuse : " .. tostring(profile and profile.error or "profil CoA non detecte"))
+        elseif Lower(rest) == "auto" then
+            CoALootDeciderDB.thresholdsBySpec[key] = nil
+            local inherited, source = ActiveThreshold()
+            Chat("seuil de " .. profile.className .. " - " .. profile.specName
+                .. " revenu a " .. inherited .. "% (" .. source .. ")")
         else
-            CoALootDeciderDB.threshold = threshold
-            Chat("gain minimum regle a " .. threshold .. "%")
+            local threshold = tonumber(rest)
+            if not threshold or threshold < 0 or threshold > 100 then
+                Chat("seuil attendu entre 0 et 100, ou auto")
+            else
+                CoALootDeciderDB.thresholdsBySpec[key] = threshold
+                Chat("seuil de " .. profile.className .. " - " .. profile.specName
+                    .. " regle a " .. threshold .. "% ; les autres specialisations ne changent pas")
+            end
         end
     elseif command == "weight" then
         ScanEquipment()

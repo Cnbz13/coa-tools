@@ -26,6 +26,7 @@ test('CoA Loot Decider uses the exact CoA specialization catalog and compares th
     'INVTYPE_FINGER = { 11, 12 }', 'INVTYPE_TRINKET = { 13, 14 }',
     'INVTYPE_2HWEAPON = { 16, 17 }', 'ComparisonFor', 'CompatibilityProblem',
     'CoALootDeciderDB.threshold', 'CoALootDeciderDB.customWeights',
+    'CoALootDeciderDB.thresholdsBySpec', 'DEFAULT_CLASS_THRESHOLDS',
     'C_ClassInfo.GetAllSpecs', 'C_ClassInfo.GetSpecInfo', 'GetSpecialization',
     'GetSpecializationInfo', 'specializationIndex',
     'GetUnitPrimaryStat', 'ResolvePrimaryStats', 'UNIT_PRIMARY_STAT_NAMES',
@@ -39,6 +40,12 @@ test('CoA Loot Decider uses the exact CoA specialization catalog and compares th
     'the active specialization index must be resolved to its CoA catalog ID');
   assert.match(lua, /specInfo\.PrimaryStats[\s\S]+GetUnitPrimaryStat, "player"[\s\S]+primarySource/,
     'an empty CoA PrimaryStats table must fall back to the active character primary stat');
+  assert.match(lua, /PYROMANCER = 10[\s\S]+ThresholdKey[\s\S]+ActiveThreshold/,
+    'Pyromancer must inherit a stricter class threshold with per-spec overrides');
+  assert.match(lua, /thresholdPolicyVersion ~= 3[\s\S]+CoALootDeciderDB\.threshold = 5/,
+    'all non-Pyromancer profiles must migrate from 1% to the safer 5% default');
+  assert.match(lua, /thresholdsBySpec\[key\] = threshold[\s\S]+les autres specialisations ne changent pas/,
+    'the threshold command must only change the active specialization');
 });
 
 test('CoA Loot Decider rejects incompatible power families before scoring item level', async () => {

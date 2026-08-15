@@ -23,6 +23,8 @@ local STAT_ALIASES = {
     sta = "ITEM_MOD_STAMINA_SHORT",
     stamina = "ITEM_MOD_STAMINA_SHORT",
     endu = "ITEM_MOD_STAMINA_SHORT",
+    spirit = "ITEM_MOD_SPIRIT_SHORT",
+    esprit = "ITEM_MOD_SPIRIT_SHORT",
     spell = "ITEM_MOD_SPELL_POWER_SHORT",
     spellpower = "ITEM_MOD_SPELL_POWER_SHORT",
     sp = "ITEM_MOD_SPELL_POWER_SHORT",
@@ -46,6 +48,7 @@ local DISPLAY_STATS = {
     ITEM_MOD_AGILITY_SHORT = "AGI",
     ITEM_MOD_INTELLECT_SHORT = "INT",
     ITEM_MOD_STAMINA_SHORT = "END",
+    ITEM_MOD_SPIRIT_SHORT = "ESPRIT",
     ITEM_MOD_SPELL_POWER_SHORT = "PS",
     ITEM_MOD_ATTACK_POWER_SHORT = "PA",
     ITEM_MOD_HIT_RATING_SHORT = "TOUCH",
@@ -70,7 +73,15 @@ local PRIMARY_STATS = {
 local PRIMARY_STAT_KEYS = {
     Strength = "ITEM_MOD_STRENGTH_SHORT",
     Agility = "ITEM_MOD_AGILITY_SHORT",
-    Intellect = "ITEM_MOD_INTELLECT_SHORT"
+    Intellect = "ITEM_MOD_INTELLECT_SHORT",
+    Spirit = "ITEM_MOD_SPIRIT_SHORT"
+}
+
+local UNIT_PRIMARY_STAT_NAMES = {
+    [1] = "Strength",
+    [2] = "Agility",
+    [3] = "Intellect",
+    [4] = "Spirit"
 }
 
 local SPELL_POWER_STATS = {
@@ -147,7 +158,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.itemLevelWeight = tonumber(CoALootDeciderDB.itemLevelWeight) or 0.35
     CoALootDeciderDB.customWeights = CoALootDeciderDB.customWeights or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
-    CoALootDeciderDB.version = "0.2.1"
+    CoALootDeciderDB.version = "0.2.2"
 end
 
 local function ReadItemStats(itemLink)
@@ -225,6 +236,32 @@ local function StatValue(stats, key)
     return tonumber(stats and stats[key]) or 0
 end
 
+local function ResolvePrimaryStats(specInfo)
+    local resolved = {}
+    local _, primaryName
+    if type(specInfo.PrimaryStats) == "table" then
+        for _, primaryName in ipairs(specInfo.PrimaryStats) do
+            if PRIMARY_STAT_KEYS[primaryName] then table.insert(resolved, primaryName) end
+        end
+    end
+    if #resolved > 0 then return resolved, "catalogue CoA" end
+
+    -- Certains profils CoA, dont Pyromancer - Flameweaving, exposent une
+    -- table PrimaryStats vide. Le client connait quand meme la statistique
+    -- active via GetUnitPrimaryStat (1=FOR, 2=AGI, 3=INT, 4=ESPRIT).
+    if type(GetUnitPrimaryStat) == "function" then
+        local success, unitPrimary = pcall(GetUnitPrimaryStat, "player")
+        local unitPrimaryName = success and UNIT_PRIMARY_STAT_NAMES[tonumber(unitPrimary)] or nil
+        if not unitPrimaryName and success and type(unitPrimary) == "string"
+            and PRIMARY_STAT_KEYS[unitPrimary]
+        then
+            unitPrimaryName = unitPrimary
+        end
+        if unitPrimaryName then return { unitPrimaryName }, "personnage actif" end
+    end
+    return {}, "indisponible"
+end
+
 local function ResolveActiveSpecialization()
     local className, classToken = UnitClass("player")
     if type(C_ClassInfo) ~= "table"
@@ -274,6 +311,7 @@ local function ResolveActiveSpecialization()
         local positionMatches = not specializationName and specializationID == specializationIndex
             and catalogIndex == specializationIndex
         if infoSuccess and specInfo and (idMatches or keyMatches or nameMatches or positionMatches) then
+            local primaryStats, primarySource = ResolvePrimaryStats(specInfo)
             return {
                 className = className or classToken or "Classe inconnue",
                 classToken = classToken,
@@ -281,7 +319,8 @@ local function ResolveActiveSpecialization()
                 specializationID = catalogID or specializationID,
                 specInfo = specInfo,
                 specName = specInfo.Name or tostring(spec),
-                primaryStats = specInfo.PrimaryStats or {}
+                primaryStats = primaryStats,
+                primarySource = primarySource
             }
         end
     end
@@ -310,7 +349,8 @@ local function StrictWeights(specialization)
         if acceptedPrimaries.ITEM_MOD_STRENGTH_SHORT or acceptedPrimaries.ITEM_MOD_AGILITY_SHORT then physical = true end
     end
     if not physical and not caster then
-        caster = acceptedPrimaries.ITEM_MOD_INTELLECT_SHORT and true or false
+        caster = (acceptedPrimaries.ITEM_MOD_INTELLECT_SHORT
+            or acceptedPrimaries.ITEM_MOD_SPIRIT_SHORT) and true or false
         physical = (acceptedPrimaries.ITEM_MOD_STRENGTH_SHORT or acceptedPrimaries.ITEM_MOD_AGILITY_SHORT) and true or false
     end
 
@@ -318,6 +358,8 @@ local function StrictWeights(specialization)
         ITEM_MOD_STRENGTH_SHORT = acceptedPrimaries.ITEM_MOD_STRENGTH_SHORT and 2.00 or 0,
         ITEM_MOD_AGILITY_SHORT = acceptedPrimaries.ITEM_MOD_AGILITY_SHORT and 2.00 or 0,
         ITEM_MOD_INTELLECT_SHORT = acceptedPrimaries.ITEM_MOD_INTELLECT_SHORT and 2.00 or 0,
+        ITEM_MOD_SPIRIT_SHORT = acceptedPrimaries.ITEM_MOD_SPIRIT_SHORT and 2.00
+            or (caster and 0.25 or 0),
         ITEM_MOD_STAMINA_SHORT = specInfo.Tank and 0.65 or 0.20,
         ITEM_MOD_SPELL_POWER_SHORT = caster and 1.00 or 0,
         ITEM_MOD_HEALING_DONE_SHORT = specInfo.Healer and 1.00 or (caster and 0.55 or 0),
@@ -410,6 +452,7 @@ local function ScanEquipment()
         classToken = specialization.classToken,
         specializationID = specialization.specializationID,
         specName = specialization.specName,
+        primarySource = specialization.primarySource,
         scannedAt = GetTime and GetTime() or 0
     }
     return profile
@@ -732,6 +775,7 @@ local function ProfileSummary()
     return profile.className .. " - " .. profile.specName .. " [" .. profile.role .. "]"
         .. " | physique=" .. (profile.physical and "oui" or "non")
         .. ", caster=" .. (profile.caster and "oui" or "non")
+        .. ", primaire=" .. tostring(profile.primarySource or "inconnue")
         .. " | " .. table.concat(values, ", ")
 end
 

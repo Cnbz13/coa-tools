@@ -28,6 +28,7 @@ test('CoA Loot Decider uses the exact CoA specialization catalog and compares th
     'CoALootDeciderDB.threshold', 'CoALootDeciderDB.customWeights',
     'C_ClassInfo.GetAllSpecs', 'C_ClassInfo.GetSpecInfo', 'GetSpecialization',
     'GetSpecializationInfo', 'specializationIndex',
+    'GetUnitPrimaryStat', 'ResolvePrimaryStats', 'UNIT_PRIMARY_STAT_NAMES',
     'specInfo.PrimaryStats', 'specInfo.CasterDPS', 'specInfo.MeleeDPS',
     'specInfo.RangedDPS', 'specInfo.Healer', 'specInfo.Tank',
     'PrimaryStats absentes pour'
@@ -36,6 +37,8 @@ test('CoA Loot Decider uses the exact CoA specialization catalog and compares th
   assert.match(lua, /if lowestScore == nil or score < lowestScore/);
   assert.match(lua, /GetSpecializationInfo, specializationIndex[\s\S]+catalogID == specializationID/,
     'the active specialization index must be resolved to its CoA catalog ID');
+  assert.match(lua, /specInfo\.PrimaryStats[\s\S]+GetUnitPrimaryStat, "player"[\s\S]+primarySource/,
+    'an empty CoA PrimaryStats table must fall back to the active character primary stat');
 });
 
 test('CoA Loot Decider rejects incompatible power families before scoring item level', async () => {

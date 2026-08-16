@@ -1,6 +1,8 @@
 local addonName = ...
 
-local UPDATE_INTERVAL = 0.08
+-- Five recommendations per second remain visually immediate while avoiding the
+-- allocation spikes caused by rebuilding the entire decision tree every 80 ms.
+local UPDATE_INTERVAL = 0.20
 local MEMORY_LIMIT = 250
 local ENEMY_TIMEOUT = 8
 local SUMMON_TIMEOUT = 300
@@ -10,6 +12,7 @@ local GLOBAL_RECENT_CAST_LOCK = 1.65
 local ASSUMED_SELF_BUFF_SECONDS = 90
 local ASSUMED_TARGET_DEBUFF_SECONDS = 12
 local TARGET_EXPERIENCE_MAX_AGE = 30 * 24 * 60 * 60
+local TARGET_PROFILE_CACHE_SECONDS = 3
 
 local function Lower(value)
     return string.lower(value or "")
@@ -119,6 +122,8 @@ local currentQueue = {}
 local lastDecision = { candidates = {}, rejected = {} }
 local combatDamageEvents = 0
 local lastCombatInteraction = nil
+local targetProfileCache = nil
+local targetProfileCacheAt = 0
 local EndCombat
 local character = { level = 0, className = "Inconnue", classToken = "UNKNOWN", spec = "Inconnue" }
 
@@ -167,7 +172,7 @@ local function EnsureDatabase()
     CoACombatAssistantDB.settings = CoACombatAssistantDB.settings or {}
     CoACombatAssistantDB.settings.aoeThreshold = tonumber(CoACombatAssistantDB.settings.aoeThreshold) or DEFAULT_AOE_THRESHOLD
     CoACombatAssistantDB.settings.maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
-    CoACombatAssistantDB.version = "1.5.3"
+    CoACombatAssistantDB.version = "1.5.4"
 
     if not CoACombatAssistantDB.position and CoACombatAssistantDB.ui then
         local old = CoACombatAssistantDB.ui
@@ -635,8 +640,19 @@ local function MergeSpellStats(destination, source)
 end
 
 local function BuildTargetProfile()
+    local now = GetTime()
+    local currentGuid = TargetIsValid() and UnitGUID("target") or nil
+    if targetProfileCache and targetProfileCache.guid == currentGuid
+        and now - targetProfileCacheAt < TARGET_PROFILE_CACHE_SECONDS then
+        return targetProfileCache
+    end
+
     local profile = { valid = TargetIsValid(), spells = {}, samples = 0, encounters = 0, combatTime = 0, damageDone = 0 }
-    if not profile.valid then return profile end
+    if not profile.valid then
+        targetProfileCache = profile
+        targetProfileCacheAt = now
+        return profile
+    end
 
     profile.guid = UnitGUID("target")
     profile.name = UnitName("target") or "Créature inconnue"
@@ -671,6 +687,8 @@ local function BuildTargetProfile()
     profile.durable = profile.elite or levelDifference >= 2 or profile.averageDuration and profile.averageDuration >= 12
     profile.shortLived = profile.encounters >= 2 and profile.averageDuration and profile.averageDuration < 7
     profile.dangerous = profile.elite or profile.averageDanger >= 0.45
+    targetProfileCache = profile
+    targetProfileCacheAt = now
     return profile
 end
 
@@ -1032,6 +1050,8 @@ EndCombat = function()
     currentMobs = {}
     combatDamageEvents = 0
     lastCombatInteraction = nil
+    targetProfileCache = nil
+    targetProfileCacheAt = 0
     timerText:SetText("00:00")
     stateText:SetText("Combat terminé • " .. mobCount .. " créature(s) mémorisée(s)")
 end
@@ -1225,6 +1245,8 @@ frame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_REGEN_ENABLED" then
         EndCombat()
     elseif event == "PLAYER_TARGET_CHANGED" then
+        targetProfileCache = nil
+        targetProfileCacheAt = 0
         CaptureHostileTarget()
         RefreshDisplay()
     elseif event == "UNIT_PET" then

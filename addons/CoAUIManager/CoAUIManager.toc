@@ -2,7 +2,7 @@
 ## Title: CoA UI Manager
 ## Notes: Gestionnaire de positions, profils, échelle et alpha pour Project Ascension 3.3.5a.
 ## Author: Cnbz13
-## Version: 1.5.3
+## Version: 1.5.4
 ## SavedVariables: CoAUIManagerDB
 
 CoAUIManager.lua

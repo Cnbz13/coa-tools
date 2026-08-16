@@ -1,7 +1,7 @@
 -- Thin Project Ascension compatibility layer for the genuine EventAlert 4.3.6 addon.
 -- EventAlert remains responsible for every icon, sound, option and saved position.
 
-local COA_COMPAT_VERSION = "1.5.3"
+local COA_COMPAT_VERSION = "1.5.4"
 local BOOK = BOOKTYPE_SPELL or "spell"
 local AUTO_LEARN_DEFAULT = true
 local PROC_MAX_DURATION = 60
@@ -10,6 +10,9 @@ local recentCasts = {}
 local spellbookIds = {}
 local spellbookNames = {}
 local pendingAuras = {}
+local activeAuraIds = {}
+local activeAuraProfileKey = nil
+local pendingElapsed = 0
 local activeProfile = nil
 local activeProfileKey = nil
 local initialized = false
@@ -309,8 +312,9 @@ local function BindActiveProfile()
     return activeProfile
 end
 
-local function EnsureConfiguration()
+local function EnsureConfiguration(forceRefresh)
     if not IsEventAlertReady() then return false end
+    if not forceRefresh and initialized and activeProfile and EA_Config and EA_Config.CoA then return true end
     EA_Config.CoA = EA_Config.CoA or {}
     if EA_Config.CoA.AutoLearn == nil then EA_Config.CoA.AutoLearn = AUTO_LEARN_DEFAULT end
     EA_Config.CoA.KnownBuffs = EA_Config.CoA.KnownBuffs or {}
@@ -390,14 +394,16 @@ local function FindPlayerAura(spellId, spellName)
                 duration = tonumber(duration) or 0,
                 expirationTime = tonumber(expirationTime) or 0,
                 caster = caster,
-                tooltip = AuraTooltipText(index)
+                -- Tooltips are expensive on the 3.3.5 client. Load one only
+                -- after the cheap ownership/duration/name filters passed.
+                tooltip = nil
             }
         end
     end
     return nil
 end
 
-local function IsLikelyUsefulProc(spellId, spellName)
+local function IsLikelyUsefulProc(spellId, spellName, observedAura)
     if not EnsureConfiguration() then return false, "configuration indisponible" end
     spellId = tonumber(spellId) or spellId
     local manual = EA_Config.CoA.ManualBuffs[spellId]
@@ -408,7 +414,7 @@ local function IsLikelyUsefulProc(spellId, spellName)
     if ignoredExactNames[lowerName] then return false, "ressource passive" end
     if ContainsFragment(lowerName, ignoredNameFragments) then return false, "buff systeme persistant" end
 
-    local aura = FindPlayerAura(spellId, spellName)
+    local aura = observedAura or FindPlayerAura(spellId, spellName)
     if not aura then return nil, "aura en attente de verification" end
     if aura.caster and aura.caster ~= "player" and aura.caster ~= "pet" then
         return false, "buff externe au personnage"
@@ -422,6 +428,7 @@ local function IsLikelyUsefulProc(spellId, spellName)
         return false, "proc repertorie pour une autre specialisation"
     end
 
+    if aura.tooltip == nil then aura.tooltip = AuraTooltipText(aura.index) end
     local actionable = ContainsFragment(aura.tooltip, actionableTooltipFragments)
     local passive = ContainsFragment(aura.tooltip, passiveTooltipFragments)
     local learnedSpellReference = TooltipReferencesLearnedSpell(aura.tooltip)
@@ -654,14 +661,14 @@ local function RecordCandidate(spellId, spellName, reason)
     EA_CustomItems[tostring(spellId)] = nil
 end
 
-local function EvaluateObservedAura(spellId, spellName, directlyCast)
+local function EvaluateObservedAura(spellId, spellName, directlyCast, observedAura)
     if not spellId or not EnsureConfiguration() then return false end
     spellId = tonumber(spellId) or spellId
     if directlyCast and EA_Config.CoA.ManualBuffs[spellId] ~= true then
         AutoIgnoreAura(spellId, spellName, "sort lance manuellement")
         return false
     end
-    local useful, reason = IsLikelyUsefulProc(spellId, spellName)
+    local useful, reason = IsLikelyUsefulProc(spellId, spellName, observedAura)
     if useful == true then
         RegisterAuraProc(spellId, spellName)
         EA_Config.CoA.FilterReasons[spellId] = reason
@@ -685,12 +692,15 @@ local function ApplyStaticFilterToKnownBuffs()
                 AutoIgnoreAura(spellId, name, "ressource passive")
             elseif ContainsFragment(lowerName, ignoredNameFragments) then
                 AutoIgnoreAura(spellId, name, "buff systeme persistant")
-            elseif FindPlayerAura(spellId, name) then
-                local useful, reason = IsLikelyUsefulProc(spellId, name)
-                if useful == false then
-                    AutoIgnoreAura(spellId, name, reason)
-                elseif useful == nil then
-                    RecordCandidate(spellId, name, reason)
+            else
+                local activeAura = FindPlayerAura(spellId, name)
+                if activeAura then
+                    local useful, reason = IsLikelyUsefulProc(spellId, name, activeAura)
+                    if useful == false then
+                        AutoIgnoreAura(spellId, name, reason)
+                    elseif useful == nil then
+                        RecordCandidate(spellId, name, reason)
+                    end
                 end
             end
         end
@@ -722,20 +732,39 @@ end
 
 ScanActiveAuras = function()
     if not EnsureConfiguration() then return end
+    local forceProfileRefresh = activeAuraProfileKey ~= activeProfileKey
+    local currentAuraIds = {}
     local index
     for index = 1, 40 do
-        local spellName, _, _, _, _, _, _, _, _, _, rawSpellId = UnitBuff("player", index)
+        local spellName, _, _, count, _, duration, expirationTime, caster, _, _, rawSpellId = UnitBuff("player", index)
         if not spellName then break end
         local spellId = tonumber(rawSpellId)
         if spellId then
-            local manual = EA_Config.CoA.ManualBuffs[spellId]
-            if manual == true or EA_Config.CoA.AutoLearn or IsTracked(spellId) then
-                local directlyCast = WasDirectlyCast(spellId, spellName)
-                if EvaluateObservedAura(spellId, spellName, directlyCast) then Activate(spellId) end
+            currentAuraIds[spellId] = true
+            -- UNIT_AURA fires for stack/refresh changes too. Reclassifying every
+            -- unchanged buff made the previous implementation O(n²), including
+            -- repeated GameTooltip construction in combat.
+            if forceProfileRefresh or not activeAuraIds[spellId] or pendingAuras[spellId] then
+                local manual = EA_Config.CoA.ManualBuffs[spellId]
+                if manual == true or EA_Config.CoA.AutoLearn or IsTracked(spellId) then
+                    local directlyCast = WasDirectlyCast(spellId, spellName)
+                    local observedAura = {
+                        index = index,
+                        name = spellName,
+                        count = tonumber(count) or 0,
+                        duration = tonumber(duration) or 0,
+                        expirationTime = tonumber(expirationTime) or 0,
+                        caster = caster,
+                        tooltip = nil
+                    }
+                    if EvaluateObservedAura(spellId, spellName, directlyCast, observedAura) then Activate(spellId) end
+                end
             end
             pendingAuras[spellId] = nil
         end
     end
+    activeAuraIds = currentAuraIds
+    activeAuraProfileKey = activeProfileKey
 end
 
 local function QueueAuraEvaluation(spellId, spellName)
@@ -811,8 +840,9 @@ local function HandleCombatLog(...)
         local directlyCast = WasDirectlyCast(spellId, spellName)
         local manual = EA_Config.CoA.ManualBuffs[spellId]
         if manual == true or (EA_Config.CoA.AutoLearn and (owned or IsTracked(spellId))) then
-            if FindPlayerAura(spellId, spellName) then
-                if EvaluateObservedAura(spellId, spellName, directlyCast) then Activate(spellId) end
+            local observedAura = FindPlayerAura(spellId, spellName)
+            if observedAura then
+                if EvaluateObservedAura(spellId, spellName, directlyCast, observedAura) then Activate(spellId) end
             else
                 -- Combat log delivery can precede UNIT_AURA on Ascension. Wait
                 -- for the real aura and tooltip instead of disabling it forever.
@@ -1068,7 +1098,7 @@ local function CoASlashHandler(message)
 end
 
 local function Initialize()
-    if not EnsureConfiguration() then return false end
+    if not EnsureConfiguration(true) then return false end
     InstallSafePositioner()
     ScanSpellbook()
     ApplyStaticFilterToKnownBuffs()
@@ -1093,7 +1123,16 @@ eventFrame:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
 eventFrame:RegisterEvent("UNIT_AURA")
 eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 eventFrame:RegisterEvent("COMBAT_TEXT_UPDATE")
-eventFrame:SetScript("OnUpdate", function() ProcessPendingAuras() end)
+eventFrame:SetScript("OnUpdate", function(self, elapsed)
+    if not next(pendingAuras) then
+        pendingElapsed = 0
+        return
+    end
+    pendingElapsed = pendingElapsed + elapsed
+    if pendingElapsed < 0.08 then return end
+    pendingElapsed = 0
+    ProcessPendingAuras()
+end)
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
         local addonName = select(1, ...)

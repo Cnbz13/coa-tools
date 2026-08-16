@@ -3,12 +3,13 @@ local addonName = ...
 local STATUS = "debuff_coa_dispellable"
 local BOOK = BOOKTYPE_SPELL or "spell"
 local PET_BOOK = BOOKTYPE_PET or "pet"
-local SCAN_INTERVAL = 0.50
-local CAPABILITY_RESCAN_INTERVAL = 30
+-- UNIT_AURA already refreshes the affected unit immediately. This slower pass
+-- only repairs state if the legacy client misses an event; scanning the whole
+-- roster twice per second creates needless tooltip work and garbage collection.
+local FALLBACK_SCAN_INTERVAL = 8
 
 local initialized = false
 local elapsedSinceScan = 0
-local elapsedSinceCapabilityScan = 0
 local GridStatus
 local GridStatusAuras
 local GridFrame
@@ -22,6 +23,7 @@ local dispelSpellsByName = {}
 local activeAuraTypes = {}
 local controlClassificationCache = {}
 local UNKNOWN_CONTROL_RECHECK = 5
+local KNOWN_NON_CONTROL_RECHECK = 300
 
 local colors = {
     Magic = { r = 0.20, g = 0.60, b = 1.00, a = 1 },
@@ -323,17 +325,22 @@ local function ClassifyControl(unit, index, key, name)
     local cached = controlClassificationCache[key]
     local now = GetTime()
     if cached and (cached.control or cached.snare
-        or now - (cached.checkedAt or 0) < UNKNOWN_CONTROL_RECHECK) then
+        or now - (cached.checkedAt or 0) < (cached.retryAfter or UNKNOWN_CONTROL_RECHECK)) then
         return cached.control, cached.snare
     end
 
-    local description = Lower(name) .. " " .. AuraTooltipText(unit, index)
+    local tooltipText = AuraTooltipText(unit, index)
+    local description = Lower(name) .. " " .. tooltipText
     local control = ContainsAny(description, controlWords)
     local snare = ContainsAny(description, snareWords)
     controlClassificationCache[key] = {
         control = control and true or false,
         snare = snare and true or false,
-        checkedAt = now
+        checkedAt = now,
+        -- Empty tooltips can be a transient Ascension API delay. A readable
+        -- non-control aura, however, does not need another tooltip scan every
+        -- five seconds for every member of the group.
+        retryAfter = tooltipText == "" and UNKNOWN_CONTROL_RECHECK or KNOWN_NON_CONTROL_RECHECK
     }
     return control, snare
 end
@@ -567,12 +574,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
 end)
 frame:SetScript("OnUpdate", function(self, elapsed)
     elapsedSinceScan = elapsedSinceScan + elapsed
-    elapsedSinceCapabilityScan = elapsedSinceCapabilityScan + elapsed
-    if elapsedSinceCapabilityScan >= CAPABILITY_RESCAN_INTERVAL then
-        elapsedSinceCapabilityScan = 0
-        if initialized then ScanSpellbook(true) end
-    end
-    if elapsedSinceScan < SCAN_INTERVAL then return end
+    if elapsedSinceScan < FALLBACK_SCAN_INTERVAL then return end
     elapsedSinceScan = 0
     if not initialized then Initialize() else ScanAll() end
 end)

@@ -33,6 +33,8 @@ test('Combat Assistant uses the 3.3.5 spellbook and never casts automatically', 
   for (const command of ['status', 'scan', 'unlock', 'lock', 'memory', 'debug', 'aoe']) assert.match(lua, new RegExp(`command == "${command}"`));
   assert.doesNotMatch(lua, /math\.mod\s*\(/, 'Ascension Lua does not expose math.mod; use the Lua 5.1 modulo operator');
   assert.match(lua, /math\.floor\(elapsed \/ 60\), elapsed % 60/);
+  assert.match(lua, /UPDATE_INTERVAL = 0\.20/, 'recommendations must not rebuild more than five times per second');
+  assert.match(lua, /TARGET_PROFILE_CACHE_SECONDS = 3/, 'historical target profiles must be cached between refreshes');
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
 });
 
@@ -124,8 +126,12 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
   assert.match(lua, /aura\.duration <= 0[\s\S]+aura\.duration > PROC_MAX_DURATION/);
   assert.match(lua, /if actionable and learnedSpellReference then return true[\s\S]+if actionable then return true[\s\S]+if passive then return false/);
   assert.doesNotMatch(lua, /aura\.duration <= 20[\s\S]+return true/, 'a short unknown aura must not be accepted without actionable evidence');
-  assert.match(lua, /ApplyStaticFilterToKnownBuffs[\s\S]+FindPlayerAura\(spellId, name\)[\s\S]+IsLikelyUsefulProc\(spellId, name\)/,
+  assert.match(lua, /ApplyStaticFilterToKnownBuffs[\s\S]+FindPlayerAura\(spellId, name\)[\s\S]+IsLikelyUsefulProc\(spellId, name, activeAura\)/,
     'already-active learned buffs must be filtered during login');
+  assert.match(lua, /not activeAuraIds\[spellId\]/, 'unchanged buffs must not be reclassified on every UNIT_AURA');
+  assert.match(lua, /pendingElapsed < 0\.08/, 'pending aura retries must be throttled');
+  assert.match(lua, /if aura\.tooltip == nil then aura\.tooltip = AuraTooltipText\(aura\.index\) end/,
+    'aura tooltips must be loaded lazily after cheap filters');
 });
 
 test('GridCoA shows one center icon for actionable dispels, dangerous crowd control and snares', async () => {
@@ -168,7 +174,10 @@ test('GridCoA shows one center icon for actionable dispels, dangerous crowd cont
     assert.ok(lua.includes(`"${rootWord}"`), `GridCoA is missing root keyword ${rootWord}`);
   }
   assert.match(lua, /UNKNOWN_CONTROL_RECHECK = 5/);
-  assert.match(lua, /now - \(cached\.checkedAt or 0\) < UNKNOWN_CONTROL_RECHECK/);
+  assert.match(lua, /KNOWN_NON_CONTROL_RECHECK = 300/);
+  assert.match(lua, /now - \(cached\.checkedAt or 0\) < \(cached\.retryAfter or UNKNOWN_CONTROL_RECHECK\)/);
+  assert.match(lua, /FALLBACK_SCAN_INTERVAL = 8/);
+  assert.doesNotMatch(lua, /CAPABILITY_RESCAN_INTERVAL/, 'the spellbook must not be scanned by a permanent timer');
   for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `GridCoA contains forbidden Retail API: ${api}`);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText)\b/);

@@ -23,6 +23,8 @@ const packages = [
   { name: 'CoA Addon Manager for Windows', component: 'addon-manager', platform: 'win32', arch: 'x64', targetFolder: 'CoAAddonManager', installPath: '.', file: `CoAAddonManager-v${version}-Windows.zip`, source: path.join(stage, 'manager') },
   { name: 'CoA Combat Assistant', component: 'combat-assistant', platform: 'any', arch: 'any', targetFolder: 'CoACombatAssistant', installPath: 'Interface/AddOns', file: `CoACombatAssistant-v${version}.zip`, source: path.resolve('addons', 'CoACombatAssistant', '..') , only: 'CoACombatAssistant' },
   { name: 'CoA UI Manager', component: 'ui-manager', platform: 'any', arch: 'any', targetFolder: 'CoAUIManager', installPath: 'Interface/AddOns', file: `CoAUIManager-v${version}.zip`, source: path.resolve('addons', 'CoAUIManager', '..'), only: 'CoAUIManager' },
+  { name: 'CoA Loot Decider', component: 'loot-decider', platform: 'any', arch: 'any', targetFolder: 'CoALootDecider', installPath: 'Interface/AddOns', file: `CoALootDecider-v${version}.zip`, source: path.resolve('addons', 'CoALootDecider', '..'), only: 'CoALootDecider' },
+  { name: 'CoA Message Center', component: 'message-center', platform: 'any', arch: 'any', targetFolder: 'CoAMessageCenter', installPath: 'Interface/AddOns', file: `CoAMessageCenter-v${version}.zip`, source: path.resolve('addons', 'CoAMessageCenter', '..'), only: 'CoAMessageCenter' },
   { name: 'Grid - Compatibilité CoA', component: 'grid-compat', platform: 'any', arch: 'any', targetFolder: 'GridCoA', installPath: 'Interface/AddOns', file: `GridCoA-v${version}.zip`, source: path.resolve('addons', 'GridCoA', '..'), only: 'GridCoA' },
   {
     name: 'EventAlert 4.3.6 + compatibilité CoA', component: 'event-alert', platform: 'any', arch: 'any',
@@ -59,7 +61,7 @@ for (const item of packages) {
 const manifest = {
   $schema: './schemas/manifest.schema.json',
   schemaVersion: 1, name: 'CoA Tools', version, channel: process.env.RELEASE_CHANNEL || 'stable',
-  publishedAt: process.env.RELEASE_DATE || '2026-08-10T00:00:00.000Z', minimumNodeVersion: '24.14.0',
+  publishedAt: process.env.RELEASE_DATE || '2026-08-16T00:00:00.000Z', minimumNodeVersion: '24.14.0',
   releaseUrl: `https://github.com/Cnbz13/coa-tools/releases/tag/v${version}`, artifacts
 };
 const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;

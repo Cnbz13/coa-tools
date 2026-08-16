@@ -8,7 +8,7 @@ import { ensureDir, readJson, writeJsonAtomic } from '../lib/files.js';
 import { extractZip } from '../lib/zip.js';
 
 export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
-const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'event-alert', 'grid-compat']);
+const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'event-alert', 'grid-compat']);
 const EVENT_ALERT_COMPANION_FOLDER = 'EventAlertCoA';
 const EVENT_ALERT_LEGACY_FOLDER = 'CoAEventAlert';
 const EVENT_ALERT_UPSTREAM_PATH = '/files/456/081/EventAlert-4.3.6.zip';
@@ -79,9 +79,9 @@ export class AddonManager {
   async detectDirectory() {
     const settings = await readJson(this.settingsFile, {});
     const standard = [
-      this.canonicalPath,
       settings.addonsDir,
       this.environmentPath,
+      this.canonicalPath,
       ...this.candidates,
       'C:\\Program Files\\Ascension Launcher\\resources\\ascension-live\\Interface\\AddOns',
       'C:\\Program Files (x86)\\Ascension Launcher\\resources\\ascension-live\\Interface\\AddOns'
@@ -90,7 +90,7 @@ export class AddonManager {
     for (const lower of unique) {
       const directory = standard.find(item => item.toLowerCase() === lower);
       if (await isDirectory(directory)) {
-        const source = directory.toLowerCase() === this.canonicalPath.toLowerCase() ? 'project-ascension' : directory === settings.addonsDir ? 'saved' : directory === this.environmentPath ? 'environment' : 'detected';
+        const source = directory === settings.addonsDir ? 'saved' : directory === this.environmentPath ? 'environment' : directory.toLowerCase() === this.canonicalPath.toLowerCase() ? 'project-ascension' : 'detected';
         return { directory, exists: true, source };
       }
     }

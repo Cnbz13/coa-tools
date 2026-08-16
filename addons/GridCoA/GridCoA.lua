@@ -20,19 +20,23 @@ local dispelTypes = {}
 local dispelSpells = {}
 local dispelSpellsByName = {}
 local activeAuraTypes = {}
+local dangerousControlCache = {}
 
 local colors = {
     Magic = { r = 0.20, g = 0.60, b = 1.00, a = 1 },
     Curse = { r = 0.60, g = 0.00, b = 1.00, a = 1 },
     Disease = { r = 0.60, g = 0.40, b = 0.00, a = 1 },
     Poison = { r = 0.00, g = 0.60, b = 0.00, a = 1 },
-    Learned = { r = 1.00, g = 0.35, b = 0.10, a = 1 }
+    Learned = { r = 1.00, g = 0.35, b = 0.10, a = 1 },
+    Control = { r = 1.00, g = 0.15, b = 0.45, a = 1 }
 }
 
 local controlWords = {
     "sleep", "asleep", "slumber", "stun", "fear", "charm", "control",
     "polymorph", "hex", "banish", "sap", "silence", "root", "freeze",
-    "frozen", "pacify", "endormi", "sommeil", "peur", "charme", "controle"
+    "frozen", "pacify", "endormi", "sommeil", "peur", "charme", "controle",
+    "flee", "terror", "horror", "scream", "nightmare", "hibernate",
+    "terreur", "effroi", "hypnose", "hypnotise"
 }
 
 -- These IDs only provide localized names and a reliable fallback. Custom CoA
@@ -99,6 +103,23 @@ end
 local function TooltipText(index, book)
     tooltip:ClearLines()
     local ok = pcall(tooltip.SetSpell, tooltip, index, book)
+    if not ok then tooltip:Hide() return "" end
+    local lines = {}
+    local line
+    for line = 1, tooltip:NumLines() do
+        local left = getglobal("GridCoASpellScannerTooltipTextLeft" .. line)
+        local right = getglobal("GridCoASpellScannerTooltipTextRight" .. line)
+        if left and left:GetText() then table.insert(lines, left:GetText()) end
+        if right and right:GetText() then table.insert(lines, right:GetText()) end
+    end
+    tooltip:Hide()
+    return Lower(table.concat(lines, " "))
+end
+
+local function AuraTooltipText(unit, index)
+    if type(tooltip.SetUnitDebuff) ~= "function" then return "" end
+    tooltip:ClearLines()
+    local ok = pcall(tooltip.SetUnitDebuff, tooltip, unit, index)
     if not ok then tooltip:Hide() return "" end
     local lines = {}
     local line
@@ -285,13 +306,25 @@ local function KnownAuraCanBeDispelled(key, unit)
     return learned.any and true or false
 end
 
-local function AuraScore(name, count, expirationTime)
+local function IsDangerousControl(unit, index, key, name)
+    if dangerousControlCache[key] ~= nil then return dangerousControlCache[key] end
+    local description = Lower(name)
+    if not ContainsAny(description, controlWords) then
+        description = description .. " " .. AuraTooltipText(unit, index)
+    end
+    local dangerous = ContainsAny(description, controlWords)
+    dangerousControlCache[key] = dangerous and true or false
+    return dangerous
+end
+
+local function AuraScore(name, count, expirationTime, dangerousControl)
     local score = 100 + (tonumber(count) or 0)
     local lowered = Lower(name)
     local _, word
     for _, word in ipairs(controlWords) do
         if string.find(lowered, word, 1, true) then score = score + 100 break end
     end
+    if dangerousControl then score = score + 200 end
     if expirationTime and expirationTime > 0 then
         local remaining = expirationTime - GetTime()
         if remaining > 0 and remaining < 5 then score = score + 10 end
@@ -351,8 +384,9 @@ local function ScanUnit(unit)
         seen[key] = debuffType or false
         local dispellable = debuffType and CanDispelType(debuffType, unit)
         local learned = not debuffType and KnownAuraCanBeDispelled(key, unit)
-        if dispellable or learned then
-            local score = AuraScore(name, count, expirationTime)
+        local dangerousControl = IsDangerousControl(unit, index, key, name)
+        if dispellable or learned or dangerousControl then
+            local score = AuraScore(name, count, expirationTime, dangerousControl)
             if not selected or score > selected.score then
                 selected = {
                     name = name,
@@ -361,6 +395,7 @@ local function ScanUnit(unit)
                     debuffType = debuffType,
                     duration = tonumber(duration) or 0,
                     expirationTime = tonumber(expirationTime) or 0,
+                    control = dangerousControl,
                     score = score
                 }
             end
@@ -371,8 +406,10 @@ local function ScanUnit(unit)
     if selected then
         local start = selected.duration > 0 and selected.expirationTime > 0
             and selected.expirationTime - selected.duration or nil
-        local auraColor = colors[selected.debuffType] or colors.Learned
-        local label = selected.debuffType and (selected.debuffType .. ": " .. selected.name) or selected.name
+        local auraColor = selected.control and colors.Control
+            or colors[selected.debuffType] or colors.Learned
+        local label = selected.control and ("Controle: " .. selected.name)
+            or (selected.debuffType and (selected.debuffType .. ": " .. selected.name) or selected.name)
         GridStatus:SendStatusGained(
             guid, STATUS, 99, nil, auraColor, label, selected.count, nil,
             selected.icon, start, selected.duration, selected.count
@@ -432,7 +469,7 @@ local function Initialize()
         or not GridStatusAuras.db or not GridFrame.db then return false end
 
     if not GridStatus:IsStatusRegistered(STATUS) then
-        GridStatus:RegisterStatus(STATUS, "CoA: effet dissipable par le personnage", addonName or "GridCoA")
+        GridStatus:RegisterStatus(STATUS, "CoA: dissipation ou controle dangereux", addonName or "GridCoA")
     end
     EnsureDatabase()
     initialized = true
@@ -441,7 +478,7 @@ local function Initialize()
     ScanSpellbook(true)
     ConfigureIndicators()
     ScanAll()
-    Chat("actif : le centre affiche uniquement les effets que vos sorts appris peuvent dissiper")
+    Chat("actif : le centre affiche les effets dissipables et les controles dangereux")
     return true
 end
 

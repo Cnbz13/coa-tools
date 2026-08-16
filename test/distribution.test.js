@@ -5,9 +5,9 @@ import { readFile } from 'node:fs/promises';
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
-test('release manifest describes five managed components and the official EventAlert source', () => {
+test('release manifest describes every managed component and the official EventAlert source', () => {
   assert.equal(manifest.version, pkg.version);
-  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'event-alert', 'grid-compat', 'ui-manager']);
+  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'event-alert', 'grid-compat', 'loot-decider', 'message-center', 'ui-manager']);
   for (const artifact of manifest.artifacts) {
     assert.equal(artifact.version, pkg.version);
     assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
@@ -38,6 +38,18 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(workflow, /verify-eventalert-package\.mjs/);
   assert.match(workflow, /EventAlertCoA-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /GridCoA-v\$env:RELEASE_VERSION\.zip/);
+  assert.match(workflow, /CoALootDecider-v\$env:RELEASE_VERSION\.zip/);
+  assert.match(workflow, /CoAMessageCenter-v\$env:RELEASE_VERSION\.zip/);
+});
+
+test('Windows AddOns picker is owned and forced to the foreground', async () => {
+  const picker = await readFile('src/lib/windows-folder-picker.js', 'utf8');
+  const app = await readFile('public/app.js', 'utf8');
+  assert.match(picker, /System\.Windows\.Forms\.FolderBrowserDialog/);
+  assert.match(picker, /\$owner\.TopMost = \$true/);
+  assert.match(picker, /ShowDialog\(\$owner\)/);
+  assert.match(app, /button\.textContent = 'Ouverture/);
+  assert.match(app, /button\.disabled = true/);
 });
 
 test('addon manager exposes recoverable progress for individual and global updates', async () => {
@@ -69,7 +81,7 @@ test('addon manager exposes sourced CoA watch recommendations without automatic 
 });
 
 test('WoW addon metadata matches the package version', async () => {
-  for (const name of ['CoACombatAssistant', 'CoAUIManager', 'GridCoA']) {
+  for (const name of ['CoACombatAssistant', 'CoAUIManager', 'CoALootDecider', 'CoAMessageCenter', 'GridCoA']) {
     const toc = await readFile(`addons/${name}/${name}.toc`, 'utf8');
     assert.match(toc, /^## Interface: \d+/m);
     assert.match(toc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));

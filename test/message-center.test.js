@@ -10,7 +10,7 @@ test('CoA Message Center targets Ascension 3.3.5 and parses as Lua 5.1', async (
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 0\.1\.0$/m);
+  assert.match(toc, /^## Version: 1\.5\.0$/m);
   assert.match(toc, /^## SavedVariables: CoAMessageCenterDB$/m);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
 
@@ -41,9 +41,14 @@ test('CoA Message Center provides a minimap inbox, unread badge, history and fil
   const lua = await readFile(luaPath, 'utf8');
   for (const required of [
     'CoAMessageCenterMinimapButton', 'INV_Misc_Note_05', 'unreadText',
+    'SetMovable(true)', 'RegisterForDrag("LeftButton")', 'StartMoving()',
+    'CoAMessageCenterDB.icon.point', 'CoAMessageCenterDB.icon.x', 'SetClampedToScreen(true)',
+    'ResetIconPosition', 'SetPoint("TOPLEFT", Minimap, "TOPRIGHT", 0, -8)',
     'CoAMessageCenterFrame', 'ScrollingMessageFrame', 'HISTORY_LIMIT = 300',
     'CoAMessageCenterDB.history', 'CoAMessageCenterDB.unread', 'Tout vider',
     'Tous', 'Infos', 'Alertes', 'Erreurs', 'ScrollToBottom',
     'SLASH_COAMESSAGECENTER1 = "/cmc"', 'function API:AddMessage', 'function API:RegisterPrefix'
   ]) assert.ok(lua.includes(required), `missing message-center feature: ${required}`);
+  assert.match(lua, /CreateFrame\("Button", "CoAMessageCenterMinimapButton", UIParent\)/,
+    'the icon must be parented to UIParent so it can move across the whole screen');
 });

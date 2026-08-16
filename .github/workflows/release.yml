@@ -42,6 +42,8 @@ jobs:
             "dist/CoAAddonManager-v$env:RELEASE_VERSION-Windows.zip",
             "dist/CoACombatAssistant-v$env:RELEASE_VERSION.zip",
             "dist/CoAUIManager-v$env:RELEASE_VERSION.zip",
+            "dist/CoALootDecider-v$env:RELEASE_VERSION.zip",
+            "dist/CoAMessageCenter-v$env:RELEASE_VERSION.zip",
             "dist/GridCoA-v$env:RELEASE_VERSION.zip",
             "dist/EventAlertCoA-v$env:RELEASE_VERSION.zip",
             'dist/SHA256SUMS.txt',

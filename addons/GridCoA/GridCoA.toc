@@ -1,8 +1,8 @@
 ## Interface: 30300
 ## Title: Grid - Compatibilite CoA
-## Notes: Affiche uniquement les affaiblissements que les sorts appris du personnage peuvent dissiper
+## Notes: Affiche les affaiblissements dissipables et les controles dangereux sur le groupe
 ## Author: CoA Tools
-## Version: 1.4.3
+## Version: 1.5.0
 ## RequiredDeps: Grid
 ## SavedVariables: GridCoADB
 

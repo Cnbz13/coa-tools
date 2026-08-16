@@ -156,7 +156,26 @@ async function resumeAddonOperation() {
 $('#refreshAddons').onclick = loadAddons;
 $('#addonSearch').oninput = () => addonInventory && renderRegularAddons();
 $('#saveAddonPath').onclick = async () => { try { addonInventory = await api('/api/addons/path', { method: 'PUT', body: JSON.stringify({ path: $('#addonPath').value }) }); renderAddons(); toast('Dossier AddOns mémorisé'); } catch (error) { toast(error.message); } };
-$('#browseAddonPath').onclick = async () => { try { const value = await api('/api/addons/select-path', { method: 'POST', body: '{}' }); if (!value.cancelled) { addonInventory = value; renderAddons(); toast('Dossier AddOns mémorisé'); } } catch (error) { toast(error.message); } };
+$('#browseAddonPath').onclick = async event => {
+  const button = event.currentTarget;
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Ouverture…';
+  toast('Ouverture du sélecteur Windows…');
+  try {
+    const value = await api('/api/addons/select-path', { method: 'POST', body: '{}' });
+    if (!value.cancelled) {
+      addonInventory = value;
+      renderAddons();
+      toast('Dossier AddOns mémorisé');
+    }
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+};
 $('#updateAllAddons').onclick = event => startAddonOperation(event.currentTarget, { action: 'update-all' });
 
 async function loadUi() { const value = await api('/api/ui'); $('#theme').value = value.theme; $('#density').value = value.density; document.body.dataset.theme = value.theme; document.body.dataset.density = value.density; }

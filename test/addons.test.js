@@ -201,6 +201,22 @@ test('a manually selected AddOns path is remembered when standard detection fail
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
+test('a manually selected AddOns path overrides another valid Ascension installation', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'coa-addons-'));
+  try {
+    const canonical = path.join(root, 'My PC', 'Interface', 'AddOns');
+    const selected = path.join(root, 'Wife PC', 'Interface', 'AddOns');
+    const dataDir = path.join(root, 'data');
+    await mkdir(canonical, { recursive: true });
+    await mkdir(selected, { recursive: true });
+    const manager = new AddonManager({ dataDir, canonicalPath: canonical, environmentPath: null, manifestUrl: 'http://127.0.0.1:1/manifest.json' });
+
+    assert.deepEqual(await manager.detectDirectory(), { directory: canonical, exists: true, source: 'project-ascension' });
+    await manager.setDirectory(selected);
+    assert.deepEqual(await manager.detectDirectory(), { directory: selected, exists: true, source: 'saved' });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('installing GridCoA requires Grid and enables both addons in existing character profiles', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'coa-grid-manager-'));
   const addonsDir = path.join(root, 'Ascension', 'Interface', 'AddOns');

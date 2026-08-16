@@ -9,10 +9,39 @@ export async function selectWindowsDirectory(initialDirectory = '') {
   const script = `
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
-$shell = New-Object -ComObject Shell.Application
-$folder = $shell.BrowseForFolder(0, 'Sélectionnez le dossier Interface\\AddOns de Project Ascension', 0, '${initial}')
-if ($null -eq $folder) { exit 2 }
-[Console]::Write($folder.Self.Path)
+Add-Type -AssemblyName System.Windows.Forms
+
+$owner = New-Object System.Windows.Forms.Form
+$owner.ShowInTaskbar = $false
+$owner.TopMost = $true
+$owner.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+$owner.Size = New-Object System.Drawing.Size(1, 1)
+$owner.Opacity = 0
+
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = 'Sélectionnez le dossier Interface\\AddOns de Project Ascension'
+$dialog.ShowNewFolderButton = $false
+if (Test-Path -LiteralPath '${initial}' -PathType Container) {
+  $dialog.SelectedPath = '${initial}'
+}
+
+try {
+  $owner.Show()
+  $owner.Activate()
+  $result = $dialog.ShowDialog($owner)
+}
+finally {
+  $owner.Close()
+  $owner.Dispose()
+}
+
+if ($result -ne [System.Windows.Forms.DialogResult]::OK) {
+  $dialog.Dispose()
+  exit 2
+}
+$selectedPath = $dialog.SelectedPath
+$dialog.Dispose()
+[Console]::Write($selectedPath)
 `;
   const encoded = Buffer.from(script, 'utf16le').toString('base64');
   try {

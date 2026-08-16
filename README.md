@@ -10,11 +10,13 @@ Suite locale sans télémétrie regroupant trois outils :
 
 ## Artefacts installables
 
-Chaque release publie cinq ZIP :
+Chaque release publie sept ZIP :
 
 - `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
 - `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans le dossier `Interface/AddOns` de Project Ascension ;
 - `CoAUIManager-vX.Y.Z.zip` : extrayez le dossier `CoAUIManager` dans le dossier `Interface/AddOns` de Project Ascension.
+- `CoALootDecider-vX.Y.Z.zip` : compare automatiquement le butin avec l'équipement et le profil de spécialisation du personnage ;
+- `CoAMessageCenter-vX.Y.Z.zip` : centralise les messages des addons CoA hors du chat général ;
 - `GridCoA-vX.Y.Z.zip` : compagnon du véritable Grid ; il détecte les dissipations apprises et réserve l’icône centrale aux seuls affaiblissements que le personnage peut retirer.
 - `EventAlertCoA-vX.Y.Z.zip` : couche de compatibilité appliquée automatiquement par le manager au véritable EventAlert 4.3.6. Le code original, sous licence « All Rights Reserved », est téléchargé séparément depuis [sa fiche CurseForge officielle](https://www.curseforge.com/wow/addons/event-alert/files/456081), puis vérifié par taille et SHA-256.
 
@@ -101,7 +103,7 @@ Pour publier :
 1. Mettre à jour `version` dans `package.json`, `package-lock.json`, `manifest.json` et les deux fichiers `.toc`.
 2. Exécuter `npm run release` et reporter les tailles et SHA-256 obtenus dans le manifeste versionné.
 3. Pousser le commit puis le tag correspondant.
-4. Le workflow `Release` teste, crée les cinq ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
+4. Le workflow `Release` teste, crée les sept ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
 
 Le workflow peut aussi être lancé manuellement avec une version. Le client utilise par défaut le manifeste de la dernière release ; `COA_UPDATE_MANIFEST` permet de cibler un autre canal. `COA_WATCH_REPORT` permet de remplacer l’URL du rapport de veille.
 

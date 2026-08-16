@@ -49,11 +49,16 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
     'COMBAT_LOG_EVENT_UNFILTERED', 'SPELL_AURA_APPLIED', 'SPELL_AURA_APPLIED_DOSE', 'SPELL_AURA_REFRESH',
     'COMBAT_TEXT_UPDATE', 'SPELL_ACTIVE', 'sourceGUID == playerGUID', 'WasDirectlyCast(spellId, spellName)',
     'IsOwnedSource(sourceGUID, sourceFlags)', 'COMBATLOG_OBJECT_AFFILIATION_MINE', 'UnitGUID("pet")',
-    'coa status', 'coa learn', 'coa scan', 'coa buffs'
+    'coa status', 'coa learn', 'coa scan', 'coa buffs',
+    'ResolveActiveProfile', 'C_ClassInfo.GetAllSpecs', 'C_ClassInfo.GetSpecInfo',
+    'GetSpecializationInfo', 'PLAYER_SPECIALIZATION_CHANGED', 'PLAYER_TALENT_UPDATE',
+    'ACTIVE_TALENT_GROUP_CHANGED', 'UNIT_AURA', 'ScanActiveAuras', 'ProcessPendingAuras'
   ]) assert.ok(lua.includes(required), `EventAlert CoA patch is missing ${required}`);
   assert.equal(lua.includes('EA_Items[playerClassToken]'), false, 'Genuine EventAlert uses flat spell-ID tables');
   assert.equal(lua.includes('EventAlert_LoadSpellArray ='), false, 'Companion must not replace the genuine spell loader');
-  for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `EventAlert patch contains forbidden Retail API: ${api}`);
+  for (const api of forbiddenRetailApis.filter(api => api !== 'GetSpecialization')) {
+    assert.equal(lua.includes(api), false, `EventAlert patch contains forbidden Retail API: ${api}`);
+  }
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.equal(lua.includes('CoAEventAlertFrame'), false);
   assert.equal(lua.includes('SLASH_COAEVENTALERT'), false);
@@ -70,8 +75,8 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
     'EA_CustomItems[spellId] = nil', 'RemoveActiveBuff(spellId)', 'IsBuffDisabled(spellId)',
     'Apprendre automatiquement les nouveaux procs'
   ]) assert.ok(lua.includes(required), `EventAlert buff manager is missing ${required}`);
-  assert.match(lua, /if IsBuffDisabled\(spellId\) then return false end[\s\S]+EA_CustomItems\[spellId\] = true/,
-    'ignored buffs must not be learned again');
+  assert.match(lua, /if EA_Config\.CoA\.ManualBuffs\[spellId\] == false then return false end[\s\S]+EA_CustomItems\[spellId\] = true/,
+    'manually ignored buffs must not be learned again');
   for (const required of [
     'IsLikelyUsefulProc', 'FindPlayerAura', 'UnitBuff("player", index)',
     'EventAlertCoAProcScannerTooltip', 'GameTooltipTemplate', 'SetUnitBuff',
@@ -79,17 +84,51 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
     'confirmedUsefulProcNames', 'actionableTooltipFragments', 'passiveTooltipFragments', 'AutoIgnoreAura',
     'EA_Config.CoA.ManualBuffs', 'EA_Config.CoA.FilterReasons',
     'buff permanent ou passif', 'buff longue duree', 'effet passif temporaire',
-    'proc court observe en combat', 'sort lance manuellement'
+    'candidat observe sans action immediate confirmee', 'sort lance manuellement',
+    'EA_Config.CoA.Profiles', 'EA_Config.CoA.ActiveProfileKey', 'ProfileStorageVersion',
+    'coaSpecializationCatalog', 'confirmedProcProfiles', 'TooltipReferencesLearnedSpell',
+    'RecordCandidate', 'QueueAuraEvaluation', 'aura en attente de verification',
+    'buff externe au personnage', 'proc repertorie pour une autre specialisation'
   ]) assert.ok(lua.includes(required), `EventAlert smart proc filter is missing ${required}`);
   assert.match(lua, /"keeper's scroll:"[\s\S]+\["heat"\] = true[\s\S]+\["ember"\] = true/);
   for (const proc of ['flamecasting', 'sageweaving', 'fired up!', 'superheated']) {
     assert.ok(lua.includes(`["${proc}"] = true`), `confirmed CoA proc is missing ${proc}`);
   }
+  const coaSpecs = {
+    barbarian: ['brutality', 'headhunting', 'ancestry'],
+    witchdoctor: ['voodoo', 'brewing', 'shadowhunting'],
+    felsworn: ['slayer', 'infernal', 'tyrant'],
+    witchhunter: ['boltslinger', 'houndmaster', 'blackknight', 'inquisition'],
+    stormbringer: ['lightning', 'wind', 'maelstrom'],
+    knightofxoroth: ['hellfire', 'war', 'defiance'],
+    guardian: ['vanguard', 'inspiration', 'gladiator'],
+    templar: ['zealot', 'oathkeeper', 'crusader'],
+    bloodmage: ['sanguine', 'accursed', 'eternal', 'fleshweaver'],
+    ranger: ['farstrider', 'archery', 'brigand'],
+    chronomancer: ['infinite', 'artificer', 'time'],
+    necromancer: ['death', 'rime', 'animation'],
+    pyromancer: ['flameweaving', 'incineration', 'draconic'],
+    cultist: ['godblade', 'corruption', 'heretic', 'dreadnought'],
+    starcaller: ['moonguard', 'moonpriest', 'sentinel', 'warden'],
+    suncleric: ['piety', 'blessings', 'seraphim', 'valkyrie'],
+    tinker: ['demolition', 'invention', 'mechanics'],
+    venomancer: ['venom', 'stalking', 'fortitude', 'vizier'],
+    reaper: ['harvest', 'soul', 'domination'],
+    primalist: ['primal', 'geomancy', 'life', 'mountainking'],
+    runemaster: ['runic', 'arcane', 'riftblade']
+  };
+  for (const [className, specs] of Object.entries(coaSpecs)) {
+    assert.ok(lua.includes(`${className} = {`), `CoA specialization catalog is missing ${className}`);
+    for (const spec of specs) assert.ok(lua.includes(`${spec} = true`), `CoA specialization catalog is missing ${className}/${spec}`);
+  }
   assert.match(lua, /aura\.duration <= 0[\s\S]+aura\.duration > PROC_MAX_DURATION/);
-  assert.match(lua, /if actionable then return true[\s\S]+if passive then return false/);
+  assert.match(lua, /if actionable and learnedSpellReference then return true[\s\S]+if actionable then return true[\s\S]+if passive then return false/);
+  assert.doesNotMatch(lua, /aura\.duration <= 20[\s\S]+return true/, 'a short unknown aura must not be accepted without actionable evidence');
+  assert.match(lua, /ApplyStaticFilterToKnownBuffs[\s\S]+FindPlayerAura\(spellId, name\)[\s\S]+IsLikelyUsefulProc\(spellId, name\)/,
+    'already-active learned buffs must be filtered during login');
 });
 
-test('GridCoA shows one center icon only for debuffs the current character can dispel', async () => {
+test('GridCoA shows one center icon for actionable dispels and dangerous crowd control', async () => {
   const toc = await readFile('addons/GridCoA/GridCoA.toc', 'utf8');
   const lua = await readFile('addons/GridCoA/GridCoA.lua', 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
@@ -103,7 +142,10 @@ test('GridCoA shows one center icon only for debuffs the current character can d
     'GridCoASpellScannerTooltip', 'GameTooltipTemplate',
     'ParseDispelTypes', 'classicDispelDefinitions', 'CanDispelType(debuffType, unit)',
     'settings.enable = false', 'statusmap.icon[mappedStatus] = false', 'statusmap.icon[STATUS] = true',
-    'UnitAura(unit, index, "HARMFUL")', 'if dispellable or learned then',
+    'UnitAura(unit, index, "HARMFUL")',
+    'AuraTooltipText', 'tooltip.SetUnitDebuff', 'IsDangerousControl',
+    'if dispellable or learned or dangerousControl then', 'colors.Control',
+    '"Controle: " .. selected.name',
     'GridStatus:SendStatusGained', 'GridStatus:SendStatusLost', 'PARTY_MEMBERS_CHANGED',
     'RAID_ROSTER_UPDATE', 'UNIT_AURA', 'SPELLS_CHANGED', 'LEARNED_SPELL_IN_TAB',
     'COMBAT_LOG_EVENT_UNFILTERED', 'SPELL_DISPEL', 'GridCoADB.knownDispellable',
@@ -116,6 +158,7 @@ test('GridCoA shows one center icon only for debuffs the current character can d
   assert.doesNotMatch(lua, /statusmap\.icon\[status\] = true/);
   assert.match(lua, /local dispellable = debuffType and CanDispelType\(debuffType, unit\)/);
   assert.match(lua, /local learned = not debuffType and KnownAuraCanBeDispelled\(key, unit\)/);
+  assert.match(lua, /local dangerousControl = IsDangerousControl\(unit, index, key, name\)/);
   for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `GridCoA contains forbidden Retail API: ${api}`);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText)\b/);

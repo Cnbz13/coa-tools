@@ -60,7 +60,8 @@ local function EnsureDatabase()
     if CoAMessageCenterDB.suppressChat == nil then CoAMessageCenterDB.suppressChat = true end
     CoAMessageCenterDB.unread = tonumber(CoAMessageCenterDB.unread) or 0
     CoAMessageCenterDB.window = CoAMessageCenterDB.window or {}
-    CoAMessageCenterDB.version = "0.1.0"
+    CoAMessageCenterDB.icon = CoAMessageCenterDB.icon or {}
+    CoAMessageCenterDB.version = "0.1.2"
 end
 
 local function RegisterPrefix(prefix, source)
@@ -357,16 +358,32 @@ local function BuildPanel()
     panel:Hide()
 end
 
-local function BuildMinimapButton()
-    minimapButton = CreateFrame("Button", "CoAMessageCenterMinimapButton", Minimap or UIParent)
-    minimapButton:SetWidth(32)
-    minimapButton:SetHeight(32)
+local function ResetIconPosition()
+    if not minimapButton then return end
+    minimapButton:ClearAllPoints()
     if Minimap then
         minimapButton:SetPoint("TOPLEFT", Minimap, "TOPRIGHT", 0, -8)
     else
         minimapButton:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -210, -20)
     end
-    minimapButton:SetFrameStrata("MEDIUM")
+end
+
+local function BuildMinimapButton()
+    local iconWasDragged = false
+    minimapButton = CreateFrame("Button", "CoAMessageCenterMinimapButton", UIParent)
+    minimapButton:SetWidth(32)
+    minimapButton:SetHeight(32)
+    minimapButton:SetClampedToScreen(true)
+    minimapButton:SetMovable(true)
+    minimapButton:EnableMouse(true)
+    minimapButton:RegisterForDrag("LeftButton")
+    local saved = CoAMessageCenterDB.icon
+    if saved.point then
+        minimapButton:SetPoint(saved.point, UIParent, saved.relativePoint or saved.point, saved.x or 0, saved.y or 0)
+    else
+        ResetIconPosition()
+    end
+    minimapButton:SetFrameStrata("HIGH")
     minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
     local icon = minimapButton:CreateTexture(nil, "BACKGROUND")
@@ -394,11 +411,31 @@ local function BuildMinimapButton()
     unreadText:SetTextColor(1, 0.82, 0.10)
     unreadText:SetShadowOffset(1, -1)
 
-    minimapButton:SetScript("OnClick", function() API:Toggle() end)
+    minimapButton:SetScript("OnMouseDown", function() iconWasDragged = false end)
+    minimapButton:SetScript("OnDragStart", function(self)
+        iconWasDragged = true
+        self:StartMoving()
+    end)
+    minimapButton:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local point, _, relativePoint, x, y = self:GetPoint(1)
+        CoAMessageCenterDB.icon.point = point
+        CoAMessageCenterDB.icon.relativePoint = relativePoint
+        CoAMessageCenterDB.icon.x = x
+        CoAMessageCenterDB.icon.y = y
+    end)
+    minimapButton:SetScript("OnClick", function()
+        if iconWasDragged then
+            iconWasDragged = false
+            return
+        end
+        API:Toggle()
+    end)
     minimapButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine("CoA Message Center", 0.40, 0.85, 1)
         GameTooltip:AddLine("Cliquez pour ouvrir les messages des addons.", 1, 1, 1, true)
+        GameTooltip:AddLine("Maintenez le clic gauche pour déplacer l'icône.", 1, 0.82, 0.20, true)
         GameTooltip:AddLine("/cmc chat : afficher/masquer aussi dans le chat", 0.65, 0.72, 0.80, true)
         GameTooltip:Show()
     end)
@@ -446,6 +483,12 @@ SlashCmdList.COAMESSAGECENTER = function(input)
     elseif command == "on" then
         CoAMessageCenterDB.enabled = true
         StoreMessage("CoA Message Center", "Interception activée.", "info", false)
+        API:Show()
+        return
+    elseif command == "reset" then
+        CoAMessageCenterDB.icon = {}
+        ResetIconPosition()
+        StoreMessage("CoA Message Center", "Position de l'icône réinitialisée.", "info", false)
         API:Show()
         return
     end

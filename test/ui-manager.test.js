@@ -9,8 +9,10 @@ test('UI preferences persist and reject unknown values', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'coa-ui-'));
   try {
     const manager = new UiManager(directory);
-    await manager.update({ theme: 'frost', density: 'compact' });
-    assert.deepEqual(await manager.get(), { theme: 'frost', density: 'compact', panels: { combat: true, addons: true, updates: true } });
+    await manager.update({ theme: 'frost', density: 'compact', autoUpdateAddons: false, managerUpdateAlerts: false });
+    assert.deepEqual(await manager.get(), { theme: 'frost', density: 'compact', autoUpdateAddons: false, managerUpdateAlerts: false, panels: { combat: true, addons: true, updates: true } });
     assert.equal((await manager.update({ theme: 'invalid' })).theme, 'frost');
+    assert.equal((await manager.update({ autoUpdateAddons: 'yes' })).autoUpdateAddons, false);
+    assert.equal((await manager.update({ managerUpdateAlerts: 'yes' })).managerUpdateAlerts, false);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

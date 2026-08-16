@@ -8,7 +8,8 @@ const api = async (url, options = {}) => {
 const toast = message => { $('#toast').textContent = message; $('#toast').classList.add('show'); setTimeout(() => $('#toast').classList.remove('show'), 3000); };
 const escapeHtml = value => { const node = document.createElement('span'); node.textContent = value ?? ''; return node.innerHTML; };
 const escapeAttribute = value => escapeHtml(value).replaceAll('`', '&#96;');
-let combat, updateArtifact, addonInventory, addonOperation, addonPollTimer, coaWatch;
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+let combat, updateArtifact, updateVersion, addonInventory, addonOperation, addonPollTimer, coaWatch, uiPreferences, lastUpdateCheckAt = 0;
 
 document.querySelectorAll('nav button').forEach(button => button.onclick = () => {
   document.querySelectorAll('nav button,.view').forEach(item => item.classList.remove('active'));
@@ -178,12 +179,59 @@ $('#browseAddonPath').onclick = async event => {
 };
 $('#updateAllAddons').onclick = event => startAddonOperation(event.currentTarget, { action: 'update-all' });
 
-async function loadUi() { const value = await api('/api/ui'); $('#theme').value = value.theme; $('#density').value = value.density; document.body.dataset.theme = value.theme; document.body.dataset.density = value.density; }
-$('#saveUi').onclick = async () => { const value = await api('/api/ui', { method: 'PUT', body: JSON.stringify({ theme: $('#theme').value, density: $('#density').value }) }); document.body.dataset.theme = value.theme; document.body.dataset.density = value.density; toast('Interface enregistrée'); };
-async function checkUpdates(automatic = false) { try { const value = await api('/api/updates/check'); updateArtifact = value.artifact; $('#updateStatus').textContent = value.available ? `Version ${value.manifest.version} disponible${updateArtifact ? '.' : ', sans artefact compatible.'}` : `Version ${value.currentVersion} à jour.`; $('#downloadUpdate').hidden = !(value.available && updateArtifact); if (automatic && value.available && updateArtifact) await downloadUpdate(); } catch (error) { $('#updateStatus').textContent = automatic ? 'Vérification automatique temporairement indisponible.' : error.message; } }
-async function downloadUpdate() { try { $('#updateStatus').textContent = 'Téléchargement et vérification…'; const value = await api('/api/updates/download', { method: 'POST', body: '{}' }); $('#updateStatus').textContent = `Mise à jour vérifiée et prête : ${value.sha256.slice(0, 16)}…`; $('#downloadUpdate').hidden = true; } catch (error) { $('#updateStatus').textContent = error.message; } }
+async function loadUi() {
+  uiPreferences = await api('/api/ui');
+  $('#theme').value = uiPreferences.theme;
+  $('#density').value = uiPreferences.density;
+  $('#autoUpdateAddons').checked = uiPreferences.autoUpdateAddons !== false;
+  $('#managerUpdateAlerts').checked = uiPreferences.managerUpdateAlerts !== false;
+  document.body.dataset.theme = uiPreferences.theme;
+  document.body.dataset.density = uiPreferences.density;
+}
+$('#saveUi').onclick = async () => {
+  uiPreferences = await api('/api/ui', { method: 'PUT', body: JSON.stringify({
+    theme: $('#theme').value,
+    density: $('#density').value,
+    autoUpdateAddons: $('#autoUpdateAddons').checked,
+    managerUpdateAlerts: $('#managerUpdateAlerts').checked
+  }) });
+  document.body.dataset.theme = uiPreferences.theme;
+  document.body.dataset.density = uiPreferences.density;
+  renderNotificationStatus();
+  toast('Interface enregistrée');
+};
+async function startAutomaticAddonUpdates() {
+  if (!uiPreferences?.autoUpdateAddons || !addonInventory?.exists || activeAddonOperation()) return;
+  if (!addonInventory.managed.some(item => ['install', 'update'].includes(item.action))) return;
+  await startAddonOperation($('#updateAllAddons'), { action: 'update-all' });
+}
+function renderNotificationStatus() {
+  const status = $('#notificationStatus');
+  status.textContent = uiPreferences?.managerUpdateAlerts === false
+    ? 'Alertes Windows désactivées. La vérification horaire reste active.'
+    : 'Alertes Windows actives. Le manager vérifie GitHub toutes les heures, même si cet onglet est fermé.';
+}
+async function checkUpdates(automatic = false) {
+  lastUpdateCheckAt = Date.now();
+  try {
+    const value = await api('/api/updates/check');
+    updateArtifact = value.artifact;
+    updateVersion = value.manifest.version;
+    $('#updateStatus').textContent = value.available ? `Version ${updateVersion} disponible${updateArtifact ? '.' : ', sans artefact compatible.'}` : `Version ${value.currentVersion} à jour.`;
+    $('#downloadUpdate').hidden = !(value.available && updateArtifact);
+  } catch (error) { $('#updateStatus').textContent = automatic ? 'Vérification automatique temporairement indisponible.' : error.message; }
+}
+async function downloadUpdate(version = updateVersion) {
+  try {
+    $('#updateStatus').textContent = 'Téléchargement et vérification…';
+    const value = await api('/api/updates/download', { method: 'POST', body: '{}' });
+    $('#updateStatus').textContent = `Version ${version || ''} vérifiée et prête. Elle sera appliquée automatiquement au prochain lancement.`;
+    $('#downloadUpdate').hidden = true;
+    return value;
+  } catch (error) { $('#updateStatus').textContent = error.message; return null; }
+}
 $('#checkUpdate').onclick = () => checkUpdates(false);
-$('#downloadUpdate').onclick = downloadUpdate;
+$('#downloadUpdate').onclick = () => downloadUpdate();
 
 const watchComponentLabels = {
   'combat-assistant': 'Combat Assistant',
@@ -233,4 +281,16 @@ $('#checkCoaWatch').onclick = async event => {
   finally { button.disabled = false; button.textContent = 'Vérifier maintenant'; }
 };
 
-const status = await api('/api/status'); $('#version').textContent = `Version ${status.version}`; await Promise.all([loadCombat(), loadAddons(), loadUi()]); await resumeAddonOperation(); loadCoaWatch(); checkUpdates(true); setInterval(() => checkUpdates(true), 6 * 60 * 60 * 1000); setInterval(() => { if (activeAddonOperation()) renderAddonProgress(); }, 1000);
+const status = await api('/api/status');
+$('#version').textContent = `Version ${status.version}`;
+await Promise.all([loadCombat(), loadAddons(), loadUi()]);
+await resumeAddonOperation();
+await startAutomaticAddonUpdates();
+renderNotificationStatus();
+loadCoaWatch();
+checkUpdates(true);
+setInterval(() => checkUpdates(true), UPDATE_CHECK_INTERVAL_MS);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && Date.now() - lastUpdateCheckAt > UPDATE_CHECK_INTERVAL_MS) checkUpdates(true);
+});
+setInterval(() => { if (activeAddonOperation()) renderAddonProgress(); }, 1000);

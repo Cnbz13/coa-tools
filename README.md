@@ -83,7 +83,9 @@ Ouvrez ensuite <http://127.0.0.1:4173>. Les données locales sont stockées dans
 
 ## Mises à jour sûres
 
-Au démarrage puis toutes les six heures, le client interroge le `manifest.json` de la dernière release GitHub. Le manifeste liste séparément chaque composant avec sa version, son URL, son dossier cible, son chemin d’installation, sa taille et son SHA-256. Un artefact compatible est téléchargé dans `.updates/`, vérifié, puis un fichier `ready.json` atomique indique qu’il peut être appliqué. Un téléchargement invalide est supprimé et n’altère jamais l’installation courante.
+Au démarrage puis toutes les heures, le manager interroge le `manifest.json` de la dernière release GitHub, même si son onglet de navigateur est fermé. Le manifeste liste séparément chaque composant avec sa version, son URL, son dossier cible, son chemin d’installation, sa taille et son SHA-256. Une nouvelle version du manager est téléchargée dans `.updates/`, vérifiée, puis signalée une seule fois par une alerte Windows. Au lancement suivant, le lanceur arrête uniquement les anciens processus CoA Manager, applique le ZIP vérifié et redémarre sur la bonne version. Un téléchargement invalide est supprimé et n’altère jamais l’installation courante.
+
+Les addons CoA sont mis à jour automatiquement à l’ouverture du manager, avec une sauvegarde avant chaque remplacement. Les deux automatismes et les alertes Windows peuvent être activés ou désactivés dans **UI Manager** ; ils sont actifs par défaut.
 
 Les métadonnées sont toujours relues par le serveur depuis le manifeste distant et ne sont jamais acceptées depuis le navigateur. Le bootstrap Windows vérifie également le moteur Node.js téléchargé avec le fichier officiel `SHASUMS256.txt` de nodejs.org.
 

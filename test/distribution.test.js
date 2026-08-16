@@ -32,6 +32,11 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(launcher, /RedirectStandardError/);
   assert.match(launcher, /serverProcess\.HasExited/);
   assert.match(launcher, /AddSeconds\(60\)/);
+  assert.match(launcher, /Stage-LatestManagerUpdate/);
+  assert.match(launcher, /Apply-PendingManagerUpdate/);
+  assert.match(launcher, /Stop-CoAManagerProcesses/);
+  assert.match(launcher, /Get-FileHash[^\n]+SHA256/);
+  assert.match(launcher, /CoAAddonManager\/ready\.json|updatesRoot 'ready\.json'/);
   assert.match(command, /chcp 65001/);
   assert.match(workflow, /runs-on: windows-latest/);
   assert.match(workflow, /test-windows-package\.ps1/);
@@ -66,6 +71,24 @@ test('addon manager exposes recoverable progress for individual and global updat
   assert.match(html, /Délai réseau maximal : 2 minutes par fichier/);
   assert.match(addons, /Délai réseau dépassé après 2 minutes/);
   assert.match(addons, /phasePercent/);
+});
+
+test('manager checks hourly, alerts Windows and can update addons automatically', async () => {
+  const app = await readFile('public/app.js', 'utf8');
+  const html = await readFile('public/index.html', 'utf8');
+  const uiManager = await readFile('src/core/ui-manager.js', 'utf8');
+  const server = await readFile('src/server.js', 'utf8');
+  const monitor = await readFile('src/core/update-monitor.js', 'utf8');
+  assert.match(app, /UPDATE_CHECK_INTERVAL_MS = 60 \* 60 \* 1000/);
+  assert.match(app, /startAutomaticAddonUpdates/);
+  assert.match(app, /managerUpdateAlerts/);
+  assert.match(html, /id="autoUpdateAddons"/);
+  assert.match(html, /id="managerUpdateAlerts"/);
+  assert.match(uiManager, /autoUpdateAddons: true/);
+  assert.match(uiManager, /managerUpdateAlerts: true/);
+  assert.match(server, /updateMonitor\.start\(\)/);
+  assert.match(monitor, /MANAGER_UPDATE_INTERVAL_MS = 60 \* 60 \* 1000/);
+  assert.match(monitor, /System\.Windows\.Forms\.MessageBox/);
 });
 
 test('addon manager exposes sourced CoA watch recommendations without automatic addon edits', async () => {

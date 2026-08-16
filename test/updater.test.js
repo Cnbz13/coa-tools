@@ -31,3 +31,25 @@ test('updater stages only an artifact matching its SHA-256 and size', async () =
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('updater selects only the Windows manager from a mixed release manifest', async () => {
+  const manifest = {
+    version: '2.0.0',
+    artifacts: [
+      { component: 'combat-assistant', platform: 'any', arch: 'any', file: 'combat.zip' },
+      { component: 'addon-manager', platform: process.platform, arch: process.arch, file: 'manager.zip' }
+    ]
+  };
+  const server = createServer((request, response) => {
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify(manifest));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const updater = new Updater({ currentVersion: '1.5.1', manifestUrl: `http://127.0.0.1:${server.address().port}/manifest.json`, stagingDir: tmpdir() });
+    const result = await updater.check();
+    assert.equal(result.available, true);
+    assert.equal(result.artifact.component, 'addon-manager');
+    assert.equal(result.artifact.file, 'manager.zip');
+  } finally { server.close(); }
+});

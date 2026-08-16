@@ -8,6 +8,7 @@ import { AddonOperationRegistry } from './core/addon-operations.js';
 import { CoaWatchService } from './core/coa-watch.js';
 import { UiManager } from './core/ui-manager.js';
 import { Updater } from './core/updater.js';
+import { UpdateMonitor } from './core/update-monitor.js';
 import { ensureDir, readJson } from './lib/files.js';
 import { selectWindowsDirectory } from './lib/windows-folder-picker.js';
 
@@ -24,6 +25,7 @@ const addonOperations = new AddonOperationRegistry(addons);
 const coaWatch = new CoaWatchService({ dataDir, reportUrl: process.env.COA_WATCH_REPORT });
 const ui = new UiManager(dataDir);
 const updater = new Updater({ currentVersion: pkg.version, manifestUrl, stagingDir: path.join(root, '.updates') });
+const updateMonitor = new UpdateMonitor({ updater, ui, dataDir });
 
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml' };
 const json = (response, status, body) => { response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); response.end(JSON.stringify(body)); };
@@ -96,5 +98,6 @@ if (process.env.NODE_ENV !== 'test') {
   server.listen(port, '127.0.0.1', () => {
     const actualPort = server.address().port;
     console.log(`CoA Tools ${pkg.version} — http://127.0.0.1:${actualPort}`);
+    updateMonitor.start();
   });
 }

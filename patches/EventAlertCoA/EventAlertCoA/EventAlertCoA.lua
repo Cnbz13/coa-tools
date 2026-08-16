@@ -1,7 +1,7 @@
 -- Thin Project Ascension compatibility layer for the genuine EventAlert 4.3.6 addon.
 -- EventAlert remains responsible for every icon, sound, option and saved position.
 
-local COA_COMPAT_VERSION = "1.5.0"
+local COA_COMPAT_VERSION = "1.5.1"
 local BOOK = BOOKTYPE_SPELL or "spell"
 local AUTO_LEARN_DEFAULT = true
 local PROC_MAX_DURATION = 60

@@ -23,6 +23,29 @@ try {
     $appRoot = Join-Path $extractRoot 'CoAAddonManager'
     $launcher = Join-Path $appRoot 'CoAAddonManager.cmd'
     if (-not (Test-Path -LiteralPath $launcher)) { throw "Launcher missing: $launcher" }
+    $currentPackageFile = Join-Path $appRoot 'package.json'
+    $currentPackage = Get-Content -LiteralPath $currentPackageFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $currentVersion = [Version]$currentPackage.version
+    $futureVersion = "$($currentVersion.Major).$($currentVersion.Minor).$($currentVersion.Build + 1)"
+    $futureParent = Join-Path $qaRoot 'Future manager package'
+    $futureRoot = Join-Path $futureParent 'CoAAddonManager'
+    New-Item -ItemType Directory -Path $futureParent -Force | Out-Null
+    Copy-Item -LiteralPath $appRoot -Destination $futureRoot -Recurse -Force
+    $futurePackageFile = Join-Path $futureRoot 'package.json'
+    $futurePackage = Get-Content -LiteralPath $futurePackageFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $futurePackage.version = $futureVersion
+    [IO.File]::WriteAllText($futurePackageFile, (($futurePackage | ConvertTo-Json -Depth 20) + "`n"), [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText((Join-Path $futureRoot 'self-update-applied.txt'), $futureVersion, [Text.UTF8Encoding]::new($false))
+    $updatesRoot = Join-Path $appRoot '.updates'
+    New-Item -ItemType Directory -Path $updatesRoot -Force | Out-Null
+    $futureArchive = Join-Path $updatesRoot "CoAAddonManager-v$futureVersion-Windows.zip"
+    Compress-Archive -LiteralPath $futureRoot -DestinationPath $futureArchive -CompressionLevel Optimal
+    $futureHash = (Get-FileHash -LiteralPath $futureArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+    $ready = @{
+        component = 'addon-manager'; version = $futureVersion; file = $futureArchive
+        sha256 = $futureHash; size = (Get-Item -LiteralPath $futureArchive).Length; verifiedAt = (Get-Date).ToUniversalTime().ToString('o')
+    }
+    [IO.File]::WriteAllText((Join-Path $updatesRoot 'ready.json'), (($ready | ConvertTo-Json) + "`n"), [Text.UTF8Encoding]::new($false))
     if (Get-Command node -ErrorAction SilentlyContinue) { Write-Host 'A global Node exists but the launcher must not use it.' }
     $env:LOCALAPPDATA = $profileRoot
     $env:COA_NO_BROWSER = '1'
@@ -75,6 +98,10 @@ try {
     $nodePid = $state.pid
     $status = Invoke-RestMethod "$($state.url)api/status" -TimeoutSec 5
     $inventory = Invoke-RestMethod "$($state.url)api/addons" -TimeoutSec 20
+    $updatedPackage = Get-Content -LiteralPath $currentPackageFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($updatedPackage.version -ne $futureVersion) { throw "Pending manager update was not applied: $($updatedPackage.version) instead of $futureVersion." }
+    if (-not (Test-Path -LiteralPath (Join-Path $appRoot 'self-update-applied.txt'))) { throw 'Pending manager update marker is missing.' }
+    if (Test-Path -LiteralPath (Join-Path $updatesRoot 'ready.json')) { throw 'Pending manager ready marker was not cleared.' }
     if ($state.port -eq 4173) { throw 'Launcher did not select a free port when 4173 was occupied.' }
     if ($status.name -ne 'CoA Tools' -or $status.version -ne $state.version) { throw 'Unexpected HTTP status payload.' }
     if (-not $inventory.exists -or $inventory.localCount -lt 1) { throw 'Packaged Addon Manager did not scan an actual AddOns folder.' }

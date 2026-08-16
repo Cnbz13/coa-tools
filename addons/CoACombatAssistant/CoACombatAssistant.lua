@@ -167,7 +167,7 @@ local function EnsureDatabase()
     CoACombatAssistantDB.settings = CoACombatAssistantDB.settings or {}
     CoACombatAssistantDB.settings.aoeThreshold = tonumber(CoACombatAssistantDB.settings.aoeThreshold) or DEFAULT_AOE_THRESHOLD
     CoACombatAssistantDB.settings.maxArmySize = tonumber(CoACombatAssistantDB.settings.maxArmySize) or DEFAULT_MAX_ARMY_SIZE
-    CoACombatAssistantDB.version = "1.5.2"
+    CoACombatAssistantDB.version = "1.5.3"
 
     if not CoACombatAssistantDB.position and CoACombatAssistantDB.ui then
         local old = CoACombatAssistantDB.ui

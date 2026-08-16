@@ -20,8 +20,8 @@ local dispelTypes = {}
 local dispelSpells = {}
 local dispelSpellsByName = {}
 local activeAuraTypes = {}
-local dangerousControlCache = {}
-local snareCache = {}
+local controlClassificationCache = {}
+local UNKNOWN_CONTROL_RECHECK = 5
 
 local colors = {
     Magic = { r = 0.20, g = 0.60, b = 1.00, a = 1 },
@@ -38,7 +38,12 @@ local controlWords = {
     "polymorph", "hex", "banish", "sap", "silence", "root", "freeze",
     "frozen", "pacify", "endormi", "sommeil", "peur", "charme", "controle",
     "flee", "terror", "horror", "scream", "nightmare", "hibernate",
-    "terreur", "effroi", "hypnose", "hypnotise"
+    "terreur", "effroi", "hypnose", "hypnotise", "immobil", "enracin",
+    "unable to move", "cannot move", "can't move", "prevents movement",
+    "held in place", "fixed in place", "pinned in place", "ne peut pas bouger",
+    "ne peut plus bouger", "ne peut pas se deplacer", "ne peut plus se deplacer",
+    "ne peut pas se déplacer", "ne peut plus se déplacer", "empeche de se deplacer",
+    "empêche de se déplacer", "maintenu sur place", "cloue sur place", "cloué sur place"
 }
 
 local snareWords = {
@@ -314,25 +319,32 @@ local function KnownAuraCanBeDispelled(key, unit)
     return learned.any and true or false
 end
 
-local function IsDangerousControl(unit, index, key, name)
-    if dangerousControlCache[key] ~= nil then return dangerousControlCache[key] end
-    local description = Lower(name)
-    if not ContainsAny(description, controlWords) then
-        description = description .. " " .. AuraTooltipText(unit, index)
+local function ClassifyControl(unit, index, key, name)
+    local cached = controlClassificationCache[key]
+    local now = GetTime()
+    if cached and (cached.control or cached.snare
+        or now - (cached.checkedAt or 0) < UNKNOWN_CONTROL_RECHECK) then
+        return cached.control, cached.snare
     end
-    local dangerous = ContainsAny(description, controlWords)
-    dangerousControlCache[key] = dangerous and true or false
-    return dangerous
+
+    local description = Lower(name) .. " " .. AuraTooltipText(unit, index)
+    local control = ContainsAny(description, controlWords)
+    local snare = ContainsAny(description, snareWords)
+    controlClassificationCache[key] = {
+        control = control and true or false,
+        snare = snare and true or false,
+        checkedAt = now
+    }
+    return control, snare
+end
+
+local function IsDangerousControl(unit, index, key, name)
+    local control = ClassifyControl(unit, index, key, name)
+    return control
 end
 
 local function IsSnare(unit, index, key, name)
-    if snareCache[key] ~= nil then return snareCache[key] end
-    local description = Lower(name)
-    if not ContainsAny(description, snareWords) then
-        description = description .. " " .. AuraTooltipText(unit, index)
-    end
-    local snare = ContainsAny(description, snareWords)
-    snareCache[key] = snare and true or false
+    local _, snare = ClassifyControl(unit, index, key, name)
     return snare
 end
 

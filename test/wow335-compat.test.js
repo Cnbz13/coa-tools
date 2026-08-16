@@ -143,7 +143,7 @@ test('GridCoA shows one center icon for actionable dispels, dangerous crowd cont
     'ParseDispelTypes', 'classicDispelDefinitions', 'CanDispelType(debuffType, unit)',
     'settings.enable = false', 'statusmap.icon[mappedStatus] = false', 'statusmap.icon[STATUS] = true',
     'UnitAura(unit, index, "HARMFUL")',
-    'AuraTooltipText', 'tooltip.SetUnitDebuff', 'IsDangerousControl', 'IsSnare',
+    'AuraTooltipText', 'tooltip.SetUnitDebuff', 'ClassifyControl', 'IsDangerousControl', 'IsSnare',
     'if dispellable or learned or dangerousControl or snare then', 'colors.Control', 'colors.Snare',
     '"Controle: " .. selected.name', '"Ralentissement: " .. selected.name',
     'GridStatus:SendStatusGained', 'GridStatus:SendStatusLost', 'PARTY_MEMBERS_CHANGED',
@@ -164,6 +164,11 @@ test('GridCoA shows one center icon for actionable dispels, dangerous crowd cont
   for (const snareWord of ['snare', 'slowed', 'movement speed reduced', 'ralent']) {
     assert.ok(lua.includes(`"${snareWord}"`), `GridCoA is missing snare keyword ${snareWord}`);
   }
+  for (const rootWord of ['root', 'immobil', 'enracin', 'unable to move', 'ne peut plus se déplacer']) {
+    assert.ok(lua.includes(`"${rootWord}"`), `GridCoA is missing root keyword ${rootWord}`);
+  }
+  assert.match(lua, /UNKNOWN_CONTROL_RECHECK = 5/);
+  assert.match(lua, /now - \(cached\.checkedAt or 0\) < UNKNOWN_CONTROL_RECHECK/);
   for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `GridCoA contains forbidden Retail API: ${api}`);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText)\b/);

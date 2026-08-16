@@ -128,7 +128,7 @@ test('EventAlert CoA patch extends the genuine 3.3.5 addon without replacing its
     'already-active learned buffs must be filtered during login');
 });
 
-test('GridCoA shows one center icon for actionable dispels and dangerous crowd control', async () => {
+test('GridCoA shows one center icon for actionable dispels, dangerous crowd control and snares', async () => {
   const toc = await readFile('addons/GridCoA/GridCoA.toc', 'utf8');
   const lua = await readFile('addons/GridCoA/GridCoA.lua', 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
@@ -143,9 +143,9 @@ test('GridCoA shows one center icon for actionable dispels and dangerous crowd c
     'ParseDispelTypes', 'classicDispelDefinitions', 'CanDispelType(debuffType, unit)',
     'settings.enable = false', 'statusmap.icon[mappedStatus] = false', 'statusmap.icon[STATUS] = true',
     'UnitAura(unit, index, "HARMFUL")',
-    'AuraTooltipText', 'tooltip.SetUnitDebuff', 'IsDangerousControl',
-    'if dispellable or learned or dangerousControl then', 'colors.Control',
-    '"Controle: " .. selected.name',
+    'AuraTooltipText', 'tooltip.SetUnitDebuff', 'IsDangerousControl', 'IsSnare',
+    'if dispellable or learned or dangerousControl or snare then', 'colors.Control', 'colors.Snare',
+    '"Controle: " .. selected.name', '"Ralentissement: " .. selected.name',
     'GridStatus:SendStatusGained', 'GridStatus:SendStatusLost', 'PARTY_MEMBERS_CHANGED',
     'RAID_ROSTER_UPDATE', 'UNIT_AURA', 'SPELLS_CHANGED', 'LEARNED_SPELL_IN_TAB',
     'COMBAT_LOG_EVENT_UNFILTERED', 'SPELL_DISPEL', 'GridCoADB.knownDispellable',
@@ -159,6 +159,11 @@ test('GridCoA shows one center icon for actionable dispels and dangerous crowd c
   assert.match(lua, /local dispellable = debuffType and CanDispelType\(debuffType, unit\)/);
   assert.match(lua, /local learned = not debuffType and KnownAuraCanBeDispelled\(key, unit\)/);
   assert.match(lua, /local dangerousControl = IsDangerousControl\(unit, index, key, name\)/);
+  assert.match(lua, /local snare = IsSnare\(unit, index, key, name\)/);
+  assert.match(lua, /if actionable then score = score \+ 100 end[\s\S]+if dangerousControl then score = score \+ 200 end[\s\S]+if snare and not dangerousControl then score = score \+ 25 end/);
+  for (const snareWord of ['snare', 'slowed', 'movement speed reduced', 'ralent']) {
+    assert.ok(lua.includes(`"${snareWord}"`), `GridCoA is missing snare keyword ${snareWord}`);
+  }
   for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `GridCoA contains forbidden Retail API: ${api}`);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText)\b/);

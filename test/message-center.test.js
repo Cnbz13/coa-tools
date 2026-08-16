@@ -5,12 +5,13 @@ import luaparse from 'luaparse';
 
 const tocPath = 'addons/CoAMessageCenter/CoAMessageCenter.toc';
 const luaPath = 'addons/CoAMessageCenter/CoAMessageCenter.lua';
+const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 
 test('CoA Message Center targets Ascension 3.3.5 and parses as Lua 5.1', async () => {
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 1\.5\.1$/m);
+  assert.match(toc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));
   assert.match(toc, /^## SavedVariables: CoAMessageCenterDB$/m);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
 

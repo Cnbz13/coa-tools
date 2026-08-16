@@ -1,8 +1,8 @@
 ## Interface: 30300
 ## Title: Grid - Compatibilite CoA
-## Notes: Affiche les affaiblissements dissipables et les controles dangereux sur le groupe
+## Notes: Affiche les affaiblissements dissipables, les controles dangereux et les ralentissements sur le groupe
 ## Author: CoA Tools
-## Version: 1.5.1
+## Version: 1.5.2
 ## RequiredDeps: Grid
 ## SavedVariables: GridCoADB
 

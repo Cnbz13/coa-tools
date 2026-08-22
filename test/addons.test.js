@@ -187,6 +187,71 @@ test('manager scans Ascension addons and installs, backs up, restores and update
   }
 });
 
+test('managed addons can be excluded from global updates and safely uninstalled with a backup', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'coa-addon-exclusions-'));
+  const addonsDir = path.join(root, 'Ascension', 'Interface', 'AddOns');
+  const dataDir = path.join(root, 'data');
+  let server;
+  try {
+    const combatFolder = path.join(addonsDir, 'CoACombatAssistant');
+    await mkdir(combatFolder, { recursive: true });
+    await writeFile(path.join(combatFolder, 'CoACombatAssistant.toc'), '## Title: CoA Combat Assistant\n## Version: 1.0.0\n');
+    await writeFile(path.join(combatFolder, 'local.txt'), 'conserver cette version');
+
+    const combatBytes = await addonZip(root, 'CoACombatAssistant', 'CoA Combat Assistant', '1.1.0');
+    const uiBytes = await addonZip(root, 'CoAUIManager', 'CoA UI Manager', '1.1.0');
+    const archives = { '/combat.zip': combatBytes, '/ui.zip': uiBytes };
+    let manifest;
+    server = createServer((request, response) => {
+      if (request.url === '/manifest.json') {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        return response.end(JSON.stringify(manifest));
+      }
+      const bytes = archives[request.url];
+      if (!bytes) { response.writeHead(404); return response.end(); }
+      response.writeHead(200, { 'content-type': 'application/zip' }); response.end(bytes);
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    manifest = {
+      version: '1.1.0', artifacts: [
+        { name: 'CoA Combat Assistant', component: 'combat-assistant', version: '1.1.0', targetFolder: 'CoACombatAssistant', file: 'combat.zip', url: `${origin}/combat.zip`, sha256: sha256(combatBytes), size: combatBytes.length },
+        { name: 'CoA UI Manager', component: 'ui-manager', version: '1.1.0', targetFolder: 'CoAUIManager', file: 'ui.zip', url: `${origin}/ui.zip`, sha256: sha256(uiBytes), size: uiBytes.length }
+      ]
+    };
+    const options = { dataDir, canonicalPath: addonsDir, manifestUrl: `${origin}/manifest.json`, environmentPath: null, downloadPolicy: url => url.origin === origin };
+    const manager = new AddonManager(options);
+
+    let inventory = await manager.setGlobalUpdateExclusion('combat-assistant', true);
+    assert.equal(inventory.managed.find(item => item.component === 'combat-assistant').excludedFromGlobalUpdates, true);
+    await assert.rejects(manager.setGlobalUpdateExclusion('event-alert', true), /reste inchangé/);
+
+    const restartedManager = new AddonManager(options);
+    inventory = await restartedManager.inventory();
+    assert.equal(inventory.managed.find(item => item.component === 'combat-assistant').excludedFromGlobalUpdates, true);
+
+    const updated = await restartedManager.updateAll();
+    assert.deepEqual(updated.updated, ['ui-manager']);
+    assert.equal(await readFile(path.join(combatFolder, 'local.txt'), 'utf8'), 'conserver cette version');
+
+    const uninstalled = await restartedManager.uninstall('combat-assistant');
+    assert.ok(uninstalled.backup);
+    assert.equal(await stat(combatFolder).then(() => true, () => false), false);
+    const combatAfterRemoval = uninstalled.inventory.managed.find(item => item.component === 'combat-assistant');
+    assert.equal(combatAfterRemoval.installed, false);
+    assert.equal(combatAfterRemoval.excludedFromGlobalUpdates, true);
+    assert.equal(combatAfterRemoval.canRollback, true);
+
+    await restartedManager.rollback('combat-assistant', uninstalled.backup);
+    assert.equal(await readFile(path.join(combatFolder, 'local.txt'), 'utf8'), 'conserver cette version');
+    inventory = await restartedManager.setGlobalUpdateExclusion('combat-assistant', false);
+    assert.equal(inventory.managed.find(item => item.component === 'combat-assistant').excludedFromGlobalUpdates, false);
+  } finally {
+    if (server) await new Promise(resolve => server.close(resolve));
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('a manually selected AddOns path is remembered when standard detection fails', async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'coa-addon-settings-'));
   try {

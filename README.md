@@ -57,6 +57,8 @@ Chaque sous-dossier qui contient un fichier `.toc` est scanné réellement. Le n
 
 Une installation ou mise à jour CoA télécharge le ZIP officiel, vérifie obligatoirement sa taille et son SHA-256, contrôle son chemin d’extraction et exige un `.toc` dans le dossier cible avant remplacement. Une sauvegarde automatique précède chaque remplacement et peut être restaurée depuis l’interface.
 
+Chaque addon CoA peut être exclu des mises à jour globales et automatiques tout en restant installé et disponible pour une mise à jour manuelle. Le bouton **Désinstaller** crée d’abord une sauvegarde restaurable, retire uniquement le dossier exact de l’addon, puis l’exclut automatiquement afin qu’une mise à jour globale ne le réinstalle pas. EventAlert reste volontairement protégé de ces deux actions.
+
 Les installations individuelles et la mise à jour globale sont suivies en direct : addon courant, étape, pourcentage, octets téléchargés et temps écoulé restent visibles, même après un rafraîchissement de l’interface. Un téléchargement réseau est interrompu avec une erreur explicite après deux minutes sans résultat.
 
 ## Veille hebdomadaire CoA

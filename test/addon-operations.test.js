@@ -58,3 +58,21 @@ test('individual addon failures remain visible with their exact step and error',
   assert.match(failed.error, /Délai réseau dépassé/);
   assert.match(failed.message, /^Échec :/);
 });
+
+test('addon uninstallation is reported as a recoverable operation', async () => {
+  const addons = {
+    async uninstall(component, report) {
+      report({ component, step: 'backup', message: 'Sauvegarde avant désinstallation…', phasePercent: 35 });
+      report({ component, step: 'remove', message: 'Suppression contrôlée…', phasePercent: 65 });
+      return { operation: 'uninstalled', component, backup: 'backup-1', inventory: { managed: [] } };
+    }
+  };
+  const registry = new AddonOperationRegistry(addons);
+  const started = registry.start('uninstall', 'message-center');
+  const completed = await eventually(() => registry.get(started.id)?.state === 'succeeded' && registry.get(started.id));
+  assert.equal(completed.action, 'uninstall');
+  assert.equal(completed.component, 'message-center');
+  assert.equal(completed.percent, 100);
+  assert.match(completed.message, /désinstallé avec sauvegarde/);
+  assert.equal(completed.result.backup, 'backup-1');
+});

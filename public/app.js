@@ -43,16 +43,40 @@ function renderAddons() {
   $('#addonScanSummary').textContent = inventory.exists ? `${inventory.localCount} addons avec fichier .toc détectés.` : 'Sélectionnez votre dossier Interface\\AddOns dans la section avancée.';
   $('#manifestStatus').textContent = inventory.remoteError ? (inventory.remoteCached ? `Manifest v${inventory.remoteVersion} en cache` : `Manifest indisponible : ${inventory.remoteError}`) : `Manifest GitHub v${inventory.remoteVersion}`;
   $('#managedAddonList').innerHTML = inventory.managed.length ? inventory.managed.map(item => `
-    <article class="managed-addon ${item.installed ? 'installed' : ''}">
-      <div class="managed-top"><span class="badge coa">COA GÉRÉ</span><span class="state-dot">${item.installed ? 'Installé' : 'Absent'}</span></div>
+    <article class="managed-addon ${item.installed ? 'installed' : ''} ${item.excludedFromGlobalUpdates ? 'excluded' : ''}">
+      <div class="managed-top"><span class="badge coa">${item.excludedFromGlobalUpdates ? 'EXCLU DES MAJ' : 'COA GÉRÉ'}</span><span class="state-dot">${item.installed ? 'Installé' : 'Absent'}</span></div>
       <h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.notes || 'Addon officiel CoA distribué depuis GitHub.')}</p>
       <div class="version-row"><span>Locale <b>${escapeHtml(item.localVersion || '—')}</b></span><span>Distante <b>${escapeHtml(item.remoteVersion)}</b></span></div>
-      <div class="button-row"><button class="primary" data-install="${escapeAttribute(item.component)}">${actionLabels[item.action]}</button>${item.canRollback ? `<button data-rollback="${escapeAttribute(item.component)}">Restaurer</button>` : ''}</div>
+      <div class="button-row">
+        <button class="primary" data-install="${escapeAttribute(item.component)}">${actionLabels[item.action]}</button>
+        ${item.userManageable ? `<button data-exclusion="${escapeAttribute(item.component)}" data-excluded="${item.excludedFromGlobalUpdates}">${item.excludedFromGlobalUpdates ? 'Réinclure aux MAJ' : 'Exclure des MAJ'}</button>` : ''}
+        ${item.userManageable && item.installed ? `<button class="danger" data-uninstall="${escapeAttribute(item.component)}">Désinstaller</button>` : ''}
+        ${item.canRollback ? `<button data-rollback="${escapeAttribute(item.component)}">Restaurer</button>` : ''}
+      </div>
     </article>`).join('') : '<article class="empty-card">Les composants CoA seront affichés dès que le manifest GitHub sera accessible.</article>';
   renderRegularAddons();
   document.querySelectorAll('[data-install]').forEach(button => button.onclick = () => startAddonOperation(button, { action: 'install', component: button.dataset.install }));
   document.querySelectorAll('[data-rollback]').forEach(button => button.onclick = () => runImmediateAddonOperation(button, `/api/addons/managed/${encodeURIComponent(button.dataset.rollback)}/rollback`, 'Restauration'));
+  document.querySelectorAll('[data-exclusion]').forEach(button => button.onclick = () => toggleGlobalUpdateExclusion(button));
+  document.querySelectorAll('[data-uninstall]').forEach(button => button.onclick = () => confirmAddonUninstall(button));
   renderAddonProgress();
+}
+async function toggleGlobalUpdateExclusion(button) {
+  const excluded = button.dataset.excluded !== 'true';
+  button.disabled = true;
+  try {
+    addonInventory = await api(`/api/addons/managed/${encodeURIComponent(button.dataset.exclusion)}/global-update-exclusion`, {
+      method: 'PUT', body: JSON.stringify({ excluded })
+    });
+    renderAddons();
+    toast(excluded ? 'Addon exclu des mises à jour globales' : 'Addon réintégré aux mises à jour globales');
+  } catch (error) { renderAddons(); toast(error.message); }
+}
+function confirmAddonUninstall(button) {
+  const item = addonInventory.managed.find(addon => addon.component === button.dataset.uninstall);
+  if (!item) return;
+  if (!confirm(`Désinstaller ${item.name} ?\n\nUne sauvegarde sera créée et l’addon sera exclu des mises à jour globales pour éviter sa réinstallation.`)) return;
+  startAddonOperation(button, { action: 'uninstall', component: item.component });
 }
 function renderRegularAddons() {
   const query = $('#addonSearch').value.trim().toLocaleLowerCase('fr');
@@ -107,7 +131,7 @@ function renderAddonProgress() {
     : addonOperation.step;
   $('#addonProgressBytes').textContent = Number.isFinite(addonOperation.bytesDone) && Number.isFinite(addonOperation.bytesTotal)
     ? `${formatBytes(addonOperation.bytesDone)} / ${formatBytes(addonOperation.bytesTotal)}` : '';
-  document.querySelectorAll('[data-install], [data-rollback], #updateAllAddons').forEach(button => { button.disabled = active; });
+  document.querySelectorAll('[data-install], [data-rollback], [data-exclusion], [data-uninstall], #updateAllAddons').forEach(button => { button.disabled = active; });
 }
 async function pollAddonOperation() {
   clearTimeout(addonPollTimer);
@@ -119,7 +143,7 @@ async function pollAddonOperation() {
       if (addonOperation.state === 'succeeded') {
         addonInventory = addonOperation.result?.inventory || await api('/api/addons');
         renderAddons();
-        toast('Mise à jour terminée avec vérification SHA-256');
+        toast(addonOperation.action === 'uninstall' ? 'Addon désinstallé avec sauvegarde' : 'Mise à jour terminée avec vérification SHA-256');
       } else {
         renderAddons();
         toast(addonOperation.error || 'La mise à jour a échoué');
@@ -202,7 +226,7 @@ $('#saveUi').onclick = async () => {
 };
 async function startAutomaticAddonUpdates() {
   if (!uiPreferences?.autoUpdateAddons || !addonInventory?.exists || activeAddonOperation()) return;
-  if (!addonInventory.managed.some(item => ['install', 'update'].includes(item.action))) return;
+  if (!addonInventory.managed.some(item => !item.excludedFromGlobalUpdates && ['install', 'update'].includes(item.action))) return;
   await startAddonOperation($('#updateAllAddons'), { action: 'update-all' });
 }
 function renderNotificationStatus() {

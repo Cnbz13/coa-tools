@@ -9,6 +9,7 @@ import { extractZip } from '../lib/zip.js';
 
 export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
 const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'heretic-helper', 'event-alert', 'grid-compat']);
+const USER_MANAGEABLE_COMPONENTS = new Set([...MANAGED_COMPONENTS].filter(component => component !== 'event-alert'));
 const EVENT_ALERT_COMPANION_FOLDER = 'EventAlertCoA';
 const EVENT_ALERT_LEGACY_FOLDER = 'CoAEventAlert';
 const EVENT_ALERT_UPSTREAM_PATH = '/files/456/081/EventAlert-4.3.6.zip';
@@ -77,7 +78,7 @@ export class AddonManager {
   }
 
   async detectDirectory() {
-    const settings = await readJson(this.settingsFile, {});
+    const settings = await this.getSettings();
     const standard = [
       settings.addonsDir,
       this.environmentPath,
@@ -102,7 +103,36 @@ export class AddonManager {
     if (!selected) throw new Error('Sélectionnez un dossier Interface\\AddOns');
     const resolved = path.resolve(selected);
     if (!(await isDirectory(resolved))) throw new Error('Le dossier AddOns sélectionné est introuvable');
-    await writeJsonAtomic(this.settingsFile, { addonsDir: resolved, savedAt: new Date().toISOString() });
+    const settings = await this.getSettings();
+    await writeJsonAtomic(this.settingsFile, { ...settings, addonsDir: resolved, savedAt: new Date().toISOString() });
+    return this.inventory();
+  }
+
+  async getSettings() {
+    const settings = await readJson(this.settingsFile, {});
+    return {
+      ...settings,
+      excludedComponents: Array.isArray(settings.excludedComponents)
+        ? [...new Set(settings.excludedComponents.filter(component => USER_MANAGEABLE_COMPONENTS.has(component)))]
+        : []
+    };
+  }
+
+  async writeExclusion(component, excluded) {
+    if (!USER_MANAGEABLE_COMPONENTS.has(component)) throw new Error('Cet addon reste inchangé et ne peut pas être exclu ici');
+    const settings = await this.getSettings();
+    const components = new Set(settings.excludedComponents);
+    if (excluded) components.add(component); else components.delete(component);
+    await writeJsonAtomic(this.settingsFile, {
+      ...settings,
+      excludedComponents: [...components].sort(),
+      exclusionsSavedAt: new Date().toISOString()
+    });
+  }
+
+  async setGlobalUpdateExclusion(component, excluded) {
+    if (typeof excluded !== 'boolean') throw new Error('État d’exclusion invalide');
+    await this.writeExclusion(component, excluded);
     return this.inventory();
   }
 
@@ -157,6 +187,8 @@ export class AddonManager {
     const local = detection.exists ? await this.scan(detection.directory) : [];
     const { manifest, cached, error } = await this.getManifest();
     const managedArtifacts = (manifest?.artifacts || []).filter(item => MANAGED_COMPONENTS.has(item.component));
+    const settings = await this.getSettings();
+    const excludedComponents = new Set(settings.excludedComponents);
     const managedFolders = new Set(managedArtifacts.map(item => item.targetFolder.toLowerCase()));
     if (managedArtifacts.some(item => item.component === 'event-alert')) {
       managedFolders.add(EVENT_ALERT_COMPANION_FOLDER.toLowerCase());
@@ -181,6 +213,8 @@ export class AddonManager {
         kind: 'managed', component: artifact.component, name: artifact.name, folder: artifact.targetFolder,
         title: installed?.title || artifact.name, notes: installed?.notes || '', localVersion,
         remoteVersion, installed: Boolean(installed), action: !installed ? 'install' : comparison > 0 ? 'update' : 'reinstall',
+        excludedFromGlobalUpdates: USER_MANAGEABLE_COMPONENTS.has(artifact.component) && excludedComponents.has(artifact.component),
+        userManageable: USER_MANAGEABLE_COMPONENTS.has(artifact.component),
         artifact: { file: artifact.file, size: artifact.size, sha256: artifact.sha256, upstream: artifact.upstream || null }, canRollback: backups.length > 0,
         latestBackup: backups[0] || null
       });
@@ -474,11 +508,49 @@ export class AddonManager {
     return { operation: 'restored', component, backup: selected.id, inventory: await this.inventory() };
   }
 
+  uninstall(component, onProgress) { return this.runExclusive(() => this.uninstallNow(component, onProgress)); }
+  async uninstallNow(component, onProgress = null) {
+    const report = update => { if (onProgress) onProgress({ component, ...update }); };
+    if (!USER_MANAGEABLE_COMPONENTS.has(component)) throw new Error('Cet addon reste inchangé et ne peut pas être désinstallé ici');
+    report({ step: 'detect', message: 'Détection du dossier Project Ascension…', phasePercent: 5 });
+    const detection = await this.detectDirectory();
+    if (!detection.exists) throw new Error('Aucun dossier Project Ascension AddOns détecté');
+    report({ step: 'manifest', message: 'Identification exacte de l’addon géré…', phasePercent: 12 });
+    const { manifest } = await this.getManifest();
+    const artifact = manifest?.artifacts?.find(item => item.component === component);
+    if (!artifact || !/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '')) throw new Error('Addon géré introuvable dans le manifeste');
+    const addonsRoot = path.resolve(detection.directory);
+    const destination = path.resolve(addonsRoot, artifact.targetFolder);
+    if (!destination.startsWith(`${addonsRoot}${path.sep}`)) throw new Error('Chemin de désinstallation hors du dossier AddOns');
+    const local = (await this.scan(addonsRoot)).find(item => item.folder.toLowerCase() === artifact.targetFolder.toLowerCase());
+    if (!local || !(await isDirectory(destination))) throw new Error(`${artifact.name} n’est pas installé`);
+
+    report({ step: 'backup', message: `Sauvegarde de ${artifact.targetFolder} avant désinstallation…`, phasePercent: 35 });
+    const backup = await this.createBackup(component, artifact.targetFolder, destination, local.version, 'uninstall');
+    if (!backup) throw new Error('La sauvegarde de sécurité n’a pas pu être créée');
+    report({ step: 'remove', message: `Suppression contrôlée de ${artifact.targetFolder}…`, phasePercent: 65 });
+    try {
+      await rm(destination, { recursive: true, force: true });
+      if (await isDirectory(destination)) throw new Error('Le dossier est toujours présent après la suppression');
+      await this.writeExclusion(component, true);
+    } catch (error) {
+      report({ step: 'restore', message: 'Échec détecté, restauration automatique de la sauvegarde…', phasePercent: 78 });
+      if (!(await isDirectory(destination))) await this.replaceFolder(addonsRoot, artifact.targetFolder, backup.folder);
+      throw error;
+    }
+    report({ step: 'rescan', message: 'Contrôle final du dossier et exclusion des mises à jour globales…', phasePercent: 92 });
+    const inventory = await this.inventory();
+    report({ step: 'complete', message: `${artifact.name} est désinstallé et exclu des mises à jour globales`, phasePercent: 100 });
+    return { operation: 'uninstalled', component, backup: backup.id, inventory };
+  }
+
   updateAll(onProgress) { return this.runExclusive(async () => {
     const report = update => { if (onProgress) onProgress(update); };
     report({ step: 'scan', message: 'Recherche des addons à installer ou mettre à jour…', phasePercent: 0, index: 0, total: 0 });
     const current = await this.inventory();
-    const components = current.managed.filter(item => ['install', 'update'].includes(item.action)).map(item => item.component);
+    const components = current.managed
+      .filter(item => !item.excludedFromGlobalUpdates && ['install', 'update'].includes(item.action))
+      .map(item => item.component);
     if (!components.length) {
       report({ step: 'complete', message: 'Tous les addons sont déjà à jour', phasePercent: 100, index: 0, total: 0 });
       return { operation: 'update-all', updated: [], results: [], inventory: current };

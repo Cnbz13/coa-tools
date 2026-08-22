@@ -78,6 +78,20 @@ test('addon manager exposes recoverable progress for individual and global updat
   assert.match(addons, /phasePercent/);
 });
 
+test('manager can exclude or safely uninstall selected addons without changing EventAlert', async () => {
+  const server = await readFile('src/server.js', 'utf8');
+  const app = await readFile('public/app.js', 'utf8');
+  const addons = await readFile('src/core/addons.js', 'utf8');
+  assert.match(server, /global-update-exclusion/);
+  assert.match(app, /data-exclusion=/);
+  assert.match(app, /data-uninstall=/);
+  assert.match(app, /Une sauvegarde sera créée/);
+  assert.match(addons, /excludedFromGlobalUpdates/);
+  assert.match(addons, /'uninstall'/);
+  assert.match(addons, /component !== 'event-alert'/);
+  assert.match(addons, /ne peut pas être désinstallé ici/);
+});
+
 test('manager checks hourly, alerts Windows and can update addons automatically', async () => {
   const app = await readFile('public/app.js', 'utf8');
   const html = await readFile('public/index.html', 'utf8');

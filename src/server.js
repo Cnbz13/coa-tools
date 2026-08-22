@@ -66,6 +66,11 @@ async function api(request, response, pathname) {
     const component = decodeURIComponent(managedMatch[1]);
     return json(response, 200, managedMatch[2] === 'install' ? await addons.install(component) : await addons.rollback(component, (await body(request)).backupId));
   }
+  const exclusionMatch = pathname.match(/^\/api\/addons\/managed\/([^/]+)\/global-update-exclusion$/);
+  if (exclusionMatch && request.method === 'PUT') {
+    const component = decodeURIComponent(exclusionMatch[1]);
+    return json(response, 200, await addons.setGlobalUpdateExclusion(component, (await body(request)).excluded));
+  }
   if (request.method === 'GET' && pathname === '/api/updates/check') return json(response, 200, await updater.check());
   if (request.method === 'POST' && pathname === '/api/updates/download') return json(response, 200, await updater.downloadLatest());
   if (request.method === 'GET' && pathname === '/api/watch') return json(response, 200, await coaWatch.report());

@@ -52,12 +52,12 @@ export class AddonOperationRegistry {
       error.status = 409;
       throw error;
     }
-    if (!['install', 'update-all'].includes(action)) {
+    if (!['install', 'uninstall', 'update-all'].includes(action)) {
       const error = new Error('Type d’opération addon inconnu');
       error.status = 400;
       throw error;
     }
-    if (action === 'install' && !component) {
+    if (['install', 'uninstall'].includes(action) && !component) {
       const error = new Error('Composant addon manquant');
       error.status = 400;
       throw error;
@@ -66,8 +66,8 @@ export class AddonOperationRegistry {
     const timestamp = this.now().toISOString();
     const operation = {
       id: randomUUID(), action, component, state: 'queued', step: 'queued',
-      message: 'Mise en file d’attente…', percent: 0, current: action === 'install' ? 1 : 0,
-      total: action === 'install' ? 1 : 0, bytesDone: null, bytesTotal: null,
+      message: 'Mise en file d’attente…', percent: 0, current: action === 'update-all' ? 0 : 1,
+      total: action === 'update-all' ? 0 : 1, bytesDone: null, bytesTotal: null,
       startedAt: timestamp, updatedAt: timestamp, finishedAt: null, error: null, result: null
     };
     this.operations.set(operation.id, operation);
@@ -105,10 +105,14 @@ export class AddonOperationRegistry {
     try {
       operation.result = operation.action === 'update-all'
         ? await this.addons.updateAll(report)
-        : await this.addons.install(operation.component, report);
+        : operation.action === 'uninstall'
+          ? await this.addons.uninstall(operation.component, report)
+          : await this.addons.install(operation.component, report);
       operation.state = 'succeeded';
       operation.step = 'complete';
-      operation.message = operation.action === 'update-all' ? 'Mise à jour globale terminée' : 'Addon installé et vérifié';
+      operation.message = operation.action === 'update-all'
+        ? 'Mise à jour globale terminée'
+        : operation.action === 'uninstall' ? 'Addon désinstallé avec sauvegarde' : 'Addon installé et vérifié';
       operation.percent = 100;
     } catch (error) {
       operation.state = 'failed';

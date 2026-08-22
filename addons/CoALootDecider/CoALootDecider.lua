@@ -64,6 +64,44 @@ local DISPLAY_STATS = {
     RESISTANCE0_NAME = "ARMURE"
 }
 
+-- Un profil public utilise des noms stables et compacts ; le client 3.3.5
+-- peut retourner soit une statistique globale, soit sa variante melee/ranged/spell.
+local PROFILE_STAT_KEYS = {
+    str = { "ITEM_MOD_STRENGTH_SHORT" },
+    agi = { "ITEM_MOD_AGILITY_SHORT" },
+    sta = { "ITEM_MOD_STAMINA_SHORT" },
+    int = { "ITEM_MOD_INTELLECT_SHORT" },
+    spi = { "ITEM_MOD_SPIRIT_SHORT" },
+    ap = { "ITEM_MOD_ATTACK_POWER_SHORT" },
+    rap = { "ITEM_MOD_RANGED_ATTACK_POWER_SHORT" },
+    sp = { "ITEM_MOD_SPELL_POWER_SHORT", "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT" },
+    heal = { "ITEM_MOD_HEALING_DONE_SHORT" },
+    crit = {
+        "ITEM_MOD_CRIT_RATING_SHORT", "ITEM_MOD_CRIT_MELEE_RATING_SHORT",
+        "ITEM_MOD_CRIT_RANGED_RATING_SHORT", "ITEM_MOD_CRIT_SPELL_RATING_SHORT"
+    },
+    hit = {
+        "ITEM_MOD_HIT_RATING_SHORT", "ITEM_MOD_HIT_MELEE_RATING_SHORT",
+        "ITEM_MOD_HIT_RANGED_RATING_SHORT", "ITEM_MOD_HIT_SPELL_RATING_SHORT"
+    },
+    haste = {
+        "ITEM_MOD_HASTE_RATING_SHORT", "ITEM_MOD_HASTE_MELEE_RATING_SHORT",
+        "ITEM_MOD_HASTE_RANGED_RATING_SHORT", "ITEM_MOD_HASTE_SPELL_RATING_SHORT"
+    },
+    arp = { "ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT" },
+    spellpen = { "ITEM_MOD_SPELL_PENETRATION_SHORT" },
+    expertise = { "ITEM_MOD_EXPERTISE_RATING_SHORT" },
+    defense = { "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT" },
+    dodge = { "ITEM_MOD_DODGE_RATING_SHORT" },
+    parry = { "ITEM_MOD_PARRY_RATING_SHORT" },
+    block = { "ITEM_MOD_BLOCK_RATING_SHORT" },
+    blockvalue = { "ITEM_MOD_BLOCK_VALUE_SHORT" },
+    shieldvalue = { "ITEM_MOD_BLOCK_VALUE_SHORT" },
+    armor = { "RESISTANCE0_NAME" },
+    wdps = { "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" },
+    rdps = { "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" }
+}
+
 local PRIMARY_STATS = {
     "ITEM_MOD_STRENGTH_SHORT",
     "ITEM_MOD_AGILITY_SHORT",
@@ -169,7 +207,14 @@ local function EnsureDatabase()
         CoALootDeciderDB.threshold = tonumber(CoALootDeciderDB.threshold) or 5
     end
     CoALootDeciderDB.thresholdsBySpec = CoALootDeciderDB.thresholdsBySpec or {}
-    CoALootDeciderDB.itemLevelWeight = tonumber(CoALootDeciderDB.itemLevelWeight) or 0.35
+    -- Les profils EP publics chiffrent deja DPS d'arme, armure et statistiques.
+    -- Ajouter arbitrairement l'ilvl faisait gagner des objets moins utiles.
+    if CoALootDeciderDB.statProfileVersion ~= 1 then
+        CoALootDeciderDB.itemLevelWeight = 0
+        CoALootDeciderDB.statProfileVersion = 1
+    else
+        CoALootDeciderDB.itemLevelWeight = tonumber(CoALootDeciderDB.itemLevelWeight) or 0
+    end
     CoALootDeciderDB.customWeights = CoALootDeciderDB.customWeights or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     CoALootDeciderDB.version = "0.2.3"
@@ -187,6 +232,30 @@ local function ReadItemStats(itemLink)
     return stats
 end
 
+local weaponScanner = CreateFrame("GameTooltip", "CoALootDeciderWeaponScanner", nil, "GameTooltipTemplate")
+weaponScanner:SetOwner(UIParent, "ANCHOR_NONE")
+
+local function ReadWeaponSpeed(itemLink)
+    if not itemLink then return nil end
+    weaponScanner:ClearLines()
+    if not pcall(weaponScanner.SetHyperlink, weaponScanner, itemLink) then return nil end
+    local line
+    for line = 2, math.min(weaponScanner:NumLines(), 8) do
+        local left = _G["CoALootDeciderWeaponScannerTextLeft" .. line]
+        local right = _G["CoALootDeciderWeaponScannerTextRight" .. line]
+        local text = (left and left:GetText() or "") .. " " .. (right and right:GetText() or "")
+        local value = string.match(text, "[Ss]peed%s*([0-9]+[.,][0-9]+)")
+            or string.match(text, "[Vv]itesse%s*([0-9]+[.,][0-9]+)")
+        if value then
+            weaponScanner:Hide()
+            local normalized = string.gsub(value, ",", ".")
+            return tonumber(normalized)
+        end
+    end
+    weaponScanner:Hide()
+    return nil
+end
+
 local function ItemData(itemLink)
     if not itemLink or not GetItemInfo then return nil end
     local name, link, quality, itemLevel, requiredLevel, itemType, itemSubType, stackCount, equipLoc, texture = GetItemInfo(itemLink)
@@ -202,7 +271,8 @@ local function ItemData(itemLink)
         stackCount = tonumber(stackCount) or 1,
         equipLoc = equipLoc,
         texture = texture,
-        stats = ReadItemStats(link or itemLink)
+        stats = ReadItemStats(link or itemLink),
+        weaponSpeed = ReadWeaponSpeed(link or itemLink)
     }
 end
 
@@ -344,6 +414,71 @@ local function ResolveActiveSpecialization()
         .. ", nom=" .. tostring(specializationName or "inconnu") .. ")"
 end
 
+local function SpecializationProfileKey(specialization)
+    return tostring(specialization.className or "") .. ":" .. tostring(specialization.specName or "")
+end
+
+local function FindPublicPreset(specialization)
+    if type(CoALootProfiles) ~= "table" or type(CoALootProfiles.weights) ~= "table" then return nil end
+    local requested = SpecializationProfileKey(specialization)
+    local resolved = CoALootProfiles.aliases and CoALootProfiles.aliases[requested] or requested
+    if CoALootProfiles.weights[resolved] then
+        return CoALootProfiles.weights[resolved],
+            CoALootProfiles.weaponRules and CoALootProfiles.weaponRules[resolved] or nil,
+            resolved
+    end
+
+    -- Repli insensible a la casse pour les clients localises partiellement.
+    local key, value
+    for key, value in pairs(CoALootProfiles.weights) do
+        if Lower(key) == Lower(resolved) then
+            return value, CoALootProfiles.weaponRules and CoALootProfiles.weaponRules[key] or nil, key
+        end
+    end
+    return nil
+end
+
+local function PublicWeights(specialization)
+    local preset, weaponRule, presetKey = FindPublicPreset(specialization)
+    if not preset then return nil end
+
+    local effectivePreset = {}
+    local presetName, presetValue
+    for presetName, presetValue in pairs(preset) do effectivePreset[presetName] = presetValue end
+    -- Power of Yogg-Saron, qui justifie Crit=3, est la passive Heretic niveau 50.
+    -- Avant son obtention on conserve un poids de critique standard et prudent.
+    local playerLevel = UnitLevel and tonumber(UnitLevel("player")) or 60
+    if presetKey == "Cultist:Heretic" and playerLevel < 50 then effectivePreset.crit = 0.8 end
+
+    local weights = {}
+    local acceptedPrimaries = {}
+    local shortName, value, _, statKey
+    for shortName, value in pairs(effectivePreset) do
+        local statKeys = PROFILE_STAT_KEYS[shortName]
+        if statKeys and tonumber(value) and tonumber(value) > 0 then
+            for _, statKey in ipairs(statKeys) do
+                -- wdps et rdps partagent la cle DPS ; ne jamais les additionner.
+                weights[statKey] = math.max(weights[statKey] or 0, tonumber(value))
+            end
+        end
+    end
+    for _, statKey in ipairs(PRIMARY_STATS) do
+        if (weights[statKey] or 0) > 0 then acceptedPrimaries[statKey] = true end
+    end
+
+    local physical = (effectivePreset.ap or 0) > 0 or (effectivePreset.rap or 0) > 0
+        or (effectivePreset.wdps or 0) > 0 or (effectivePreset.rdps or 0) > 0
+        or (effectivePreset.arp or 0) > 0 or (effectivePreset.expertise or 0) > 0
+    local caster = (effectivePreset.sp or 0) > 0 or (effectivePreset.heal or 0) > 0
+    local customKey, customValue
+    for customKey, customValue in pairs(CoALootDeciderDB.customWeights or {}) do
+        if weights[customKey] and weights[customKey] > 0 then
+            weights[customKey] = tonumber(customValue) or weights[customKey]
+        end
+    end
+    return weights, acceptedPrimaries, physical, caster, weaponRule, presetKey
+end
+
 local function StrictWeights(specialization)
     local specInfo = specialization.specInfo
     local acceptedPrimaries = {}
@@ -436,7 +571,13 @@ local function ScanEquipment()
         return profile
     end
 
-    local weights, acceptedPrimaries, physical, caster, strictError = StrictWeights(specialization)
+    local weights, acceptedPrimaries, physical, caster, weaponRule, presetKey = PublicWeights(specialization)
+    local strictError = nil
+    local weightSource = "BisBeard/CoA Build Hub " .. tostring(CoALootProfiles and CoALootProfiles.sourceDate or "")
+    if not weights then
+        weights, acceptedPrimaries, physical, caster, strictError = StrictWeights(specialization)
+        weightSource = "repli catalogue CoA"
+    end
     if not weights then
         profile = {
             valid = false,
@@ -467,6 +608,9 @@ local function ScanEquipment()
         specializationID = specialization.specializationID,
         specName = specialization.specName,
         primarySource = specialization.primarySource,
+        weightSource = weightSource,
+        presetKey = presetKey,
+        weaponRule = weaponRule,
         scannedAt = GetTime and GetTime() or 0
     }
     return profile
@@ -501,6 +645,18 @@ local function ScoreItem(data)
     for key, value in pairs(data.stats or {}) do
         score = score + (tonumber(value) or 0) * (profile.weights[key] or 0)
     end
+    local weaponRule = profile.weaponRule
+    if weaponRule and data.weaponSpeed then
+        local speedWeight = tonumber(weaponRule.speedWeight) or 0
+        if weaponRule.speed == "slow" then
+            score = score + data.weaponSpeed * speedWeight
+        elseif weaponRule.speed == "fast" then
+            score = score + math.max(0, 4 - data.weaponSpeed) * speedWeight
+        end
+    end
+    if weaponRule and weaponRule.preferTwoHand and data.equipLoc == "INVTYPE_2HWEAPON" then
+        score = score + 30
+    end
     return score
 end
 
@@ -511,7 +667,7 @@ local function CompatibilityProblem(data)
 
     local _, key
     for _, key in ipairs(PRIMARY_STATS) do
-        if StatValue(data.stats, key) > 0 and not profile.acceptedPrimaries[key] then
+        if StatValue(data.stats, key) > 0 and (profile.weights[key] or 0) <= 0 then
             return (DISPLAY_STATS[key] or key) .. " interdite pour " .. profile.className .. " - " .. profile.specName
         end
     end
@@ -817,6 +973,7 @@ local function ProfileSummary()
         .. " | physique=" .. (profile.physical and "oui" or "non")
         .. ", caster=" .. (profile.caster and "oui" or "non")
         .. ", primaire=" .. tostring(profile.primarySource or "inconnue")
+        .. ", poids=" .. tostring(profile.weightSource or "inconnu")
         .. " | " .. table.concat(values, ", ")
 end
 

@@ -5,18 +5,56 @@ import luaparse from 'luaparse';
 
 const tocPath = 'addons/CoALootDecider/CoALootDecider.toc';
 const luaPath = 'addons/CoALootDecider/CoALootDecider.lua';
+const profilesPath = 'addons/CoALootDecider/CoALootProfiles.lua';
 
 test('CoA Loot Decider targets Ascension 3.3.5 and parses as Lua 5.1', async () => {
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
+  const profiles = await readFile(profilesPath, 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
   assert.match(toc, /^## SavedVariables: CoALootDeciderDB$/m);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
+  assert.doesNotThrow(() => luaparse.parse(profiles, { luaVersion: '5.1', comments: false, locations: true }));
+  assert.match(toc, /CoALootProfiles\.lua\s+CoALootDecider\.lua/,
+    'profiles must load before the decision engine');
 
   for (const retailApi of [
     'BackdropTemplate', 'SetShown', 'SetSize', 'C_Timer',
     'C_Item', 'Enum.', 'CreateFromMixins', 'RegisterUnitEvent'
   ]) assert.equal(lua.includes(retailApi), false, `forbidden Retail API: ${retailApi}`);
+});
+
+test('CoA Loot Decider ships data-driven profiles for every current CoA specialization', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  const profiles = await readFile(profilesPath, 'utf8');
+  const profileRows = profiles.match(/^\s*\["[^"]+:[^"]+"\]\s*=\s*\{[^\n]+\},?$/gm) ?? [];
+
+  // 70 weight rows plus 5 current-name aliases and 5 weapon rules.
+  assert.equal(profileRows.filter((row) => /\b(?:str|agi|int|spi|ap|sp|crit|sta)=/.test(row)).length, 70);
+  for (const required of [
+    '["Cultist:Heretic"] = { str=1, int=0.104, ap=1, sp=0.4, crit=3, haste=0.4',
+    '["Venomancer:Venom"] = "Venomancer:Rotweaver"',
+    '["Primalist:Life"] = "Primalist:Grovekeeper"',
+    '["Runemaster:Runic"] = "Runemaster:Engravement"',
+    'sourceDate = "2026-08-22"', 'PublicWeights', 'FindPublicPreset',
+    'PROFILE_STAT_KEYS', 'weightSource'
+  ]) assert.ok(profiles.includes(required) || lua.includes(required), `missing profile feature: ${required}`);
+  assert.match(lua, /statProfileVersion ~= 1[\s\S]+itemLevelWeight = 0/,
+    'arbitrary item-level points must not override sourced EP weights');
+});
+
+test('Heretic and weapon-dependent profiles account for weapon speed without Retail APIs', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  const profiles = await readFile(profilesPath, 'utf8');
+  assert.match(profiles, /\["Cultist:Heretic"\][\s\S]+preferTwoHand = true, speed = "slow"/);
+  assert.match(profiles, /\["Runemaster:Engravement"\][\s\S]+speed = "fast"/);
+  assert.match(lua, /ReadWeaponSpeed[\s\S]+\[Ss\]peed[\s\S]+\[Vv\]itesse/);
+  assert.match(lua, /weaponRule\.speed == "slow"[\s\S]+weaponRule\.speed == "fast"/);
+  assert.match(lua, /presetKey == "Cultist:Heretic" and playerLevel < 50[\s\S]+effectivePreset\.crit = 0\.8/,
+    'the level-50 crit-to-AP passive must not affect low-level Heretics');
+  assert.match(lua, /effectivePreset\.arp[\s\S]+effectivePreset\.expertise/,
+    'hybrid physical profiles must not reject their own armor penetration or expertise');
+  assert.equal(lua.includes('C_TooltipInfo'), false);
 });
 
 test('CoA Loot Decider uses the exact CoA specialization catalog and compares the correct equipment slots', async () => {

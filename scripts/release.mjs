@@ -64,7 +64,7 @@ for (const item of packages) {
 const manifest = {
   $schema: './schemas/manifest.schema.json',
   schemaVersion: 1, name: 'CoA Tools', version, channel: process.env.RELEASE_CHANNEL || 'stable',
-  publishedAt: process.env.RELEASE_DATE || '2026-08-22T00:00:00.000Z', minimumNodeVersion: '24.14.0',
+  publishedAt: process.env.RELEASE_DATE || '2026-08-23T00:00:00.000Z', minimumNodeVersion: '24.14.0',
   releaseUrl: `https://github.com/Cnbz13/coa-tools/releases/tag/v${version}`, artifacts
 };
 const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;

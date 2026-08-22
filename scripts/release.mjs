@@ -25,6 +25,7 @@ const packages = [
   { name: 'CoA UI Manager', component: 'ui-manager', platform: 'any', arch: 'any', targetFolder: 'CoAUIManager', installPath: 'Interface/AddOns', file: `CoAUIManager-v${version}.zip`, source: path.resolve('addons', 'CoAUIManager', '..'), only: 'CoAUIManager' },
   { name: 'CoA Loot Decider', component: 'loot-decider', platform: 'any', arch: 'any', targetFolder: 'CoALootDecider', installPath: 'Interface/AddOns', file: `CoALootDecider-v${version}.zip`, source: path.resolve('addons', 'CoALootDecider', '..'), only: 'CoALootDecider' },
   { name: 'CoA Message Center', component: 'message-center', platform: 'any', arch: 'any', targetFolder: 'CoAMessageCenter', installPath: 'Interface/AddOns', file: `CoAMessageCenter-v${version}.zip`, source: path.resolve('addons', 'CoAMessageCenter', '..'), only: 'CoAMessageCenter' },
+  { name: 'CoA Heretic Helper', component: 'heretic-helper', contentVersion: '3.7.1', platform: 'any', arch: 'any', targetFolder: 'CoAHereticHelper', installPath: 'Interface/AddOns', file: 'CoAHereticHelper-v3.7.1.zip', source: path.resolve('addons', 'CoAHereticHelper', '..'), only: 'CoAHereticHelper' },
   { name: 'Grid - Compatibilité CoA', component: 'grid-compat', platform: 'any', arch: 'any', targetFolder: 'GridCoA', installPath: 'Interface/AddOns', file: `GridCoA-v${version}.zip`, source: path.resolve('addons', 'GridCoA', '..'), only: 'GridCoA' },
   {
     name: 'EventAlert 4.3.6 + compatibilité CoA', component: 'event-alert', platform: 'any', arch: 'any',
@@ -54,14 +55,16 @@ for (const item of packages) {
     name: item.name, component: item.component, version, platform: item.platform, arch: item.arch,
     targetFolder: item.targetFolder, installPath: item.installPath, file: item.file,
     url: `https://github.com/Cnbz13/coa-tools/releases/download/v${version}/${item.file}`,
-    sha256: digest, size: (await stat(zipFile)).size, ...(item.upstream ? { upstream: item.upstream } : {})
+    sha256: digest, size: (await stat(zipFile)).size,
+    ...(item.contentVersion ? { contentVersion: item.contentVersion } : {}),
+    ...(item.upstream ? { upstream: item.upstream } : {})
   });
 }
 
 const manifest = {
   $schema: './schemas/manifest.schema.json',
   schemaVersion: 1, name: 'CoA Tools', version, channel: process.env.RELEASE_CHANNEL || 'stable',
-  publishedAt: process.env.RELEASE_DATE || '2026-08-16T00:00:00.000Z', minimumNodeVersion: '24.14.0',
+  publishedAt: process.env.RELEASE_DATE || '2026-08-22T00:00:00.000Z', minimumNodeVersion: '24.14.0',
   releaseUrl: `https://github.com/Cnbz13/coa-tools/releases/tag/v${version}`, artifacts
 };
 const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;

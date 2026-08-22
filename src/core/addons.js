@@ -8,7 +8,7 @@ import { ensureDir, readJson, writeJsonAtomic } from '../lib/files.js';
 import { extractZip } from '../lib/zip.js';
 
 export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
-const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'event-alert', 'grid-compat']);
+const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'heretic-helper', 'event-alert', 'grid-compat']);
 const EVENT_ALERT_COMPANION_FOLDER = 'EventAlertCoA';
 const EVENT_ALERT_LEGACY_FOLDER = 'CoAEventAlert';
 const EVENT_ALERT_UPSTREAM_PATH = '/files/456/081/EventAlert-4.3.6.zip';
@@ -174,12 +174,13 @@ export class AddonManager {
       const localVersion = artifact.component === 'event-alert'
         ? installed ? companionInstalled.version : null
         : installed?.version || null;
-      const comparison = installed ? compareAddonVersions(artifact.version, localVersion) : 1;
+      const remoteVersion = artifact.contentVersion || artifact.version;
+      const comparison = installed ? compareAddonVersions(remoteVersion, localVersion) : 1;
       const backups = await this.listBackups(artifact.component);
       managed.push({
         kind: 'managed', component: artifact.component, name: artifact.name, folder: artifact.targetFolder,
         title: installed?.title || artifact.name, notes: installed?.notes || '', localVersion,
-        remoteVersion: artifact.version, installed: Boolean(installed), action: !installed ? 'install' : comparison > 0 ? 'update' : 'reinstall',
+        remoteVersion, installed: Boolean(installed), action: !installed ? 'install' : comparison > 0 ? 'update' : 'reinstall',
         artifact: { file: artifact.file, size: artifact.size, sha256: artifact.sha256, upstream: artifact.upstream || null }, canRollback: backups.length > 0,
         latestBackup: backups[0] || null
       });

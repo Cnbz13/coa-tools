@@ -7,7 +7,7 @@ const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
 test('release manifest describes every managed component and the official EventAlert source', () => {
   assert.equal(manifest.version, pkg.version);
-  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'event-alert', 'grid-compat', 'loot-decider', 'message-center', 'ui-manager']);
+  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'event-alert', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'ui-manager']);
   for (const artifact of manifest.artifacts) {
     assert.equal(artifact.version, pkg.version);
     assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
@@ -15,6 +15,9 @@ test('release manifest describes every managed component and the official EventA
     assert.equal(artifact.url.endsWith(`/${artifact.file}`), true);
     assert.ok(artifact.targetFolder);
   }
+  const hereticHelper = manifest.artifacts.find(item => item.component === 'heretic-helper');
+  assert.equal(hereticHelper.contentVersion, '3.7.1');
+  assert.equal(hereticHelper.targetFolder, 'CoAHereticHelper');
   const eventAlert = manifest.artifacts.find(item => item.component === 'event-alert');
   assert.equal(eventAlert.targetFolder, 'EventAlert');
   assert.equal(eventAlert.upstream.version, '4.3.6');
@@ -35,7 +38,8 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(launcher, /Stage-LatestManagerUpdate/);
   assert.match(launcher, /Apply-PendingManagerUpdate/);
   assert.match(launcher, /Stop-CoAManagerProcesses/);
-  assert.match(launcher, /Get-FileHash[^\n]+SHA256/);
+  assert.match(launcher, /function Get-Sha256Hex/);
+  assert.match(launcher, /Security\.Cryptography\.SHA256/);
   assert.match(launcher, /CoAAddonManager\/ready\.json|updatesRoot 'ready\.json'/);
   assert.match(command, /chcp 65001/);
   assert.match(workflow, /runs-on: windows-latest/);
@@ -45,6 +49,7 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(workflow, /GridCoA-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoALootDecider-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoAMessageCenter-v\$env:RELEASE_VERSION\.zip/);
+  assert.match(workflow, /CoAHereticHelper-v\*\.zip/);
 });
 
 test('Windows AddOns picker is owned and forced to the foreground', async () => {
@@ -110,6 +115,9 @@ test('WoW addon metadata matches the package version', async () => {
     assert.match(toc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));
     assert.match(toc, new RegExp(`^${name}\\.lua$`, 'm'));
   }
+  const hereticToc = await readFile('addons/CoAHereticHelper/CoAHereticHelper.toc', 'utf8');
+  assert.match(hereticToc, /^## Version: 3\.7\.1$/m);
+  assert.match(hereticToc, /^CoAHereticHelper\.lua$/m);
   const compatibilityToc = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.toc', 'utf8');
   const patch = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.lua', 'utf8');
   assert.match(compatibilityToc, /^## Interface: 30300$/m);

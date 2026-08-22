@@ -57,6 +57,18 @@ function Compare-CoAVersion([string]$Left, [string]$Right) {
     catch { return 0 }
 }
 
+function Get-Sha256Hex([string]$Path) {
+    $stream = [IO.File]::OpenRead($Path)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha.Dispose()
+        $stream.Dispose()
+    }
+}
+
 function Stop-CoAManagerProcesses {
     try {
         $runtimePrefix = [IO.Path]::GetFullPath($runtimeRoot).TrimEnd('\') + '\'
@@ -98,7 +110,7 @@ function Apply-PendingManagerUpdate([string]$CurrentVersion) {
     if (-not $archive.StartsWith($updatesPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Archive de mise a jour hors du dossier autorise.' }
     if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw 'Archive de mise a jour introuvable.' }
     if ([string]$ready.sha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'SHA-256 de mise a jour invalide.' }
-    $actualHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actualHash = Get-Sha256Hex $archive
     if ($actualHash -ne ([string]$ready.sha256).ToLowerInvariant()) { throw 'Echec de verification SHA-256 de la mise a jour.' }
     if ($ready.size -and (Get-Item -LiteralPath $archive).Length -ne [int64]$ready.size) { throw 'Taille de mise a jour invalide.' }
     Test-ManagerArchiveEntries $archive
@@ -150,7 +162,7 @@ function Stage-LatestManagerUpdate([string]$CurrentVersion) {
     Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
     Invoke-WebRequest -Uri $uri.AbsoluteUri -OutFile $partial -UseBasicParsing -TimeoutSec 120
     if ((Get-Item -LiteralPath $partial).Length -ne [int64]$artifact.size) { throw 'Taille du telechargement invalide.' }
-    $actualHash = (Get-FileHash -LiteralPath $partial -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actualHash = Get-Sha256Hex $partial
     if ($actualHash -ne ([string]$artifact.sha256).ToLowerInvariant()) { throw 'Echec de verification SHA-256 du telechargement.' }
     Move-Item -LiteralPath $partial -Destination $archive -Force
     @{
@@ -205,7 +217,7 @@ try {
             $line = ($checksums -split "`n" | Where-Object { $_ -match "\s$([regex]::Escape($archiveName))\s*$" } | Select-Object -First 1)
             if (-not $line) { throw 'Empreinte officielle Node.js introuvable.' }
             $expected = ($line.Trim() -split '\s+')[0].ToLowerInvariant()
-            $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+            $actual = Get-Sha256Hex $archive
             if ($actual -ne $expected) { throw 'Échec de la vérification SHA-256 du moteur Node.js.' }
             Expand-Archive -LiteralPath $archive -DestinationPath $temporary -Force
             New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null

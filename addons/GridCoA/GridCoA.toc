@@ -2,7 +2,7 @@
 ## Title: Grid - Compatibilite CoA
 ## Notes: Affiche les affaiblissements dissipables, les controles dangereux et les ralentissements sur le groupe
 ## Author: CoA Tools
-## Version: 1.11.1
+## Version: 1.12.0
 ## RequiredDeps: Grid
 ## SavedVariables: GridCoADB
 

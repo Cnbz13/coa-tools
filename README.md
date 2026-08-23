@@ -55,7 +55,9 @@ CoA UI Manager remplace les fonctions essentielles de MoveAnything : `/cui unloc
 
 Le guide est fermé par défaut et s’ouvre depuis **Centre CoA → Rotations**, avec `/rotation`, ou par son bouton de minicarte autonome lorsque UI Manager n’est pas chargé. Il détecte la classe, la spécialisation CoA active, le niveau, les talents investis et chaque sort réellement appris. Les priorités sourcées sont utilisées lorsqu’un guide suffisamment précis existe ; le reste passe par un classement adaptatif prudent fondé sur les tooltips du spellbook et le rôle du personnage. Un sort absent ou passif n’est jamais proposé.
 
-La préparation reste séparée de la rotation principale pour que les buffs ne masquent pas l’ordre d’action. Les modes **Solo/Groupe** et **ST/AOE** sont sélectionnables dans la fenêtre. Le bouton **Méthode** affiche les sources et la date de la banque hors ligne. Commandes : `/rotation scan`, `/rotation status`, `/rotation st|aoe`, `/rotation solo|groupe`, `/rotation sources`, `/rotation reset`.
+La préparation reste séparée de la rotation principale pour que les buffs ne masquent pas l’ordre d’action. Chaque étape affiche désormais **quoi faire**, **pourquoi le sort vient ici** et **ce qui doit suivre**. L’interface rappelle qu’il s’agit d’une liste de priorité : on lit de haut en bas, on prend le premier sort disponible dont la condition est remplie, puis on recommence. Les guides longs disposent de pages Précédent/Suivant et le survol d’une ligne affiche le tooltip original du sort.
+
+Les modes **Solo/Groupe** et **ST/AOE** sont sélectionnables dans la fenêtre. Les explications précises issues d’un guide sont distinguées des raisonnements adaptatifs déduits du tooltip, du rôle et des talents. Le bouton **Méthode** affiche les sources et la date de la banque hors ligne. Commandes : `/rotation pourquoi`, `/rotation scan`, `/rotation status`, `/rotation st|aoe`, `/rotation solo|groupe`, `/rotation sources`, `/rotation reset`.
 
 ## CoA Loot Decider
 

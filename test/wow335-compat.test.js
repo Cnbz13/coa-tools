@@ -333,6 +333,25 @@ test('UI Manager provides a persistent draggable minimap menu button', async () 
     'the button must remain anchored to the minimap ring');
 });
 
+test('UI Manager always exposes a clickable way to leave mover mode', async () => {
+  const lua = await readFile('addons/CoAUIManager/CoAUIManager.lua', 'utf8');
+  for (const required of [
+    'CoAUIManagerMoveModeExit', 'TERMINER LE DEPLACEMENT',
+    'moveModeExitButton:SetFrameStrata("TOOLTIP")',
+    'moveModeExitButton:SetFrameLevel(10000)',
+    'moveModeExitButton:SetScript("OnClick", LockMovers)',
+    'panel:SetFrameLevel(9000)', 'minimapButton:SetFrameLevel(9500)'
+  ]) assert.ok(lua.includes(required), `missing safe mover exit feature: ${required}`);
+  assert.match(lua, /local function ShowMovers\(\)[\s\S]+moveModeExitButton:Show\(\)/,
+    'unlocking must show the always-on-top exit button');
+  assert.match(lua, /local function LockMovers\(\)[\s\S]+moveModeExitButton:Hide\(\)/,
+    'locking must hide the edit-mode exit button');
+  assert.match(lua, /local function CreateMover\(name\)[\s\S]{0,300}if name == "CoAUIManagerPanel" then return end/,
+    'the Centre CoA must not be covered by a mover for itself');
+  assert.match(lua, /panel:SetScript\("OnDragStop"[\s\S]+FrameSetting\("CoAUIManagerPanel", true\)/,
+    'the Centre CoA must still save its own directly dragged position');
+});
+
 test('UI Manager minimap button is the shared CoA tools hub', async () => {
   const lua = await readFile('addons/CoAUIManager/CoAUIManager.lua', 'utf8');
   for (const required of [

@@ -180,6 +180,7 @@ panel:SetWidth(370)
 panel:SetHeight(215)
 panel:SetPoint("TOP", UIParent, "TOP", 0, -90)
 panel:SetFrameStrata("DIALOG")
+panel:SetFrameLevel(20)
 panel:SetMovable(true)
 panel:EnableMouse(true)
 panel:RegisterForDrag("LeftButton")
@@ -207,7 +208,7 @@ local panelHelp = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 panelHelp:SetPoint("TOPLEFT", panelStatus, "BOTTOMLEFT", 0, -8)
 panelHelp:SetWidth(334)
 panelHelp:SetJustifyH("LEFT")
-panelHelp:SetText("Glisser: position  •  Molette: échelle  •  Maj+molette: alpha\n/cui add NomDuFrame  •  /cui profile global|character")
+panelHelp:SetText("Glisser: position  •  Molette: échelle  •  Maj+molette: alpha\nBouton rouge en haut: terminer  •  /cui add NomDuFrame")
 
 local hubLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 hubLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -94)
@@ -341,6 +342,9 @@ local function AdjustSelectedScale(name, delta, alphaMode)
 end
 
 local function CreateMover(name)
+    -- The Centre CoA is directly draggable. Giving it a mover would cover its
+    -- own Fermer/Verrouiller buttons and could trap the player in edit mode.
+    if name == "CoAUIManagerPanel" then return end
     local target = ResolveFrame(name)
     if not target then return end
     if movers[name] then
@@ -395,16 +399,34 @@ local function CreateMover(name)
     mover:Show()
 end
 
+-- This button is deliberately not a mover target. It stays above every mover,
+-- including MinimapCluster, so the player can always leave edit mode by mouse.
+local moveModeExitButton = CreateFrame("Button", "CoAUIManagerMoveModeExit", UIParent, "UIPanelButtonTemplate")
+moveModeExitButton:SetWidth(250)
+moveModeExitButton:SetHeight(32)
+moveModeExitButton:SetPoint("TOP", UIParent, "TOP", 0, -18)
+moveModeExitButton:SetFrameStrata("TOOLTIP")
+moveModeExitButton:SetFrameLevel(10000)
+moveModeExitButton:SetText("TERMINER LE DEPLACEMENT")
+moveModeExitButton:Hide()
+
 local function ShowMovers()
     if InCombatLockdown and InCombatLockdown() then
         Chat("Impossible de déverrouiller les frames en combat.")
         return
     end
     unlocked = true
+    panel:SetFrameStrata("TOOLTIP")
+    panel:SetFrameLevel(9000)
     panel:Show()
     ForEachFrameName(CreateMover)
+    if minimapButton then
+        minimapButton:SetFrameStrata("TOOLTIP")
+        minimapButton:SetFrameLevel(9500)
+    end
+    moveModeExitButton:Show()
     UpdatePanelStatus()
-    Chat("Movers déverrouillés. Glissez-les puis utilisez /cui lock.")
+    Chat("Movers déverrouillés. Cliquez sur TERMINER LE DEPLACEMENT ou utilisez /cui lock.")
 end
 
 local function HideMovers()
@@ -419,12 +441,20 @@ end
 local function LockMovers()
     unlocked = false
     HideMovers()
+    moveModeExitButton:Hide()
+    panel:SetFrameStrata("DIALOG")
+    panel:SetFrameLevel(20)
+    if minimapButton then
+        minimapButton:SetFrameStrata("HIGH")
+        minimapButton:SetFrameLevel(20)
+    end
     ApplyAll()
     UpdatePanelStatus()
     Chat("Positions enregistrées et movers verrouillés.")
 end
 
 lockButton:SetScript("OnClick", LockMovers)
+moveModeExitButton:SetScript("OnClick", LockMovers)
 
 local function TogglePanel()
     if panel:IsVisible() then
@@ -486,6 +516,7 @@ local function BuildMinimapButton()
     minimapButton:SetWidth(32)
     minimapButton:SetHeight(32)
     minimapButton:SetFrameStrata("HIGH")
+    minimapButton:SetFrameLevel(20)
     minimapButton:SetClampedToScreen(true)
     minimapButton:SetMovable(true)
     minimapButton:EnableMouse(true)
@@ -568,12 +599,10 @@ panel:SetScript("OnDragStart", function(self)
 end)
 panel:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
-    if not unlocked then
-        local centerX, centerY = self:GetCenter()
-        if centerX and centerY then
-            local setting = FrameSetting("CoAUIManagerPanel", true)
-            setting.point, setting.relativePoint, setting.x, setting.y = "CENTER", "BOTTOMLEFT", centerX, centerY
-        end
+    local centerX, centerY = self:GetCenter()
+    if centerX and centerY then
+        local setting = FrameSetting("CoAUIManagerPanel", true)
+        setting.point, setting.relativePoint, setting.x, setting.y = "CENTER", "BOTTOMLEFT", centerX, centerY
     end
 end)
 

@@ -47,7 +47,7 @@ Commandes :
 
 ## CoA UI Manager
 
-CoA UI Manager remplace les fonctions essentielles de MoveAnything : `/cui unlock` affiche les movers, `/cui lock` enregistre, et `/cui profile global|character` change de profil. La molette règle l’échelle, Maj+molette règle l’alpha, et `/cui add NomDuFrame` ajoute un frame Lua personnalisé. Aucun frame sécurisé n’est déplacé pendant un combat.
+CoA UI Manager remplace les fonctions essentielles de MoveAnything : `/cui unlock` affiche les movers, le bouton toujours visible **TERMINER LE DÉPLACEMENT** ou `/cui lock` enregistre et quitte ce mode, et `/cui profile global|character` change de profil. La molette règle l’échelle, Maj+molette règle l’alpha, et `/cui add NomDuFrame` ajoute un frame Lua personnalisé. Aucun frame sécurisé n’est déplacé pendant un combat.
 
 ## CoA Loot Decider
 

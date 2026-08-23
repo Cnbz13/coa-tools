@@ -8,7 +8,8 @@ local DEFAULT_FRAMES = {
     "BonusActionBarFrame", "PetActionBarFrame", "ShapeshiftBarFrame", "PossessBarFrame",
     "CoACombatAssistantFrame", "EA_Main_Frame", "EA_Anchor_Frame", "CoAUIManagerPanel",
     "CoALootDeciderBanner", "CoALootAdvisorWindow", "CoAHereticProcAnchor",
-    "CoAHereticBlackBloodTracker", "CoAHereticHUDMenu", "CoAMessageCenterFrame"
+    "CoAHereticBlackBloodTracker", "CoAHereticHUDMenu", "CoAMessageCenterFrame",
+    "CoARotationGuideFrame"
 }
 
 local FRAME_LABELS = {
@@ -25,7 +26,8 @@ local FRAME_LABELS = {
     EA_Anchor_Frame = "Ancre EventAlert", CoAUIManagerPanel = "Centre CoA",
     CoALootDeciderBanner = "Décision de butin", CoALootAdvisorWindow = "Comparateur de butin",
     CoAHereticProcAnchor = "Heretic : proc", CoAHereticBlackBloodTracker = "Heretic : Sang noir",
-    CoAHereticHUDMenu = "Réglages Heretic", CoAMessageCenterFrame = "Messages CoA"
+    CoAHereticHUDMenu = "Réglages Heretic", CoAMessageCenterFrame = "Messages CoA",
+    CoARotationGuideFrame = "Guide de rotation"
 }
 
 local movers = {}
@@ -217,16 +219,17 @@ hubLabel:SetTextColor(0.35, 0.82, 1.00)
 
 local function HubButton(text, x)
     local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-    button:SetWidth(104)
+    button:SetWidth(78)
     button:SetHeight(24)
     button:SetPoint("TOPLEFT", panel, "TOPLEFT", x, -112)
     button:SetText(text)
     return button
 end
 
-local lootHubButton = HubButton("Loot Decider", 18)
-local hereticHubButton = HubButton("Heretic", 133)
-local messagesHubButton = HubButton("Messages", 248)
+local lootHubButton = HubButton("Butin", 18)
+local hereticHubButton = HubButton("Heretic", 101)
+local rotationHubButton = HubButton("Rotations", 184)
+local messagesHubButton = HubButton("Messages", 267)
 
 local hubHint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 hubHint:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -143)
@@ -244,6 +247,13 @@ hereticHubButton:SetScript("OnClick", function()
         Chat("CoA Heretic Helper n'est pas chargé pour ce personnage.")
     end
 end)
+rotationHubButton:SetScript("OnClick", function()
+    if CoARotationGuideAPI and CoARotationGuideAPI.Toggle then
+        CoARotationGuideAPI:Toggle()
+    else
+        Chat("CoA Rotation Guide n'est pas chargé.")
+    end
+end)
 messagesHubButton:SetScript("OnClick", function()
     if CoAMessageCenter and CoAMessageCenter.Toggle then CoAMessageCenter:Toggle()
     else Chat("CoA Message Center n'est pas chargé.") end
@@ -257,9 +267,11 @@ end
 
 local function UpdateHubAvailability()
     if CoAHereticHelperAPI and CoAHereticHelperAPI.SetHubManaged then CoAHereticHelperAPI:SetHubManaged(true) end
+    if CoARotationGuideAPI and CoARotationGuideAPI.SetHubManaged then CoARotationGuideAPI:SetHubManaged(true) end
     if CoAMessageCenter and CoAMessageCenter.SetHubManaged then CoAMessageCenter:SetHubManaged(true) end
     if CoALootAdvisor_Toggle then lootHubButton:Enable() else lootHubButton:Disable() end
     if CoAHereticHelperAPI and CoAHereticHelperAPI.Toggle then hereticHubButton:Enable() else hereticHubButton:Disable() end
+    if CoARotationGuideAPI and CoARotationGuideAPI.Toggle then rotationHubButton:Enable() else rotationHubButton:Disable() end
     if CoAMessageCenter and CoAMessageCenter.Toggle then messagesHubButton:Enable() else messagesHubButton:Disable() end
     UpdateHubBadge()
 end

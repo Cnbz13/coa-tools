@@ -7,7 +7,7 @@ const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
 test('release manifest describes every managed component and the official EventAlert source', () => {
   assert.equal(manifest.version, pkg.version);
-  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'event-alert', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'ui-manager']);
+  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'event-alert', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'rotation-guide', 'ui-manager']);
   for (const artifact of manifest.artifacts) {
     assert.equal(artifact.version, pkg.version);
     assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
@@ -49,6 +49,7 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(workflow, /GridCoA-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoALootDecider-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoAMessageCenter-v\$env:RELEASE_VERSION\.zip/);
+  assert.match(workflow, /CoARotationGuide-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoAHereticHelper-v\*\.zip/);
 });
 
@@ -123,7 +124,7 @@ test('addon manager exposes sourced CoA watch recommendations without automatic 
 });
 
 test('WoW addon metadata matches the package version', async () => {
-  for (const name of ['CoACombatAssistant', 'CoAUIManager', 'CoALootDecider', 'CoAMessageCenter', 'GridCoA']) {
+  for (const name of ['CoACombatAssistant', 'CoAUIManager', 'CoALootDecider', 'CoAMessageCenter', 'CoARotationGuide', 'GridCoA']) {
     const toc = await readFile(`addons/${name}/${name}.toc`, 'utf8');
     assert.match(toc, /^## Interface: \d+/m);
     assert.match(toc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));

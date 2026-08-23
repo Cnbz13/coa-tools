@@ -2,21 +2,23 @@
 
 > Depuis la version 1.2.1, le manager installe le **véritable EventAlert 4.3.6** pour WoW 3.3.5 depuis sa publication CurseForge, accompagné d’un chargeur de compatibilité CoA minimal. Le chargeur survit aux réparations du dossier officiel par Ascension, conserve l’interface, les sons, les options et `/ea` d’origine, et apprend automatiquement les procs et réactions `SPELL_ACTIVE` de CoA.
 
-Suite locale sans télémétrie regroupant trois outils :
+Suite locale sans télémétrie regroupant les outils CoA suivants :
 
 - **CoA Combat Assistant** — addon WoW de recommandations visuelles et de mémoire des combats ;
 - **CoA UI Manager** — gestionnaire complet de positions, profils, échelle et alpha ;
+- **CoA Rotation Guide** — guide hors ligne consultable, adapté à la classe, la spécialisation, au niveau, au spellbook et aux talents actifs ;
 - **CoA Addon Manager** — application Windows qui détecte Project Ascension et gère automatiquement les addons CoA.
 
 ## Artefacts installables
 
-Chaque release publie huit ZIP :
+Chaque release publie neuf ZIP :
 
 - `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
 - `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans le dossier `Interface/AddOns` de Project Ascension ;
 - `CoAUIManager-vX.Y.Z.zip` : extrayez le dossier `CoAUIManager` dans le dossier `Interface/AddOns` de Project Ascension.
 - `CoALootDecider-vX.Y.Z.zip` : compare automatiquement le butin, les sacs, la banque, les vendeurs PNJ et tout lien d'objet avec l'équipement et le profil de spécialisation du personnage ; ajoute des contours vert/jaune/rouge, un pourcentage dans les icônes, un diagnostic dans les tooltips et la fenêtre `/cld gear` ;
 - `CoAMessageCenter-vX.Y.Z.zip` : centralise les messages des addons CoA hors du chat général ;
+- `CoARotationGuide-vX.Y.Z.zip` : ouvre un guide de priorités ST/AOE et solo/groupe, toujours filtré par les sorts réellement appris ;
 - `CoAHereticHelper-v3.9.0.zip` : HUD visuel compact dédié au Cultist Heretic heal, avec diagnostic au survol, sons séparés, seuils Sang noir réglables, proc de Soin occulte et couverture membre par membre ;
 - `GridCoA-vX.Y.Z.zip` : compagnon du véritable Grid ; il détecte les dissipations apprises et réserve l’icône centrale aux seuls affaiblissements que le personnage peut retirer.
 - `EventAlertCoA-vX.Y.Z.zip` : couche de compatibilité appliquée automatiquement par le manager au véritable EventAlert 4.3.6. Le code original, sous licence « All Rights Reserved », est téléchargé séparément depuis [sa fiche CurseForge officielle](https://www.curseforge.com/wow/addons/event-alert/files/456081), puis vérifié par taille et SHA-256.
@@ -48,6 +50,12 @@ Commandes :
 ## CoA UI Manager
 
 CoA UI Manager remplace les fonctions essentielles de MoveAnything : `/cui unlock` affiche les movers, le bouton toujours visible **TERMINER LE DÉPLACEMENT** ou `/cui lock` enregistre et quitte ce mode, et `/cui profile global|character` change de profil. La molette règle l’échelle, Maj+molette règle l’alpha, et `/cui add NomDuFrame` ajoute un frame Lua personnalisé. Aucun frame sécurisé n’est déplacé pendant un combat.
+
+## CoA Rotation Guide
+
+Le guide est fermé par défaut et s’ouvre depuis **Centre CoA → Rotations**, avec `/rotation`, ou par son bouton de minicarte autonome lorsque UI Manager n’est pas chargé. Il détecte la classe, la spécialisation CoA active, le niveau, les talents investis et chaque sort réellement appris. Les priorités sourcées sont utilisées lorsqu’un guide suffisamment précis existe ; le reste passe par un classement adaptatif prudent fondé sur les tooltips du spellbook et le rôle du personnage. Un sort absent ou passif n’est jamais proposé.
+
+La préparation reste séparée de la rotation principale pour que les buffs ne masquent pas l’ordre d’action. Les modes **Solo/Groupe** et **ST/AOE** sont sélectionnables dans la fenêtre. Le bouton **Méthode** affiche les sources et la date de la banque hors ligne. Commandes : `/rotation scan`, `/rotation status`, `/rotation st|aoe`, `/rotation solo|groupe`, `/rotation sources`, `/rotation reset`.
 
 ## CoA Loot Decider
 

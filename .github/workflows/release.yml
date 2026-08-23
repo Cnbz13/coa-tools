@@ -45,6 +45,7 @@ jobs:
             "dist/CoAUIManager-v$env:RELEASE_VERSION.zip",
             "dist/CoALootDecider-v$env:RELEASE_VERSION.zip",
             "dist/CoAMessageCenter-v$env:RELEASE_VERSION.zip",
+            "dist/CoARotationGuide-v$env:RELEASE_VERSION.zip",
             $hereticHelper,
             "dist/GridCoA-v$env:RELEASE_VERSION.zip",
             "dist/EventAlertCoA-v$env:RELEASE_VERSION.zip",

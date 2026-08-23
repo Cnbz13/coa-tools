@@ -1,0 +1,64 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import luaparse from 'luaparse';
+
+const luaPromise = readFile('addons/CoARotationGuide/CoARotationGuide.lua', 'utf8');
+const dataPromise = readFile('addons/CoARotationGuide/CoARotationData.lua', 'utf8');
+
+test('Rotation Guide embeds all CoA class/spec profiles and dated sources', async () => {
+  const data = await dataPromise;
+  for (const className of [
+    'Barbarian', 'Witch Doctor', 'Felsworn', 'Witch Hunter', 'Stormbringer',
+    'Knight of Xoroth', 'Guardian', 'Templar', 'Bloodmage', 'Ranger',
+    'Chronomancer', 'Necromancer', 'Pyromancer', 'Cultist', 'Starcaller',
+    'Sun Cleric', 'Tinker', 'Venomancer', 'Reaper', 'Primalist', 'Runemaster'
+  ]) assert.ok(data.includes(`Add("${className}"`), `missing CoA class ${className}`);
+  assert.ok((data.match(/^Add\("/gm) ?? []).length >= 69, 'offline bank must cover the full CoA specialization roster');
+  for (const source of ['ascension.gg/en/changelog/4', 'coabuildhub.com/', 'github.com/srhinos/coa-datamine']) {
+    assert.ok(data.includes(source), `missing source ${source}`);
+  }
+  assert.match(data, /sourceDate = "2026-08-23"/);
+  assert.match(data, /talentPatch = "2026-08-19"/);
+});
+
+test('Rotation Guide filters sourced priorities through the learned spellbook', async () => {
+  const [lua, data] = await Promise.all([luaPromise, dataPromise]);
+  for (const required of [
+    'GetNumSpellTabs', 'GetSpellTabInfo', 'GetSpellName', 'IsPassiveSpell',
+    'CoARotationGuideScannerTooltip', 'SetSpellBookItem', 'ScanSpellbook',
+    'GetNumTalentTabs', 'GetNumTalents', 'GetTalentInfo', 'ScanTalents',
+    'C_ClassInfo.GetAllSpecs', 'C_ClassInfo.GetSpecInfo', 'GetSpecializationInfo',
+    'UnitLevel("player")', 'ResolveActiveSpecialization', 'TalentPromotion',
+    'if spellbook[Lower(name)]', 'if not spell or spell.passive',
+    'CoARotationGuideDB.context', 'CoARotationGuideDB.content'
+  ]) assert.ok(lua.includes(required), `adaptive engine is missing ${required}`);
+  for (const profile of ['Guardian:Gladiator', 'Necromancer:Animation', 'Cultist:Heretic', 'Sun Cleric:Valkyrie']) {
+    assert.ok(data.includes(`["${profile}"]`), `curated profile missing ${profile}`);
+  }
+  assert.match(data, /"Ram", "Centurion Strike", "Reprisal", "Pulverize"/);
+  assert.match(data, /"Harvest Plague"[\s\S]+"Command: Undead"[\s\S]+"Blight"/);
+  assert.match(data, /"Malevolence", "Blade of the Empire", "Hammer of Twilight"/);
+  assert.match(data, /"Dawn", "Paragon", "Dawnfall"/);
+});
+
+test('Rotation Guide keeps preparation separate and never automates gameplay', async () => {
+  const lua = await luaPromise;
+  for (const required of [
+    'Preparation separee', 'Avant le combat :', 'CoARotationGuideFrame',
+    'CoARotationGuideMinimapButton', 'CoARotationGuideAPI:SetHubManaged',
+    'SLASH_COAROTATIONGUIDE1 = "/rotation"', 'buttons.sources',
+    'viewMode == "SOURCES"', 'Banque hors ligne'
+  ]) assert.ok(lua.includes(required), `UI is missing ${required}`);
+  assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
+  assert.doesNotMatch(lua, /BackdropTemplate|SetShown|SetSize|C_Timer|CombatLogGetCurrentEventInfo|RegisterUnitEvent|AuraUtil|Enum\./);
+  assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
+});
+
+test('Rotation Guide release metadata targets Ascension 3.3.5', async () => {
+  const toc = await readFile('addons/CoARotationGuide/CoARotationGuide.toc', 'utf8');
+  assert.match(toc, /^## Interface: 30300$/m);
+  assert.match(toc, /^## Version: 1\.11\.0$/m);
+  assert.match(toc, /^## SavedVariables: CoARotationGuideDB$/m);
+  assert.match(toc, /^CoARotationData\.lua\r?\nCoARotationGuide\.lua$/m);
+});

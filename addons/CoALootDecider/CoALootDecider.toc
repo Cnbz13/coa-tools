@@ -2,7 +2,7 @@
 ## Title: CoA Loot Decider
 ## Notes: Compare equipement, sacs, banque, marchands et butin avec 70 profils CoA adaptatifs au niveau, spellbook et talents.
 ## Author: Cnbz13
-## Version: 1.9.2
+## Version: 1.9.3
 ## SavedVariables: CoALootDeciderDB
 
 CoALootTalentData.lua

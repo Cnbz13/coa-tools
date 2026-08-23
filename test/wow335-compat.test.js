@@ -315,3 +315,18 @@ test('UI Manager provides persistent movers and never applies frames during comb
   assert.doesNotMatch(lua, /if not setting then\s*RestoreOriginal/, 'Unconfigured addon frames must keep their own position');
   assert.match(lua, /local function ResetFrame[\s\S]+RestoreOriginal\(name, target\)/, 'Explicit reset must still restore the captured position');
 });
+
+test('UI Manager provides a persistent draggable minimap menu button', async () => {
+  const lua = await readFile('addons/CoAUIManager/CoAUIManager.lua', 'utf8');
+  for (const required of [
+    'CoAUIManagerMinimapButton', 'INV_Misc_Gear_01', 'BuildMinimapButton',
+    'CoAUIManagerDB.minimap.angle', 'CoAUIManagerDB.minimap.hidden',
+    'RegisterForClicks("LeftButtonUp", "RightButtonUp")', 'RegisterForDrag("LeftButton")',
+    'GetCursorPosition()', 'PositionMinimapButton', 'TogglePanel',
+    'command == "minimap"', '/cui minimap show|hide|reset'
+  ]) assert.ok(lua.includes(required), `UI Manager minimap button is missing ${required}`);
+  assert.match(lua, /if button == "RightButton" then[\s\S]+LockMovers\(\)[\s\S]+ShowMovers\(\)/,
+    'right-click must toggle UI movers');
+  assert.match(lua, /math\.cos\(angle\) \* radius, math\.sin\(angle\) \* radius/,
+    'the button must remain anchored to the minimap ring');
+});

@@ -30,6 +30,7 @@ local selectedName = nil
 local pendingApply = false
 local scheduledAt = {}
 local initialized = false
+local minimapButton = nil
 
 local function Chat(message)
     if DEFAULT_CHAT_FRAME then
@@ -65,6 +66,9 @@ local function EnsureDatabase()
     CoAUIManagerDB.profiles.characters = CoAUIManagerDB.profiles.characters or {}
     CoAUIManagerDB.characterModes = CoAUIManagerDB.characterModes or {}
     CoAUIManagerDB.customFrames = CoAUIManagerDB.customFrames or {}
+    CoAUIManagerDB.minimap = CoAUIManagerDB.minimap or {}
+    if type(CoAUIManagerDB.minimap.angle) ~= "number" then CoAUIManagerDB.minimap.angle = 3.9 end
+    if type(CoAUIManagerDB.minimap.hidden) ~= "boolean" then CoAUIManagerDB.minimap.hidden = false end
 end
 
 local function ProfileMode()
@@ -361,6 +365,136 @@ end
 
 lockButton:SetScript("OnClick", LockMovers)
 
+local function TogglePanel()
+    if panel:IsVisible() then
+        panel:Hide()
+    else
+        panel:Show()
+        UpdatePanelStatus()
+    end
+end
+
+local function Atan2(y, x)
+    if x > 0 then return math.atan(y / x) end
+    if x < 0 and y >= 0 then return math.atan(y / x) + math.pi end
+    if x < 0 and y < 0 then return math.atan(y / x) - math.pi end
+    if x == 0 and y > 0 then return math.pi / 2 end
+    if x == 0 and y < 0 then return -math.pi / 2 end
+    return 0
+end
+
+local function PositionMinimapButton()
+    if not minimapButton then return end
+    EnsureDatabase()
+    minimapButton:ClearAllPoints()
+    if Minimap then
+        local angle = CoAUIManagerDB.minimap.angle or 3.9
+        local radius = 80
+        minimapButton:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * radius, math.sin(angle) * radius)
+    else
+        minimapButton:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -210, -20)
+    end
+end
+
+local function SetMinimapButtonVisible(visible)
+    EnsureDatabase()
+    CoAUIManagerDB.minimap.hidden = not visible
+    if minimapButton then
+        if visible then
+            PositionMinimapButton()
+            minimapButton:Show()
+        else
+            minimapButton:Hide()
+        end
+    end
+end
+
+local function ResetMinimapButton()
+    EnsureDatabase()
+    CoAUIManagerDB.minimap.angle = 3.9
+    CoAUIManagerDB.minimap.hidden = false
+    PositionMinimapButton()
+    if minimapButton then minimapButton:Show() end
+end
+
+local function BuildMinimapButton()
+    if minimapButton then return end
+    EnsureDatabase()
+    local iconWasDragged = false
+    minimapButton = CreateFrame("Button", "CoAUIManagerMinimapButton", UIParent)
+    minimapButton:SetWidth(32)
+    minimapButton:SetHeight(32)
+    minimapButton:SetFrameStrata("HIGH")
+    minimapButton:SetClampedToScreen(true)
+    minimapButton:SetMovable(true)
+    minimapButton:EnableMouse(true)
+    minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    minimapButton:RegisterForDrag("LeftButton")
+
+    local icon = minimapButton:CreateTexture(nil, "BACKGROUND")
+    icon:SetWidth(22)
+    icon:SetHeight(22)
+    icon:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_01")
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    local border = minimapButton:CreateTexture(nil, "OVERLAY")
+    border:SetWidth(52)
+    border:SetHeight(52)
+    border:SetPoint("TOPLEFT", minimapButton, "TOPLEFT", 0, 0)
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+
+    local highlight = minimapButton:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetWidth(32)
+    highlight:SetHeight(32)
+    highlight:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
+    highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    highlight:SetBlendMode("ADD")
+
+    minimapButton:SetScript("OnMouseDown", function() iconWasDragged = false end)
+    minimapButton:SetScript("OnDragStart", function(self)
+        iconWasDragged = true
+        self:SetScript("OnUpdate", function()
+            if not Minimap then return end
+            local cursorX, cursorY = GetCursorPosition()
+            local scale = UIParent:GetEffectiveScale() or 1
+            local minimapX, minimapY = Minimap:GetCenter()
+            if not minimapX or not minimapY then return end
+            cursorX, cursorY = cursorX / scale, cursorY / scale
+            CoAUIManagerDB.minimap.angle = Atan2(cursorY - minimapY, cursorX - minimapX)
+            PositionMinimapButton()
+        end)
+    end)
+    minimapButton:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
+        PositionMinimapButton()
+    end)
+    minimapButton:SetScript("OnClick", function(_, button)
+        if iconWasDragged then
+            iconWasDragged = false
+            return
+        end
+        if button == "RightButton" then
+            if unlocked then LockMovers() else ShowMovers() end
+        else
+            TogglePanel()
+        end
+    end)
+    minimapButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:AddLine("CoA UI Manager", 1, 0.82, 0.20)
+        GameTooltip:AddLine("Clic gauche : ouvrir les réglages.", 1, 1, 1)
+        GameTooltip:AddLine("Clic droit : verrouiller/déverrouiller l'interface.", 1, 1, 1)
+        GameTooltip:AddLine("Glisser : déplacer l'icône autour de la minicarte.", 0.65, 0.78, 1)
+        GameTooltip:AddLine("/cui minimap hide pour masquer l'icône.", 0.65, 0.72, 0.80)
+        GameTooltip:Show()
+    end)
+    minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    PositionMinimapButton()
+    if CoAUIManagerDB.minimap.hidden then minimapButton:Hide() else minimapButton:Show() end
+end
+
 panel:SetScript("OnDragStart", function(self)
     if InCombatLockdown and InCombatLockdown() then return end
     self:StartMoving()
@@ -402,6 +536,7 @@ end)
 eventFrame:SetScript("OnEvent", function(_, event, loaded)
     if event == "ADDON_LOADED" and loaded == addonName then
         EnsureDatabase()
+        BuildMinimapButton()
         initialized = true
         ScheduleApply()
     elseif not initialized then
@@ -414,6 +549,7 @@ eventFrame:SetScript("OnEvent", function(_, event, loaded)
         ScheduleApply()
         if unlocked then ForEachFrameName(CreateMover) end
     elseif event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
+        PositionMinimapButton()
         ScheduleApply()
     elseif event == "ADDON_LOADED" then
         ScheduleApply()
@@ -457,6 +593,7 @@ end
 local function PrintHelp()
     Chat("/cui unlock | lock | profile global|character | add FrameLua")
     Chat("/cui select FrameLua | scale 1.0 | alpha 1.0 | size largeur hauteur | reset")
+    Chat("/cui minimap show|hide|reset")
 end
 
 SLASH_COAUI1 = "/cui"
@@ -511,17 +648,26 @@ SlashCmdList.COAUI = function(message)
         else Chat("Sélectionnez d'abord un mover.") end
     elseif command == "reset" then
         ResetFrame(selectedName)
+    elseif command == "minimap" then
+        local action = string.lower(arguments or "")
+        if action == "hide" or action == "masquer" then
+            SetMinimapButtonVisible(false)
+            Chat("Bouton de minicarte masqué. /cui minimap show pour le retrouver.")
+        elseif action == "show" or action == "afficher" then
+            SetMinimapButtonVisible(true)
+            Chat("Bouton de minicarte affiché.")
+        elseif action == "reset" then
+            ResetMinimapButton()
+            Chat("Position du bouton de minicarte réinitialisée.")
+        else
+            Chat("Usage: /cui minimap show|hide|reset")
+        end
     elseif command == "status" then
         Chat("Profil " .. ProfileMode() .. ", movers " .. (unlocked and "déverrouillés" or "verrouillés") .. ", sélection " .. (selectedName or "aucune"))
     elseif command == "help" then
         PrintHelp()
     elseif command == "" then
-        if panel:IsVisible() then
-            panel:Hide()
-        else
-            panel:Show()
-            UpdatePanelStatus()
-        end
+        TogglePanel()
     else
         PrintHelp()
     end

@@ -227,7 +227,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.adaptiveBuilds = CoALootDeciderDB.adaptiveBuilds or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.9.2-adaptive-talents"
+    CoALootDeciderDB.version = "1.9.3-adaptive-talents"
 end
 
 local function ReadItemStats(itemLink)

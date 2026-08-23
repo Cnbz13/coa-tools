@@ -156,3 +156,26 @@ test('CoA Loot Advisor compares bags, bank, merchants, loot and universal item t
   assert.match(lua, /INVTYPE_WEAPONOFFHAND[\s\S]+necessite aussi une arme a une main compatible/,
     'an off-hand item cannot be recommended alone behind an equipped two-hander');
 });
+
+test('CoA Loot Decider preserves the local 1.9 BagAware and fit-scoring behavior', async () => {
+  const toc = await readFile(tocPath, 'utf8');
+  const lua = await readFile(luaPath, 'utf8');
+  const advisor = await readFile(advisorPath, 'utf8');
+  assert.match(toc, /^## Version: 1\.9\.1$/m,
+    'the published addon must be newer than the installed 1.9.0 custom build');
+  for (const required of [
+    'ScanBagItems', 'profile.bagItems = ScanBagItems()', 'OwnedBaselineFor',
+    'SameOwnedSlot', 'meilleur en sac', 'FitScore', 'FitTier',
+    'RequiredUpgradeForFit', 'fitScore = fitScore', 'currentFitScore',
+    'isCultistHeretic', 'isBloodmageSanguine', 'bannerPosition',
+    'GetItemInfoInstant', 'classID', 'subClassID'
+  ]) assert.ok(lua.includes(required), `missing merged 1.9 behavior: ${required}`);
+  assert.match(lua, /baselineIndex = \(candidate\.equipLoc == "INVTYPE_FINGER"[\s\S]+pool\[baselineIndex\]/,
+    'rings must compare against the second-best owned ring');
+  assert.match(lua, /excludeOwnedCopy[\s\S]+data\.link == candidate\.link/,
+    'an item displayed in a bag must be compared without counting itself as its baseline');
+  assert.match(advisor, /Analyze\(link, source == "Sacs"\)/,
+    'bag candidates must opt into self-exclusion');
+  assert.equal(lua.includes('C_Container'), false,
+    'the merged scanner must remain strict Ascension 3.3.5');
+});

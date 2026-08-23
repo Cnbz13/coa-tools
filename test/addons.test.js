@@ -26,6 +26,8 @@ test('TOC metadata and addon versions are parsed tolerantly', () => {
   });
   assert.ok(compareAddonVersions('1.0.4', 'v1.0.3') > 0);
   assert.equal(compareAddonVersions('1.0.4', '1.0.4'), 0);
+  assert.ok(compareAddonVersions('1.9.1', '1.9.0-Heretic-Sanguine-BagAware') > 0,
+    'the repaired release must update the real custom 1.9.0 installation');
 });
 
 test('manager installs genuine EventAlert with a repair-resistant CoA companion and backs up both folders', async () => {

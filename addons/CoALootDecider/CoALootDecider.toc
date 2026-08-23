@@ -1,8 +1,8 @@
 ## Interface: 30300
 ## Title: CoA Loot Decider
-## Notes: Compare butin, sacs, banque, marchands et tous les liens d'objets au profil CoA actif.
+## Notes: Compare equipement, sacs, banque, marchands et butin avec 70 profils CoA et une reference BagAware.
 ## Author: Cnbz13
-## Version: 1.5.8
+## Version: 1.9.1
 ## SavedVariables: CoALootDeciderDB
 
 CoALootProfiles.lua

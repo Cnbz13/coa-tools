@@ -85,13 +85,14 @@ local function ShortPercent(value)
     return api.Round(value, 0) .. "%"
 end
 
-local function Analyze(link)
+local function Analyze(link, excludeOwnedCopy)
     if not link then return nil end
     local settings = EnsureSettings()
     if not settings.enabled then return nil end
-    if analysisCache[link] then return analysisCache[link] end
-    local analysis = api.AnalyzeItem(link, false)
-    if analysis then analysisCache[link] = analysis end
+    local cacheKey = tostring(link) .. (excludeOwnedCopy and ":owned" or ":external")
+    if analysisCache[cacheKey] then return analysisCache[cacheKey] end
+    local analysis = api.AnalyzeItem(link, false, excludeOwnedCopy and true or false)
+    if analysis then analysisCache[cacheKey] = analysis end
     return analysis
 end
 
@@ -120,13 +121,13 @@ local function EnsureOverlay(button)
     return overlay
 end
 
-local function PaintButton(button, link)
+local function PaintButton(button, link, excludeOwnedCopy)
     local overlay = EnsureOverlay(button)
     if not overlay then return end
     overlay:Hide()
     if not link then return end
 
-    local analysis = Analyze(link)
+    local analysis = Analyze(link, excludeOwnedCopy)
     if not analysis or analysis.nonEquipable then return end
     if not analysis.candidateScore then
         if analysis.candidate and analysis.candidate.equipLoc then
@@ -166,7 +167,7 @@ local function UpdateBagButtons()
                     local bag = container.GetID and container:GetID() or nil
                     local slot = button.GetID and button:GetID() or nil
                     local link = bag and slot and GetContainerItemLink and GetContainerItemLink(bag, slot) or nil
-                    PaintButton(button, link)
+                    PaintButton(button, link, true)
                 end
             end
         end
@@ -184,7 +185,7 @@ local function UpdateMerchantButtons()
         local button = _G["MerchantItem" .. buttonIndex .. "ItemButton"]
         local link = merchantOpen and GetMerchantItemLink
             and GetMerchantItemLink(MerchantIndex(buttonIndex)) or nil
-        if button then PaintButton(button, link) end
+        if button then PaintButton(button, link, false) end
     end
 end
 
@@ -194,7 +195,7 @@ local function UpdateLootButtons()
         local button = _G["LootButton" .. index]
         local slot = button and button.GetID and button:GetID() or index
         local link = button and GetLootSlotLink and GetLootSlotLink(slot) or nil
-        if button then PaintButton(button, link) end
+        if button then PaintButton(button, link, false) end
     end
 end
 
@@ -444,7 +445,7 @@ advisorWindow.hint:SetPoint("BOTTOMRIGHT", advisorWindow, "BOTTOMRIGHT", -22, 24
 advisorWindow.hint:SetText("Vert = mieux | Jaune = incertain | Rouge = moins bien")
 
 local function AddCandidate(best, link, source)
-    local analysis = Analyze(link)
+    local analysis = Analyze(link, source == "Sacs")
     if not analysis or not analysis.candidate or not analysis.candidateScore then return end
     local equipLoc = analysis.candidate.equipLoc
     if not SLOT_NAMES[equipLoc] then return end

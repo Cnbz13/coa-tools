@@ -188,6 +188,14 @@ local function Lower(value)
     return string.lower(value or "")
 end
 
+local function PlayerLevel()
+    if type(UnitLevel) == "function" then
+        local ok, value = pcall(UnitLevel, "player")
+        if ok and tonumber(value) then return tonumber(value) end
+    end
+    return 1
+end
+
 local function EnsureDatabase()
     CoALootDeciderDB = CoALootDeciderDB or {}
     if CoALootDeciderDB.autoRoll == nil then CoALootDeciderDB.autoRoll = true end
@@ -217,7 +225,8 @@ local function EnsureDatabase()
     end
     CoALootDeciderDB.customWeights = CoALootDeciderDB.customWeights or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
-    CoALootDeciderDB.version = "0.3.0"
+    CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
+    CoALootDeciderDB.version = "1.9.1-bag-aware-universal"
 end
 
 local function ReadItemStats(itemLink)
@@ -260,6 +269,22 @@ local function ItemData(itemLink)
     if not itemLink or not GetItemInfo then return nil end
     local name, link, quality, itemLevel, requiredLevel, itemType, itemSubType, stackCount, equipLoc, texture = GetItemInfo(itemLink)
     if not name or not equipLoc then return nil end
+    local classID, subClassID
+    if type(GetItemInfoInstant) == "function" then
+        local ok, _, _, _, _, _, resolvedClassID, resolvedSubClassID = pcall(GetItemInfoInstant, link or itemLink)
+        if ok then
+            classID = tonumber(resolvedClassID)
+            subClassID = tonumber(resolvedSubClassID)
+        end
+    end
+
+    local isWeapon = equipLoc == "INVTYPE_2HWEAPON"
+        or equipLoc == "INVTYPE_WEAPON"
+        or equipLoc == "INVTYPE_WEAPONMAINHAND"
+        or equipLoc == "INVTYPE_WEAPONOFFHAND"
+        or equipLoc == "INVTYPE_RANGED"
+        or equipLoc == "INVTYPE_RANGEDRIGHT"
+
     return {
         name = name,
         link = link or itemLink,
@@ -268,12 +293,42 @@ local function ItemData(itemLink)
         requiredLevel = tonumber(requiredLevel) or 0,
         itemType = itemType,
         itemSubType = itemSubType,
+        classID = classID,
+        subClassID = subClassID,
         stackCount = tonumber(stackCount) or 1,
         equipLoc = equipLoc,
         texture = texture,
         stats = ReadItemStats(link or itemLink),
-        weaponSpeed = ReadWeaponSpeed(link or itemLink)
+        weaponSpeed = isWeapon and ReadWeaponSpeed(link or itemLink) or nil
     }
+end
+
+-- Ascension 3.3.5 expose les fonctions de sacs globales de WotLK. Ne pas
+-- utiliser l'espace de noms Retail des conteneurs, absent de certains clients CoA.
+local function ScanBagItems()
+    local result = {}
+    if type(GetContainerNumSlots) ~= "function" or type(GetContainerItemLink) ~= "function" then
+        return result
+    end
+    local maxBag = tonumber(NUM_BAG_SLOTS) or 4
+    local bag, slot
+    for bag = 0, maxBag do
+        local ok, slots = pcall(GetContainerNumSlots, bag)
+        slots = ok and tonumber(slots) or 0
+        for slot = 1, slots do
+            local linkOk, itemLink = pcall(GetContainerItemLink, bag, slot)
+            if linkOk and itemLink then
+                local data = ItemData(itemLink)
+                if data and EQUIP_SLOTS[data.equipLoc] then
+                    data.bag = bag
+                    data.bagSlot = slot
+                    data.ownedSource = "sac"
+                    table.insert(result, data)
+                end
+            end
+        end
+    end
+    return result
 end
 
 local effectScanner = CreateFrame("GameTooltip", "CoALootDeciderEffectScanner", nil, "GameTooltipTemplate")
@@ -655,8 +710,14 @@ local function ScanEquipment()
         weightSource = weightSource,
         presetKey = presetKey,
         weaponRule = weaponRule,
+        level = PlayerLevel(),
+        isCultistHeretic = presetKey == "Cultist:Heretic",
+        isBloodmageSanguine = presetKey == "Bloodmage:Sanguine",
+        tuningLabel = presetKey == "Cultist:Heretic" and "Heretic CAC donjon"
+            or (presetKey == "Bloodmage:Sanguine" and "Bloodmage Sanguine DPS donjon" or nil),
         scannedAt = GetTime and GetTime() or 0
     }
+    profile.bagItems = ScanBagItems()
     return profile
 end
 
@@ -676,10 +737,111 @@ local function ActiveThreshold()
     local specThreshold = key and tonumber(CoALootDeciderDB.thresholdsBySpec[key]) or nil
     if specThreshold then return specThreshold, "specialisation" end
 
+    if (profile.isCultistHeretic or profile.isBloodmageSanguine) and (profile.level or PlayerLevel()) < 60 then
+        return 3, "profil leveling"
+    end
+
     local classThreshold = DEFAULT_CLASS_THRESHOLDS[profile.classToken]
     if not classThreshold and Lower(profile.className) == "pyromancer" then classThreshold = 10 end
     if classThreshold then return classThreshold, "classe" end
     return globalThreshold, "global"
+end
+
+local FIT_STAT_KEYS = {
+    "ITEM_MOD_STRENGTH_SHORT", "ITEM_MOD_AGILITY_SHORT", "ITEM_MOD_INTELLECT_SHORT",
+    "ITEM_MOD_STAMINA_SHORT", "ITEM_MOD_SPIRIT_SHORT", "ITEM_MOD_SPELL_POWER_SHORT",
+    "ITEM_MOD_HEALING_DONE_SHORT", "ITEM_MOD_ATTACK_POWER_SHORT",
+    "ITEM_MOD_RANGED_ATTACK_POWER_SHORT", "ITEM_MOD_HIT_RATING_SHORT",
+    "ITEM_MOD_CRIT_RATING_SHORT", "ITEM_MOD_HASTE_RATING_SHORT",
+    "ITEM_MOD_EXPERTISE_RATING_SHORT", "ITEM_MOD_ARMOR_PENETRATION_RATING_SHORT",
+    "ITEM_MOD_SPELL_PENETRATION_SHORT", "ITEM_MOD_MANA_REGENERATION_SHORT",
+    "ITEM_MOD_DEFENSE_SKILL_RATING_SHORT", "ITEM_MOD_DODGE_RATING_SHORT",
+    "ITEM_MOD_PARRY_RATING_SHORT", "ITEM_MOD_BLOCK_RATING_SHORT",
+    "ITEM_MOD_BLOCK_VALUE_SHORT", "ITEM_MOD_RESILIENCE_RATING_SHORT",
+    "ITEM_MOD_DAMAGE_PER_SECOND_SHORT"
+}
+
+local function IsWeaponEquipLoc(equipLoc)
+    return equipLoc == "INVTYPE_WEAPON" or equipLoc == "INVTYPE_WEAPONMAINHAND"
+        or equipLoc == "INVTYPE_WEAPONOFFHAND" or equipLoc == "INVTYPE_2HWEAPON"
+        or equipLoc == "INVTYPE_RANGED" or equipLoc == "INVTYPE_RANGEDRIGHT"
+end
+
+local function FitTier(score)
+    score = tonumber(score) or 0
+    if score >= 85 then return "OPTIMAL" end
+    if score >= 70 then return "EXCELLENT" end
+    if score >= 55 then return "BON" end
+    if score >= 35 then return "TEMPORAIRE" end
+    return "MAUVAIS"
+end
+
+local function FitScore(data)
+    if not data or not profile or not profile.weights then return 0 end
+    local weapon = IsWeaponEquipLoc(data.equipLoc)
+    local maxWeight = 0
+    local _, key
+    for _, key in ipairs(FIT_STAT_KEYS) do
+        if key ~= "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" or weapon then
+            maxWeight = math.max(maxWeight, math.max(0, tonumber(profile.weights[key]) or 0))
+        end
+    end
+    if maxWeight <= 0 then return 0 end
+
+    local totalBudget, usefulBudget = 0, 0
+    for _, key in ipairs(FIT_STAT_KEYS) do
+        if key ~= "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" or weapon then
+            local value = math.max(0, StatValue(data.stats, key))
+            if value > 0 then
+                totalBudget = totalBudget + value
+                local weight = math.max(0, tonumber(profile.weights[key]) or 0)
+                usefulBudget = usefulBudget + value * math.min(1, weight / maxWeight)
+            end
+        end
+    end
+    if totalBudget <= 0 then return 0 end
+    local score = 100 * usefulBudget / totalBudget
+
+    if profile.isCultistHeretic then
+        if data.classID == 4 then
+            if data.subClassID == 4 then score = score + 8
+            elseif data.subClassID == 3 then score = score + 4
+            elseif data.subClassID == 2 then score = score + 2 end
+        end
+        if weapon then
+            if data.equipLoc == "INVTYPE_2HWEAPON" then score = score + 10 else score = score - 25 end
+            if tonumber(data.weaponSpeed) and data.weaponSpeed >= 3.2 then score = score + 3 end
+        end
+        if StatValue(data.stats, "ITEM_MOD_CRIT_RATING_SHORT") > 0 then score = score + 8 end
+        if StatValue(data.stats, "ITEM_MOD_STRENGTH_SHORT") > 0
+            or StatValue(data.stats, "ITEM_MOD_ATTACK_POWER_SHORT") > 0 then score = score + 6 end
+    elseif profile.isBloodmageSanguine then
+        if data.classID == 4 then
+            if data.subClassID == 2 then score = score + 7
+            elseif data.subClassID == 1 then score = score + 1 end
+        end
+        if StatValue(data.stats, "ITEM_MOD_SPELL_POWER_SHORT") > 0 then score = score + 8 end
+        if StatValue(data.stats, "ITEM_MOD_SPIRIT_SHORT") > 0 then score = score + 6 end
+        if StatValue(data.stats, "ITEM_MOD_STAMINA_SHORT") > 0 then score = score + 5 end
+    end
+
+    return Round(math.max(0, math.min(100, score)), 0)
+end
+
+local function RequiredUpgradeForFit(fitScore)
+    local baseThreshold = select(1, ActiveThreshold())
+    local level = profile and profile.level or PlayerLevel()
+    if level < 60 then
+        if fitScore >= 70 then return baseThreshold end
+        if fitScore >= 55 then return math.max(baseThreshold, 5) end
+        if fitScore >= 35 then return math.max(baseThreshold, 10) end
+        return math.max(baseThreshold, 20)
+    end
+    if fitScore >= 85 then return baseThreshold end
+    if fitScore >= 70 then return math.max(baseThreshold, 8) end
+    if fitScore >= 55 then return math.max(baseThreshold, 12) end
+    if fitScore >= 40 then return math.max(baseThreshold, 20) end
+    return 999
 end
 
 local function ScoreItem(data)
@@ -701,12 +863,65 @@ local function ScoreItem(data)
     if weaponRule and weaponRule.preferTwoHand and data.equipLoc == "INVTYPE_2HWEAPON" then
         score = score + 30
     end
+    -- Les bonus d'armure restent de simples departageurs. Les poids EP publics
+    -- conservent toute la priorite dans le score principal.
+    if profile.isCultistHeretic and data.classID == 4 then
+        local armorBonus = { [1] = 0, [2] = 0.35, [3] = 0.70, [4] = 1.10 }
+        score = score + (armorBonus[data.subClassID] or 0)
+    elseif profile.isBloodmageSanguine and data.classID == 4 then
+        local armorBonus = { [1] = 0, [2] = 0.80 }
+        score = score + (armorBonus[data.subClassID] or 0)
+    end
     return score
 end
 
 local function CompatibilityProblem(data)
     if not profile or not profile.valid then
         return profile and profile.error or "profil CoA non detecte"
+    end
+
+    if profile.isCultistHeretic then
+        if data.equipLoc == "INVTYPE_WEAPON"
+            or data.equipLoc == "INVTYPE_WEAPONMAINHAND"
+            or data.equipLoc == "INVTYPE_WEAPONOFFHAND"
+            or data.equipLoc == "INVTYPE_SHIELD"
+            or data.equipLoc == "INVTYPE_HOLDABLE"
+        then
+            return "Heretic CAC : arme 2 mains requise par le build"
+        end
+        local useful = StatValue(data.stats, "ITEM_MOD_STRENGTH_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_INTELLECT_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_CRIT_RATING_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_ATTACK_POWER_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_SPELL_POWER_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_HASTE_RATING_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_DAMAGE_PER_SECOND_SHORT")
+        if useful <= 0 and StatValue(data.stats, "ITEM_MOD_AGILITY_SHORT") > 0 then
+            return "objet AGI sans stat utile au Heretic CAC"
+        end
+        return nil
+    end
+
+    if profile.isBloodmageSanguine then
+        if data.classID == 4 and (data.subClassID == 3 or data.subClassID == 4) then
+            return "Bloodmage Sanguine : cuir/tissu uniquement, pas maille/plaque"
+        end
+        if data.equipLoc == "INVTYPE_SHIELD" then
+            return "Bloodmage Sanguine : bouclier non adapte au profil DPS caster"
+        end
+        local useful = StatValue(data.stats, "ITEM_MOD_SPELL_POWER_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_STAMINA_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_SPIRIT_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_CRIT_RATING_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_HASTE_RATING_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_HIT_RATING_SHORT")
+        local physicalOnly = StatValue(data.stats, "ITEM_MOD_STRENGTH_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_AGILITY_SHORT")
+            + StatValue(data.stats, "ITEM_MOD_ATTACK_POWER_SHORT")
+        if useful <= 0 and physicalOnly > 0 then
+            return "objet physique sans stats utiles au Sanguine"
+        end
+        return nil
     end
 
     local _, key
@@ -733,6 +948,54 @@ local function CompatibilityProblem(data)
     return nil
 end
 
+local function EquipFamily(equipLoc)
+    if equipLoc == "INVTYPE_CHEST" or equipLoc == "INVTYPE_ROBE" then return "CHEST" end
+    if equipLoc == "INVTYPE_FINGER" then return "FINGER" end
+    if equipLoc == "INVTYPE_TRINKET" then return "TRINKET" end
+    if equipLoc == "INVTYPE_2HWEAPON" then return "2HWEAPON" end
+    if equipLoc == "INVTYPE_WEAPON" or equipLoc == "INVTYPE_WEAPONMAINHAND" then return "MAINWEAPON" end
+    if equipLoc == "INVTYPE_WEAPONOFFHAND" or equipLoc == "INVTYPE_HOLDABLE"
+        or equipLoc == "INVTYPE_SHIELD" then return "OFFHAND" end
+    return equipLoc
+end
+
+local function SameOwnedSlot(candidate, owned)
+    return candidate and owned and EquipFamily(candidate.equipLoc) == EquipFamily(owned.equipLoc)
+end
+
+local function OwnedBaselineFor(candidate, equippedScore, equippedLevel, equippedLink, equippedData, excludeOwnedCopy)
+    local pool = {}
+    local function AddOwned(data, source)
+        if not data or not SameOwnedSlot(candidate, data) then return end
+        if excludeOwnedCopy and data.link == candidate.link and source == "sac" then return end
+        table.insert(pool, { data = data, score = ScoreItem(data), source = source })
+    end
+
+    local slot
+    for slot = 1, 19 do AddOwned(profile.items[slot], "equipe") end
+    local _, bagItem
+    for _, bagItem in ipairs(profile.bagItems or {}) do AddOwned(bagItem, "sac") end
+    table.sort(pool, function(a, b) return (a.score or 0) > (b.score or 0) end)
+
+    -- Deux bagues/bijoux peuvent être équipés : la référence est le second
+    -- meilleur objet déjà possédé, donc celui que le candidat remplacerait.
+    local baselineIndex = (candidate.equipLoc == "INVTYPE_FINGER"
+        or candidate.equipLoc == "INVTYPE_TRINKET") and 2 or 1
+    local baseline = pool[baselineIndex] or pool[1]
+    if baseline then
+        -- Une 2M doit aussi battre le duo 1M + main gauche actuellement
+        -- équipe, même si ce duo n'appartient pas à la famille 2M du pool.
+        if (tonumber(equippedScore) or 0) > (baseline.score or 0) then
+            return equippedScore, equippedLevel, equippedLink, equippedData,
+                equippedData and "equipe" or nil
+        end
+        return baseline.score or 0, baseline.data.itemLevel or 0, baseline.data.link,
+            baseline.data, baseline.source
+    end
+    return tonumber(equippedScore) or 0, tonumber(equippedLevel) or 0,
+        equippedLink, equippedData, equippedData and "equipe" or nil
+end
+
 local function ComparisonFor(data)
     local slots = EQUIP_SLOTS[data.equipLoc]
     if not slots then return nil, nil, "type d'objet non equipable" end
@@ -747,7 +1010,7 @@ local function ComparisonFor(data)
         AddStats(combinedStats, off and off.stats)
         local warning = (main and HasUnscoredEffect(main.link)) or (off and HasUnscoredEffect(off.link))
         return combined, currentLevel, main and main.link or nil, combinedStats,
-            warning and "l'equipement remplace contient un effet non chiffrable" or nil
+            warning and "l'equipement remplace contient un effet non chiffrable" or nil, main
     end
 
     -- Une arme a une main ne remplit pas gratuitement la main gauche lorsqu'une
@@ -758,7 +1021,7 @@ local function ComparisonFor(data)
     then
         local main = profile.items[16]
         return ScoreItem(main), main.itemLevel or 0, main.link, main.stats or {},
-            HasUnscoredEffect(main.link) and "l'arme 2M equipee contient un effet non chiffrable" or nil
+            HasUnscoredEffect(main.link) and "l'arme 2M equipee contient un effet non chiffrable" or nil, main
     end
 
     if (data.equipLoc == "INVTYPE_WEAPONOFFHAND"
@@ -769,14 +1032,14 @@ local function ComparisonFor(data)
     then
         local main = profile.items[16]
         return ScoreItem(main), main.itemLevel or 0, main.link, main.stats or {},
-            "necessite aussi une arme a une main compatible"
+            "necessite aussi une arme a une main compatible", main
     end
 
     if data.equipLoc == "INVTYPE_WEAPON" and not profile.items[17] then
         local main = profile.items[16]
         return ScoreItem(main), main and main.itemLevel or 0, main and main.link or nil,
             main and main.stats or {}, main and HasUnscoredEffect(main.link)
-                and "l'equipement remplace contient un effet non chiffrable" or nil
+                and "l'equipement remplace contient un effet non chiffrable" or nil, main
     end
 
     local lowestScore, lowestLevel, lowestLink = nil, nil, nil
@@ -793,10 +1056,10 @@ local function ComparisonFor(data)
     local currentData = lowestLink and ItemData(lowestLink) or nil
     return lowestScore or 0, lowestLevel or 0, lowestLink, currentData and currentData.stats or {},
         lowestLink and HasUnscoredEffect(lowestLink)
-            and "l'equipement remplace contient un effet non chiffrable" or nil
+            and "l'equipement remplace contient un effet non chiffrable" or nil, currentData
 end
 
-local function AnalyzeItem(itemLink, refreshEquipment)
+local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
     if refreshEquipment ~= false or not profile then profile = ScanEquipment() end
     if not profile.valid then return nil, profile.error end
     local candidate = ItemData(itemLink)
@@ -815,16 +1078,28 @@ local function AnalyzeItem(itemLink, refreshEquipment)
         return { need = false, candidate = candidate, reason = compatibilityProblem, confidence = "haute" }
     end
 
-    local currentScore, currentLevel, currentLinkOrReason, currentStats, comparisonWarning = ComparisonFor(candidate)
+    local currentScore, currentLevel, currentLinkOrReason, currentStats, comparisonWarning, currentData = ComparisonFor(candidate)
     if currentScore == nil then
         return { need = false, candidate = candidate, reason = currentLinkOrReason or "comparaison impossible", confidence = "basse" }
+    end
+
+    local currentSource
+    currentScore, currentLevel, currentLinkOrReason, currentData, currentSource = OwnedBaselineFor(
+        candidate, currentScore, currentLevel, currentLinkOrReason, currentData, excludeOwnedCopy
+    )
+    currentStats = currentData and currentData.stats or currentStats or {}
+    if currentData and HasUnscoredEffect(currentData.link) then
+        comparisonWarning = "le meilleur objet possede contient un effet non chiffrable"
     end
 
     local candidateScore = ScoreItem(candidate)
     local delta = candidateScore - currentScore
     local percent = currentScore > 0 and delta / currentScore * 100 or (candidateScore > 0 and 100 or 0)
     local threshold, thresholdSource = ActiveThreshold()
-    local minimum = math.max(1, currentScore * (threshold / 100))
+    local fitScore = FitScore(candidate)
+    local currentFitScore = currentData and FitScore(currentData) or 0
+    local effectiveThreshold = RequiredUpgradeForFit(fitScore)
+    local minimum = math.max(1, currentScore * (effectiveThreshold / 100))
     local need = currentScore <= 0 and candidateScore > 0 or delta >= minimum
     local manualReason = comparisonWarning
     if not manualReason and candidate.equipLoc == "INVTYPE_TRINKET" then
@@ -838,13 +1113,15 @@ local function AnalyzeItem(itemLink, refreshEquipment)
     if manualReason then
         reason = manualReason .. " : verification manuelle recommandee"
     elseif currentScore <= 0 and candidateScore > 0 then
-        reason = "emplacement vide"
+        reason = "aucun meilleur objet possede ; adequation " .. fitScore .. "/100"
     elseif need then
-        reason = "+" .. Round(percent, 1) .. "% (ilvl " .. candidate.itemLevel .. " contre " .. currentLevel
-            .. ", seuil " .. threshold .. "%)"
+        reason = "+" .. Round(percent, 1) .. "% vs " .. (currentSource == "sac" and "meilleur en sac" or "equipe")
+            .. " ; adequation " .. fitScore .. "/100 " .. FitTier(fitScore)
+            .. " ; seuil " .. effectiveThreshold .. "%"
     else
-        reason = Round(percent, 1) .. "% (ilvl " .. candidate.itemLevel .. " contre " .. currentLevel
-            .. ", seuil " .. threshold .. "%)"
+        reason = Round(percent, 1) .. "% vs " .. (currentSource == "sac" and "meilleur en sac" or "equipe")
+            .. " ; adequation " .. fitScore .. "/100 " .. FitTier(fitScore)
+            .. " ; seuil " .. effectiveThreshold .. "%"
     end
 
     return {
@@ -854,10 +1131,15 @@ local function AnalyzeItem(itemLink, refreshEquipment)
         currentScore = currentScore,
         currentLevel = currentLevel,
         currentLink = currentLinkOrReason,
+        currentSource = currentSource,
         currentStats = currentStats or {},
         percent = percent,
         threshold = threshold,
+        effectiveThreshold = effectiveThreshold,
         thresholdSource = thresholdSource,
+        fitScore = fitScore,
+        currentFitScore = currentFitScore,
+        fitTier = FitTier(fitScore),
         reason = reason,
         manual = manualReason and true or false,
         confidence = manualReason and "moyenne" or "haute"
@@ -883,10 +1165,33 @@ CoALootDeciderAPI = {
 
 local banner = CreateFrame("Frame", "CoALootDeciderBanner", UIParent)
 banner:SetWidth(430)
-banner:SetHeight(68)
-banner:SetPoint("TOP", UIParent, "TOP", 0, -150)
+banner:SetHeight(78)
+banner:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -24, -170)
 banner:SetFrameStrata("DIALOG")
+banner:SetMovable(true)
+banner:EnableMouse(true)
+banner:RegisterForDrag("LeftButton")
+if banner.SetClampedToScreen then banner:SetClampedToScreen(true) end
 banner:Hide()
+
+local function ApplyBannerPosition()
+    local saved = CoALootDeciderDB and CoALootDeciderDB.bannerPosition or nil
+    if not saved then return end
+    banner:ClearAllPoints()
+    banner:SetPoint(saved.point or "TOPRIGHT", UIParent,
+        saved.relativePoint or saved.point or "TOPRIGHT",
+        tonumber(saved.x) or -24, tonumber(saved.y) or -170)
+end
+
+banner:SetScript("OnDragStart", function(self) self:StartMoving() end)
+banner:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    if not CoALootDeciderDB then return end
+    local point, _, relativePoint, x, y = self:GetPoint()
+    CoALootDeciderDB.bannerPosition = {
+        point = point, relativePoint = relativePoint, x = x, y = y
+    }
+end)
 
 banner.background = banner:CreateTexture(nil, "BACKGROUND")
 banner.background:SetAllPoints(banner)
@@ -915,7 +1220,11 @@ local function ShowDecision(decision, automatic)
     local candidate = decision.candidate or {}
     banner.icon:SetTexture(candidate.texture or "Interface\\Icons\\INV_Misc_QuestionMark")
     if decision.need then
-        banner.verdict:SetText("|cff3cff52NEED|r  " .. (candidate.link or candidate.name or "Objet"))
+        local tier = decision.fitTier or "UPGRADE"
+        local color = "|cff3cff52"
+        if tier == "TEMPORAIRE" or tier == "MAUVAIS" then color = "|cffffcc33"
+        elseif tier == "BON" then color = "|cff67d9ff" end
+        banner.verdict:SetText(color .. "NEED " .. tier .. "|r  " .. (candidate.link or candidate.name or "Objet"))
     else
         banner.verdict:SetText("|cffff5b5bPASS|r  " .. (candidate.link or candidate.name or "Objet"))
     end
@@ -1002,6 +1311,7 @@ eventFrame:RegisterEvent("CONFIRM_LOOT_ROLL")
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_LOGIN" then
         EnsureDatabase()
+        ApplyBannerPosition()
         ScanEquipment()
         if profile.valid then
             Chat("profil strict " .. profile.className .. " - " .. profile.specName .. " charge ; auto "
@@ -1092,6 +1402,8 @@ local function PrintHelp()
     Chat("/cld threshold auto - revient au seuil de classe/global")
     Chat("/cld weight <stat> <valeur|auto> - surcharge un poids")
     Chat("/cld history - affiche les dix dernieres decisions")
+    Chat("/cld heretic - rappelle les priorites Heretic CAC")
+    Chat("/cld sanguine - rappelle les priorites Bloodmage Sanguine")
 end
 
 SLASH_COALOOTDECIDER1 = "/cld"
@@ -1186,6 +1498,22 @@ SlashCmdList.COALOOTDECIDER = function(message)
         else
             ShowDecision(decision, false)
             Chat((decision.need and "NEED " or "PASS ") .. (decision.candidate.link or decision.candidate.name) .. " - " .. decision.reason)
+        end
+    elseif command == "heretic" then
+        ScanEquipment()
+        if profile and profile.isCultistHeretic then
+            Chat("Heretic CAC : CRIT > FOR/PA > PS/INT > HATE ; 2M lente ; plaque si stats proches.")
+            Chat("Comparaison BagAware active : un loot doit aussi battre le meilleur objet deja present dans les sacs.")
+        else
+            Chat("Le profil actif n'est pas detecte comme Cultist - Heretic.")
+        end
+    elseif command == "sanguine" then
+        ScanEquipment()
+        if profile and profile.isBloodmageSanguine then
+            Chat("Bloodmage Sanguine : PS > END/ESPRIT > CRIT > HATE ; cuir prefere ; pas de stats physiques.")
+            Chat("Comparaison BagAware active : un loot doit aussi battre le meilleur objet deja present dans les sacs.")
+        else
+            Chat("Le profil actif n'est pas detecte comme Bloodmage - Sanguine.")
         end
     elseif command == "history" then
         local index, entry

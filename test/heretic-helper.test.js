@@ -6,11 +6,11 @@ import luaparse from 'luaparse';
 const tocPath = 'addons/CoAHereticHelper/CoAHereticHelper.toc';
 const luaPath = 'addons/CoAHereticHelper/CoAHereticHelper.lua';
 
-test('CoA Heretic Helper v3.8.1 remains a Lua 5.1 information HUD, never a rotation bot', async () => {
+test('CoA Heretic Helper v3.9.0 remains a Lua 5.1 information HUD, never a rotation bot', async () => {
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 3\.8\.1$/m);
+  assert.match(toc, /^## Version: 3\.9\.0$/m);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
   assert.doesNotMatch(lua, /lance Malevolence maintenant/i);
@@ -32,7 +32,7 @@ test('Heretic settings panel is draggable, persistent and never obscures its tes
     'reset must clear and recenter the saved menu position');
 });
 
-test('Heretic 3.8 provides a compact proc and per-member Black Blood HUD', async () => {
+test('Heretic 3.9 provides a compact proc and per-member Black Blood HUD', async () => {
   const lua = await readFile(luaPath, 'utf8');
   for (const required of [
     'CooldownFrameTemplate', 'instantCooldown:SetCooldown', 'FindSpellKeybind',
@@ -90,4 +90,22 @@ test('Black Blood uses two strong alerts without the whisper sound and throttles
   assert.match(lua, /pcall\(PlaySound, "igQuestFailed"\)/);
   assert.doesNotMatch(lua, /PlaySound, "TellMessage"/);
   assert.match(lua, /TEST ALERTE BB/);
+});
+
+test('Heretic 3.9 exposes explainable proc state and independently configurable Black Blood alerts', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  for (const required of [
+    'db.procSound', 'db.bbSound', 'db.bbWarnSeconds', 'db.bbCriticalSeconds',
+    'lastProcReason', 'procInfo', 'bbInfo', 'ReadBlackBloodState(false)',
+    'SON PROC', 'SON BB', 'ALERTE : ', 'CycleBlackBloodTiming',
+    'msg=="procsound"', 'msg=="bbmute"', 'msg=="bbtiming"'
+  ]) assert.ok(lua.includes(required), `missing Heretic 3.9 diagnostic feature: ${required}`);
+  assert.match(lua, /remain<=db\.bbWarnSeconds/);
+  assert.match(lua, /remain<=db\.bbCriticalSeconds/);
+  assert.match(lua, /not db\.bbSound and not force/,
+    'Black Blood sound must be independently muteable');
+  assert.match(lua, /if db\.procSound and PlaySound/,
+    'proc sound must be independently muteable');
+  assert.doesNotMatch(lua, /remain<=3\.0[\s\S]+remain<=1\.5/,
+    'runtime alert thresholds must no longer be hard-coded');
 });

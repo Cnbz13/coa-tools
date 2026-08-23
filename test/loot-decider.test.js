@@ -50,7 +50,7 @@ test('CoA Loot Decider adapts all 70 profiles to live CoA talents, level and spe
   const profileTabs = profileSection.match(/^\s*\["[^"]+:[^"]+"\] = "[^"]+"/gm) ?? [];
   const weightRows = profiles.match(/^\s*\["[^"]+:[^"]+"\]\s*=\s*\{[^\n]+\},?$/gm) ?? [];
 
-  assert.match(toc, /^## Version: 1\.9\.6$/m);
+  assert.match(toc, /^## Version: 1\.10\.0$/m);
   assert.equal(nodeRows.length, 3618, 'the pinned live CoA dataset must remain complete');
   assert.equal(classRows.length, 21, 'every CoA class must have an adaptive talent dataset');
   assert.equal(profileTabs.length, 70, 'every shipped loot profile must resolve to a live talent tab');
@@ -218,7 +218,7 @@ test('CoA Loot Decider preserves the local 1.9 BagAware and fit-scoring behavior
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   const advisor = await readFile(advisorPath, 'utf8');
-  assert.match(toc, /^## Version: 1\.9\.6$/m,
+  assert.match(toc, /^## Version: 1\.10\.0$/m,
     'the published addon must be newer than the installed 1.9.0 custom build');
   for (const required of [
     'ScanBagItems', 'profile.bagItems = ScanBagItems()', 'OwnedBaselineFor',
@@ -241,7 +241,7 @@ test('CoA Loot Decider uses a compact two-level visual language', async () => {
   const lua = await readFile(luaPath, 'utf8');
   const advisor = await readFile(advisorPath, 'utf8');
   for (const required of [
-    'settings.visualVersion = 2', 'settings.showDowngrades = false',
+    'settings.visualVersion = 3', 'settings.showDowngrades = false',
     'settings.showAllCandidates = false', 'SetOverlayState',
     'overlay.markerText', 'overlay.markerBg', 'advisorWindow.profileTitle',
     'advisorWindow.mode', 'Confiance ', 'candidat(s) utile(s)',
@@ -251,4 +251,23 @@ test('CoA Loot Decider uses a compact two-level visual language', async () => {
     'the default comparison view must hide ordinary downgrades');
   assert.match(advisor, /SetOverlayState\(overlay, "\+"[\s\S]+SetOverlayState\(overlay, "~"[\s\S]+SetOverlayState\(overlay, "-"/,
     'item overlays must remain understandable without relying on colors alone');
+});
+
+test('CoA Loot Advisor provides a persistent upgrade plan and visual decision history', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  const advisor = await readFile(advisorPath, 'utf8');
+  for (const required of [
+    'settings.sortMode', 'settings.viewMode', 'settings.windowX', 'settings.windowY',
+    'Tri : gain', 'Tri : slot', 'Historique', 'Retour objets',
+    'RefreshHistoryWindow', 'FormatHistoryTime', 'CoALootAdvisor_ShowHistory',
+    'historyEntry', 'meilleur ', 'manualCount'
+  ]) assert.ok(advisor.includes(required), `missing advanced advisor feature: ${required}`);
+  assert.match(advisor, /if settings\.sortMode == "gain" then[\s\S]+leftGain > rightGain/,
+    'upgrade candidates must be sortable by their real percentage gain');
+  assert.match(advisor, /settings\.windowX = centerX - parentX[\s\S]+settings\.windowY = centerY - parentY/,
+    'the advisor window position must persist');
+  for (const required of [
+    'percent = decision.percent', 'confidence = decision.confidence',
+    'AddManualHistory', 'decision = "MANUEL"', 'Lower(rest) == "clear"'
+  ]) assert.ok(lua.includes(required), `missing decision history data: ${required}`);
 });

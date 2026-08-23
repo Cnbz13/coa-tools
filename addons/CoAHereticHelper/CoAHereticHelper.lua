@@ -1,6 +1,6 @@
 local addonName = ...
 
--- CoA Heretic Helper v3.8.1
+-- CoA Heretic Helper v3.9.0
 -- One proc only: instant Eldritch Mending.
 -- Separate, compact Black Blood tracker.
 -- Optional neutral 3-pip progress indicator for Malevolent Power.
@@ -25,6 +25,8 @@ local lastMalevolentExpiration = 0
 local lastQualifyingCastAt = 0
 local procReady = false
 local procReadyUntil = 0
+local lastProcReason = "aucun"
+local lastProcAt = 0
 local traceEnabled = false
 local localBB = {} -- [guid] = {expires=number, stacks=number}
 
@@ -102,6 +104,8 @@ local function EnsureDB()
     local db = CoAHereticHelperDB
     if db.enabled == nil then db.enabled = true end
     if db.sound == nil then db.sound = true end
+    if db.procSound == nil then db.procSound = db.sound ~= false end
+    if db.bbSound == nil then db.bbSound = db.sound ~= false end
     if db.locked == nil then db.locked = true end
     if db.bbLocked == nil then db.bbLocked = true end
     if db.procScale == nil then db.procScale = 1.0 end
@@ -114,13 +118,17 @@ local function EnsureDB()
     if db.buttonY == nil then db.buttonY = -140 end
     if db.showProgress == nil then db.showProgress = true end
     if db.bbAlways == nil then db.bbAlways = true end
+    if type(db.bbWarnSeconds) ~= "number" then db.bbWarnSeconds = 3.0 end
+    if type(db.bbCriticalSeconds) ~= "number" then db.bbCriticalSeconds = 1.5 end
+    db.bbWarnSeconds = Clamp(db.bbWarnSeconds, 2.0, 10.0)
+    db.bbCriticalSeconds = Clamp(db.bbCriticalSeconds, 1.0, db.bbWarnSeconds - 0.5)
     if db.showKeybind == nil then db.showKeybind = true end
     if db.hudPreset == nil then db.hudPreset = "compact" end
     if type(db.buttonAngle) ~= "number" then db.buttonAngle = 4.15 end
     if db.buttonHidden == nil then db.buttonHidden = false end
     if type(db.eventTrace) ~= "table" then db.eventTrace = {} end
     -- Preserve positions/settings across addon updates.
-    db.version = 381
+    db.version = 390
     return db
 end
 
@@ -296,6 +304,8 @@ local function GetMendingInstantState(forceScan)
         procReadyUntil = now + ((rem and rem > 0) and rem or 10)
         localInstantUntil = procReadyUntil
         localProcProgress = 0
+        lastProcReason = "Aura Mental Expansion"
+        lastProcAt = now
         return true, aura, GetMendingCastMS()
     end
     return false, nil, GetMendingCastMS()
@@ -303,7 +313,7 @@ end
 
 local function PlayProcSound()
     local db = EnsureDB()
-    if db.sound and PlaySound then pcall(PlaySound, "RaidWarning") end
+    if db.procSound and PlaySound then pcall(PlaySound, "RaidWarning") end
 end
 
 local function Trace(msg)
@@ -334,6 +344,8 @@ local function SetProcReady(seconds, reason)
     localProcProgress = 0
     lastMalevolentStacks = 0
     lastMalevolentExpiration = 0
+    lastProcReason = reason or "détection locale"
+    lastProcAt = now
     Trace("PROC READY" .. (reason and (" ["..reason.."]") or ""))
 end
 
@@ -440,6 +452,21 @@ instantFrame:SetScript("OnUpdate",function(self,dt)
     self.pulse=(self.pulse or 0)+dt*4.5
     instantGlow:SetAlpha(0.45+0.30*((math.sin(self.pulse)+1)/2))
 end)
+local procInfo=CreateFrame("Frame",nil,procAnchor)
+procInfo:SetAllPoints(procAnchor); procInfo:EnableMouse(true)
+procInfo:SetScript("OnEnter",function(self)
+    if not GameTooltip then return end
+    local now=GetTime(); local db=EnsureDB()
+    GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+    GameTooltip:AddLine("Heretic : Soin occulte",0.45,0.95,1.00)
+    GameTooltip:AddDoubleLine("État",procReady and "PRÊT" or (tostring(localProcProgress or 0).."/3"),1,1,1,procReady and 0.25 or 0.75,procReady and 1.00 or 0.55,0.35)
+    if procReady then GameTooltip:AddDoubleLine("Expiration",string.format("%.1f s",math.max(0,(procReadyUntil or 0)-now)),0.75,0.75,0.75,1,0.82,0.25) end
+    GameTooltip:AddLine("Dernière détection : "..tostring(lastProcReason or "aucune"),0.70,0.82,0.95,true)
+    if lastProcAt and lastProcAt>0 then GameTooltip:AddDoubleLine("Détecté il y a",string.format("%.1f s",math.max(0,now-lastProcAt)),0.70,0.70,0.70,0.85,0.85,0.85) end
+    GameTooltip:AddLine("Son : "..(db.procSound and "activé" or "coupé"),0.65,0.75,0.82)
+    GameTooltip:Show()
+end)
+procInfo:SetScript("OnLeave",function() if GameTooltip then GameTooltip:Hide() end end)
 
 -- Neutral preparation progress: 1 then 2 pips only. At the third trigger the pips vanish; the heal icon appears only when the real instant proc is detected.
 local progressFrame = CreateFrame("Frame", nil, procAnchor)
@@ -521,6 +548,24 @@ local bbEdit=CreateFrame("Frame",nil,bbFrame); bbEdit:SetAllPoints(bbFrame)
 bbEdit:SetBackdrop({bgFile="Interface\Tooltips\UI-Tooltip-Background",edgeFile="Interface\Buttons\WHITE8X8",edgeSize=1})
 bbEdit:SetBackdropColor(0.04,0.02,0.08,0.22); bbEdit:SetBackdropBorderColor(0.70,0.35,1.0,0.8); bbEdit:Hide()
 local bbEditText=bbEdit:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); bbEditText:SetPoint("CENTER"); bbEditText:SetText("SANG NOIR  •  Shift + glisser")
+local ReadBlackBloodState
+local bbInfo=CreateFrame("Frame",nil,bbFrame)
+bbInfo:SetAllPoints(bbFrame); bbInfo:EnableMouse(true)
+bbInfo:SetScript("OnEnter",function(self)
+    if not GameTooltip then return end
+    local covered,total,remain,duration,maxStacks,details=ReadBlackBloodState(false)
+    GameTooltip:SetOwner(self,"ANCHOR_RIGHT")
+    GameTooltip:AddLine("Sang noir : couverture du groupe",0.72,0.45,1.00)
+    GameTooltip:AddDoubleLine("Couverture",tostring(covered).."/"..tostring(total),1,1,1,covered>=total and 0.35 or 1.00,covered>=total and 1.00 or 0.35,0.35)
+    if remain and remain>0 then GameTooltip:AddDoubleLine("Plus courte durée",string.format("%.1f s",remain),0.75,0.75,0.75,1,0.82,0.25) end
+    for _,detail in ipairs(details or {}) do
+        local state=detail.covered and string.format("%.1f s",detail.remain or 0) or "ABSENT"
+        GameTooltip:AddDoubleLine(tostring(detail.name or detail.unit or "?"),state,0.82,0.82,0.82,detail.covered and 0.45 or 1.00,detail.covered and 0.90 or 0.25,detail.covered and 1.00 or 0.25)
+    end
+    GameTooltip:AddLine("Alertes : "..tostring(EnsureDB().bbWarnSeconds).." s / critique "..tostring(EnsureDB().bbCriticalSeconds).." s",0.65,0.75,0.82)
+    GameTooltip:Show()
+end)
+bbInfo:SetScript("OnLeave",function() if GameTooltip then GameTooltip:Hide() end end)
 
 bbFrame:SetScript("OnDragStart",function(self)
     local db=EnsureDB(); if db.bbLocked then return end
@@ -540,7 +585,7 @@ end
 
 local function PlayBlackBloodWarning(kind, force)
     local db=EnsureDB()
-    if (not db.sound and not force) or not PlaySound then return end
+    if (not db.bbSound and not force) or not PlaySound then return end
     if kind == "critical" or kind == "expired" then
         pcall(PlaySound, "igQuestFailed")
     else
@@ -616,7 +661,7 @@ local function ScanBlackBlood()
     return covered,total,minRemain or 0,durationForBar,maxStacks,details
 end
 
-local function ReadBlackBloodState(forceScan)
+ReadBlackBloodState = function(forceScan)
     local now = GetTime()
     if forceScan or bbLastScanAt <= 0 or now - bbLastScanAt >= BLACK_BLOOD_SCAN_INTERVAL then
         local covered,total,remain,duration,maxStacks,details = ScanBlackBlood()
@@ -641,6 +686,7 @@ local function UpdateBlackBloodDots(details, testMode)
         }
     end
     local total=#details
+    local db=EnsureDB()
     local size,step,columns=5,6,20
     if total<=5 then size,step,columns=9,13,5
     elseif total<=10 then size,step,columns=7,10,10 end
@@ -653,9 +699,9 @@ local function UpdateBlackBloodDots(details, testMode)
             dot:ClearAllPoints()
             dot:SetWidth(size); dot:SetHeight(size)
             dot:SetPoint("TOPLEFT",bbFrame,"TOPLEFT",31+(column*step),-21-(row*step))
-            if detail.covered and (detail.remain or 0)<=1.5 then
+            if detail.covered and (detail.remain or 0)<=db.bbCriticalSeconds then
                 dot:SetVertexColor(1.00,0.18,0.22,0.95)
-            elseif detail.covered and (detail.remain or 0)<=3.0 then
+            elseif detail.covered and (detail.remain or 0)<=db.bbWarnSeconds then
                 dot:SetVertexColor(1.00,0.52,0.10,0.95)
             elseif detail.covered then
                 dot:SetVertexColor(0.56,0.34,1.00,0.95)
@@ -684,11 +730,11 @@ local function UpdateBlackBlood(testMode, forceScan)
 
     local full = covered>=total and covered>0
     local partial = covered>0 and covered<total
-    local expiring = full and remain>0 and remain<=3.0
-    local critical = full and remain>0 and remain<=1.5
+    local expiring = full and remain>0 and remain<=db.bbWarnSeconds
+    local critical = full and remain>0 and remain<=db.bbCriticalSeconds
 
     -- Reset the warning latch after a successful refresh.
-    if full and remain>4.0 then
+    if full and remain>(db.bbWarnSeconds+1.0) then
         bbWarnedExpiryCycle=false
         bbWarnedCriticalCycle=false
     end
@@ -744,9 +790,9 @@ local function UpdateBlackBlood(testMode, forceScan)
     bbPrevCovered=covered; bbPrevTotal=total
 
     if not db.bbLocked then
-        bbEdit:Show(); bbFrame:EnableMouse(true); bbFrame:Show()
+        bbInfo:EnableMouse(false); bbEdit:Show(); bbFrame:EnableMouse(true); bbFrame:Show()
     else
-        bbEdit:Hide(); bbFrame:EnableMouse(false)
+        bbInfo:EnableMouse(true); bbEdit:Hide(); bbFrame:EnableMouse(false)
         if db.bbAlways or covered>0 or (UnitAffectingCombat and UnitAffectingCombat("player")) or testMode then bbFrame:Show() else bbFrame:Hide() end
     end
 end
@@ -934,7 +980,7 @@ controlHighlight:SetWidth(32); controlHighlight:SetHeight(32); controlHighlight:
 controlHighlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"); controlHighlight:SetBlendMode("ADD")
 
 local menu=CreateFrame("Frame","CoAHereticHUDMenu",UIParent)
-menu:SetWidth(286); menu:SetHeight(358); menu:SetMovable(true); menu:SetClampedToScreen(true); menu:SetFrameStrata("DIALOG")
+menu:SetWidth(286); menu:SetHeight(392); menu:SetMovable(true); menu:SetClampedToScreen(true); menu:SetFrameStrata("DIALOG")
 menu:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
 menu:SetBackdropColor(0.012,0.025,0.055,0.97); menu:SetBackdropBorderColor(0.25,0.88,1.0,0.90); menu:Hide()
 local mt=menu:CreateFontString(nil,"OVERLAY","GameFontNormal"); mt:SetPoint("TOPLEFT",12,-12); mt:SetText("HERETIC • PROC HUD"); mt:SetTextColor(0.45,0.95,1)
@@ -975,6 +1021,8 @@ local bBBScalePlus=MenuButton("BB +",232,-242,42)
 local bBBAlert=MenuButton("TEST ALERTE BB",12,-272,262)
 local bDebug=MenuButton("DIAGNOSTIC",12,-302,122)
 local bReset=MenuButton("RESET",148,-302,126)
+local bBBSound=MenuButton("SON BB : ON",12,-332,122)
+local bBBTiming=MenuButton("ALERTE : 3/1.5",148,-332,126)
 
 local hubManaged=false
 local controlWasDragged=false
@@ -1023,14 +1071,29 @@ end
 
 local function UpdateMenu()
     local db=EnsureDB()
-    md:SetText("Cultist Heretic • niveau "..tostring(playerLevel > 0 and playerLevel or "?").." • mode "..tostring(db.hudPreset or "compact")..".\nSoin occulte apparait seulement quand il est instantane.\nChaque point represente un membre pour Sang noir.")
+    local covered,total,remain=ReadBlackBloodState(false)
+    md:SetText("Cultist Heretic • niveau "..tostring(playerLevel > 0 and playerLevel or "?").." • mode "..tostring(db.hudPreset or "compact")..".\nSoin occulte : "..(procReady and "PRÊT" or (tostring(localProcProgress or 0).."/3")).." • Sang noir : "..tostring(covered).."/"..tostring(total)..".\nSurvolez les HUD pour le diagnostic détaillé.")
     bProcMove:SetText(db.locked and "DEPLACER PROC" or "VERROUILLER PROC")
     bBBMove:SetText(db.bbLocked and "DEPLACER SANG NOIR" or "VERROUILLER SANG NOIR")
-    bSound:SetText("SON : "..(db.sound and "ON" or "OFF"))
+    bSound:SetText("SON PROC : "..(db.procSound and "ON" or "OFF"))
     bProgress:SetText("PROGRESSION : "..(db.showProgress and "ON" or "OFF"))
     bBBAlways:SetText("BB TOUJOURS : "..(db.bbAlways and "ON" or "OFF"))
     bKeybind:SetText("TOUCHE : "..(db.showKeybind and "ON" or "OFF"))
     bMinimap:SetText("BOUTON : "..(db.buttonHidden and "OFF" or "ON"))
+    bBBSound:SetText("SON BB : "..(db.bbSound and "ON" or "OFF"))
+    bBBTiming:SetText("ALERTE : "..tostring(db.bbWarnSeconds).."/"..tostring(db.bbCriticalSeconds))
+end
+
+local function CycleBlackBloodTiming()
+    local db=EnsureDB()
+    if db.bbWarnSeconds<=3.0 then
+        db.bbWarnSeconds=4.0; db.bbCriticalSeconds=2.0
+    elseif db.bbWarnSeconds<=4.0 then
+        db.bbWarnSeconds=6.0; db.bbCriticalSeconds=3.0
+    else
+        db.bbWarnSeconds=3.0; db.bbCriticalSeconds=1.5
+    end
+    bbWarnedExpiryCycle=false; bbWarnedCriticalCycle=false
 end
 
 local function PositionHereticMenu(centered)
@@ -1187,7 +1250,7 @@ local function Refresh(forceAuraScan)
     end
     lastInstant=instant
 
-    if not db.locked then procEdit:Show(); procAnchor:EnableMouse(true); procAnchor:Show() else procEdit:Hide(); procAnchor:EnableMouse(false) end
+    if not db.locked then procInfo:EnableMouse(false); procEdit:Show(); procAnchor:EnableMouse(true); procAnchor:Show() else procInfo:EnableMouse(true); procEdit:Hide(); procAnchor:EnableMouse(false) end
     UpdateBlackBlood(testMode, forceAuraScan)
 end
 
@@ -1200,7 +1263,10 @@ local function HandleCommand(msg)
     elseif msg=="lock" then db.locked=true
     elseif msg=="bbunlock" then db.bbLocked=false
     elseif msg=="bblock" then db.bbLocked=true
-    elseif msg=="sound" then db.sound=not db.sound
+    elseif msg=="sound" then local enabled=not (db.procSound and db.bbSound); db.procSound=enabled; db.bbSound=enabled; db.sound=enabled
+    elseif msg=="procsound" then db.procSound=not db.procSound
+    elseif msg=="bbmute" then db.bbSound=not db.bbSound
+    elseif msg=="bbtiming" then CycleBlackBloodTiming()
     elseif msg=="bbsound" then
         menu:Hide()
         PlayBlackBloodWarning("expiring", true)
@@ -1240,7 +1306,7 @@ local function HandleCommand(msg)
         else
             v=string.match(msg,"^bbscale%s+([%d%.]+)$")
             if v then db.bbScale=Clamp(tonumber(v),0.60,1.80); bbFrame:SetScale(db.bbScale)
-            else Chat("/hh test | preset compact|central|healer | unlock/lock | sound | progress | keybind | button | bbalways | trace | events | debug | reset") end
+            else Chat("/hh test | preset compact|central|healer | unlock/lock | sound | procsound | bbmute | bbtiming | progress | keybind | button | bbalways | trace | events | debug | reset") end
         end
     end
     UpdateMenu(); Refresh()
@@ -1249,7 +1315,7 @@ end
 bTest:SetScript("OnClick",function() HandleCommand("test") end)
 bProcMove:SetScript("OnClick",function() HandleCommand(EnsureDB().locked and "unlock" or "lock") end)
 bBBMove:SetScript("OnClick",function() HandleCommand(EnsureDB().bbLocked and "bbunlock" or "bblock") end)
-bSound:SetScript("OnClick",function() HandleCommand("sound") end)
+bSound:SetScript("OnClick",function() HandleCommand("procsound") end)
 bProgress:SetScript("OnClick",function() HandleCommand("progress") end)
 bBBAlways:SetScript("OnClick",function() HandleCommand("bbalways") end)
 bKeybind:SetScript("OnClick",function() HandleCommand("keybind") end)
@@ -1264,6 +1330,8 @@ bBBScalePlus:SetScript("OnClick",function() local d=EnsureDB(); d.bbScale=Clamp(
 bBBAlert:SetScript("OnClick",function() HandleCommand("bbsound") end)
 bDebug:SetScript("OnClick",function() HandleCommand("debug") end)
 bReset:SetScript("OnClick",function() HandleCommand("reset") end)
+bBBSound:SetScript("OnClick",function() HandleCommand("bbmute") end)
+bBBTiming:SetScript("OnClick",function() HandleCommand("bbtiming") end)
 
 CoAHereticHelperAPI = CoAHereticHelperAPI or {}
 function CoAHereticHelperAPI:Toggle()
@@ -1328,7 +1396,7 @@ for _,ev in ipairs({"PLAYER_LOGIN","PLAYER_ENTERING_WORLD","PLAYER_LEVEL_UP","PL
 end
 events:SetScript("OnEvent",function(self,event,...)
     if event=="PLAYER_LOGIN" then
-        EnsureDB(); ApplyPositions(); RefreshSpecDetection(); Chat("v3.8.1 charge : panneau deplacable, HUD compact, touche du proc et points Sang noir par membre. /hh")
+        EnsureDB(); ApplyPositions(); RefreshSpecDetection(); Chat("v3.9.0 charge : historique de détection, réglages sonores séparés et diagnostic par survol. /hh")
     elseif event=="SPELLS_CHANGED" or event=="PLAYER_TALENT_UPDATE" or event=="PLAYER_LEVEL_UP" or event=="PLAYER_ENTERING_WORLD" then
         RefreshSpecDetection()
     elseif event=="UNIT_SPELLCAST_SUCCEEDED" then

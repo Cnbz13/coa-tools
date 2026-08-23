@@ -2,7 +2,7 @@
 ## Title: CoA Heretic Proc HUD
 ## Notes: HUD Cultist Heretic adapte au niveau et aux sorts appris, suivant le canevas CoA Build Hub 5ba4e749, avec proc Soin occulte et tracker Sang noir.
 ## Author: OpenAI + Yaya
-## Version: 3.8.1
+## Version: 3.9.0
 ## SavedVariables: CoAHereticHelperDB
 
 CoAHereticHelper.lua

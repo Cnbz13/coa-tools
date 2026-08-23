@@ -1,4 +1,4 @@
-CoA Heretic Proc HUD v3.8.1
+CoA Heretic Proc HUD v3.9.0
 ===========================
 
 PROFIL NIVEAU 39
@@ -26,12 +26,14 @@ SANG NOIR
 - Tracker compact : icone + couverture (5/5) + un point colore par membre + stacks + temps restant + mini barre.
 - Base actuelle : 10 s. Herald of the Depths est pris en compte a 20 s en fallback si l'aura est detectee.
 - >3 s et groupe couvert : discret violet/bleu.
-- <=3 s : orange + pulsation + RaidWarning net (plus aucun son de chuchotement).
-- <=1,5 s : rouge + pulsation forte + seconde alarme critique.
+- Seuil par defaut <=3 s : orange + pulsation + RaidWarning net (plus aucun son de chuchotement).
+- Seuil par defaut <=1,5 s : rouge + pulsation forte + seconde alarme critique.
+- Les seuils peuvent alterner entre 3/1,5 s, 4/2 s et 6/3 s depuis le menu ou avec /hh bbtiming.
 - Un membre perd Sang noir : tracker rouge/orange + ! et avertissement.
 - Plus personne n'a Sang noir : OFF + alerte rouge.
 - Le son n'est joue qu'au changement d'etat, jamais en boucle.
 - Le scan lourd des auras de groupe est limite a 5 fois/seconde; les evenements UNIT_AURA forcent toujours une mise a jour immediate.
+- Survoler le proc ou le tracker affiche la source de detection, la couverture et le detail de chaque membre.
 
 COMMANDES
 ---------
@@ -49,7 +51,10 @@ COMMANDES
 /hh preset central  disposition sous le personnage
 /hh preset healer   disposition agrandie pour soigneur
 /hh bbalways        tracker Sang noir toujours visible ON/OFF
-/hh sound           sons ON/OFF
+/hh sound           tous les sons ON/OFF
+/hh procsound       son du proc ON/OFF
+/hh bbmute          sons Sang noir ON/OFF
+/hh bbtiming        alterne les seuils Sang noir 3/1,5 ; 4/2 ; 6/3 s
 /hh scale 1         taille proc
 /hh bbscale 1       taille tracker Sang noir
 /hh trace           trace detection proc

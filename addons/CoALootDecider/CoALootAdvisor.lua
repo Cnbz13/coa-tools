@@ -72,14 +72,12 @@ local function EnsureSettings()
     CoALootDeciderDB.advisor = CoALootDeciderDB.advisor or {}
     local settings = CoALootDeciderDB.advisor
     if settings.enabled == nil then settings.enabled = true end
-    if settings.visualVersion ~= 2 then
-        settings.visualVersion = 2
-        settings.showDowngrades = false
-        settings.showAllCandidates = false
-    end
+    if settings.visualVersion ~= 3 then settings.visualVersion = 3 end
     if settings.showDowngrades == nil then settings.showDowngrades = false end
     if settings.showAllCandidates == nil then settings.showAllCandidates = false end
     if settings.tooltip == nil then settings.tooltip = true end
+    if settings.sortMode ~= "slot" and settings.sortMode ~= "gain" then settings.sortMode = "gain" end
+    if settings.viewMode ~= "gear" and settings.viewMode ~= "history" then settings.viewMode = "gear" end
     return settings
 end
 
@@ -389,7 +387,16 @@ advisorWindow:SetMovable(true)
 advisorWindow:EnableMouse(true)
 advisorWindow:RegisterForDrag("LeftButton")
 advisorWindow:SetScript("OnDragStart", function(self) self:StartMoving() end)
-advisorWindow:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+advisorWindow:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    local centerX, centerY = self:GetCenter()
+    local parentX, parentY = UIParent:GetCenter()
+    if centerX and centerY and parentX and parentY then
+        local settings = EnsureSettings()
+        settings.windowX = centerX - parentX
+        settings.windowY = centerY - parentY
+    end
+end)
 advisorWindow:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
@@ -462,6 +469,17 @@ for rowIndex = 1, 13 do
         if not self.itemLink then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetHyperlink(self.itemLink)
+        if self.historyEntry then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Décision enregistrée", 0.40, 0.85, 1.00)
+            GameTooltip:AddDoubleLine(tostring(self.historyEntry.decision or "?"),
+                self.historyEntry.automatic and "Automatique" or "Conseil",
+                1.00, 0.82, 0.20, 0.70, 0.70, 0.70)
+            if self.historyEntry.reason then GameTooltip:AddLine(self.historyEntry.reason, 0.82, 0.82, 0.82, true) end
+            if self.historyEntry.confidence then
+                GameTooltip:AddLine("Confiance : " .. tostring(self.historyEntry.confidence), 0.55, 0.75, 0.90)
+            end
+        end
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -484,8 +502,20 @@ advisorWindow.mode:SetHeight(24)
 advisorWindow.mode:SetPoint("LEFT", advisorWindow.refresh, "RIGHT", 8, 0)
 advisorWindow.mode:SetText("Voir tout")
 
+advisorWindow.sort = CreateFrame("Button", nil, advisorWindow, "UIPanelButtonTemplate")
+advisorWindow.sort:SetWidth(105)
+advisorWindow.sort:SetHeight(24)
+advisorWindow.sort:SetPoint("LEFT", advisorWindow.mode, "RIGHT", 8, 0)
+advisorWindow.sort:SetText("Tri : gain")
+
+advisorWindow.history = CreateFrame("Button", nil, advisorWindow, "UIPanelButtonTemplate")
+advisorWindow.history:SetWidth(105)
+advisorWindow.history:SetHeight(24)
+advisorWindow.history:SetPoint("LEFT", advisorWindow.sort, "RIGHT", 8, 0)
+advisorWindow.history:SetText("Historique")
+
 advisorWindow.hint = advisorWindow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-advisorWindow.hint:SetPoint("BOTTOMRIGHT", advisorWindow, "BOTTOMRIGHT", -22, 24)
+advisorWindow.hint:SetPoint("BOTTOMRIGHT", advisorWindow, "BOTTOMRIGHT", -22, 52)
 advisorWindow.hint:SetText("+ amélioration  •  ~ situationnel  •  ? manuel")
 
 local function AddCandidate(best, link, source)
@@ -530,7 +560,13 @@ local function CollectBestCandidates()
     local result = {}
     local equipLoc, entry
     for equipLoc, entry in pairs(best) do table.insert(result, entry) end
+    local settings = EnsureSettings()
     table.sort(result, function(left, right)
+        if settings.sortMode == "gain" then
+            local leftGain = tonumber(left.analysis.percent) or -999
+            local rightGain = tonumber(right.analysis.percent) or -999
+            if leftGain ~= rightGain then return leftGain > rightGain end
+        end
         local leftRank = SLOT_RANK[left.group] or 99
         local rightRank = SLOT_RANK[right.group] or 99
         if leftRank == rightRank then
@@ -541,11 +577,69 @@ local function CollectBestCandidates()
     return result
 end
 
+local function FormatHistoryTime(entry)
+    local timestamp = tonumber(entry and entry.at) or 0
+    if timestamp > 0 and date then return date("%d/%m %H:%M", timestamp) end
+    return "Ancien"
+end
+
+local function RefreshHistoryWindow(profile)
+    local history = CoALootDeciderDB and CoALootDeciderDB.history or {}
+    advisorWindow.profileTitle:SetText(profile and profile.valid
+        and (profile.className .. "  •  " .. profile.specName .. "  •  historique des décisions")
+        or "Historique Loot Decider")
+    advisorWindow.status:SetText(tostring(#history) .. " décision(s) conservée(s)  •  survolez une ligne pour la raison complète")
+    advisorWindow.mode:Hide()
+    advisorWindow.sort:Hide()
+    advisorWindow.history:SetText("Retour objets")
+    advisorWindow.hint:SetText("Historique des NEED/PASS et conseils manuels")
+
+    local index, row
+    for index, row in ipairs(advisorWindow.rows) do
+        local entry = history[index]
+        if entry then
+            local texture = nil
+            if GetItemInfo then
+                local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(entry.itemLink or "")
+                texture = itemTexture
+            end
+            row.itemLink = entry.itemLink
+            row.historyEntry = entry
+            row.icon:SetTexture(texture or "Interface\\Icons\\INV_Misc_QuestionMark")
+            row.slot:SetText(FormatHistoryTime(entry))
+            row.name:SetText(entry.itemLink or entry.itemName or "Objet inconnu")
+            row.source:SetText(entry.automatic and "AUTO" or "CONSEIL")
+            local percent = tonumber(entry.percent)
+            local suffix = percent and (" " .. ShortPercent(percent)) or ""
+            if entry.decision == "NEED" then
+                row.delta:SetText("|cff33ff4c+ NEED" .. suffix .. "|r")
+            elseif entry.decision == "PASS" then
+                row.delta:SetText("|cffff5b5b- PASS" .. suffix .. "|r")
+            else
+                row.delta:SetText("|cffffbf19? MANUEL|r")
+            end
+            row:Show()
+        else
+            row.itemLink = nil
+            row.historyEntry = nil
+            row:Hide()
+        end
+    end
+end
+
 local function RefreshWindow()
     if not advisorWindow:IsVisible() then return end
     local allResults = CollectBestCandidates()
     local profile = api.GetProfile()
     local settings = EnsureSettings()
+    if settings.viewMode == "history" then
+        RefreshHistoryWindow(profile)
+        return
+    end
+    advisorWindow.mode:Show()
+    advisorWindow.sort:Show()
+    advisorWindow.history:SetText("Historique")
+    advisorWindow.hint:SetText("+ amélioration  •  ~ situationnel  •  ? manuel")
     local sourceText = merchantOpen and "sacs + marchand" or "sacs"
     if bankOpen then sourceText = sourceText .. " + banque" end
     local result = {}
@@ -563,11 +657,21 @@ local function RefreshWindow()
     advisorWindow.profileTitle:SetText(profile and profile.valid
         and (profile.className .. "  •  " .. profile.specName .. "  •  niveau " .. tostring(level))
         or "Profil CoA indisponible")
+    local manualCount = 0
+    local topGain = nil
+    for _, candidateEntry in ipairs(result) do
+        if candidateEntry.analysis.manual then manualCount = manualCount + 1 end
+        local gain = tonumber(candidateEntry.analysis.percent)
+        if gain and (not topGain or gain > topGain) then topGain = gain end
+    end
     advisorWindow.status:SetText("Confiance " .. tostring(confidence)
         .. "  •  " .. tostring(talentCount) .. " talents détectés"
         .. "  •  " .. sourceText
-        .. "  •  " .. tostring(#result) .. (settings.showAllCandidates and " objet(s)" or " candidat(s) utile(s)"))
+        .. "  •  " .. tostring(#result) .. (settings.showAllCandidates and " objet(s)" or " candidat(s) utile(s)")
+        .. (topGain and ("  •  meilleur " .. ShortPercent(topGain)) or "")
+        .. (manualCount > 0 and ("  •  " .. tostring(manualCount) .. " manuel(s)") or ""))
     advisorWindow.mode:SetText(settings.showAllCandidates and "Améliorations" or "Voir tout")
+    advisorWindow.sort:SetText(settings.sortMode == "gain" and "Tri : gain" or "Tri : slot")
 
     local index, row
     for index, row in ipairs(advisorWindow.rows) do
@@ -576,6 +680,7 @@ local function RefreshWindow()
             local analysis = entry.analysis
             local candidate = analysis.candidate
             row.itemLink = candidate.link
+            row.historyEntry = nil
             row.icon:SetTexture(candidate.texture or "Interface\\Icons\\INV_Misc_QuestionMark")
             row.slot:SetText(SLOT_NAMES[candidate.equipLoc] or candidate.equipLoc)
             row.name:SetText(candidate.link or candidate.name)
@@ -606,15 +711,41 @@ advisorWindow.mode:SetScript("OnClick", function()
     settings.showAllCandidates = not settings.showAllCandidates
     RefreshWindow()
 end)
+advisorWindow.sort:SetScript("OnClick", function()
+    local settings = EnsureSettings()
+    settings.sortMode = settings.sortMode == "gain" and "slot" or "gain"
+    RefreshWindow()
+end)
+advisorWindow.history:SetScript("OnClick", function()
+    local settings = EnsureSettings()
+    settings.viewMode = settings.viewMode == "history" and "gear" or "history"
+    RefreshWindow()
+end)
+
+local function PositionAdvisorWindow()
+    local settings = EnsureSettings()
+    advisorWindow:ClearAllPoints()
+    advisorWindow:SetPoint("CENTER", UIParent, "CENTER",
+        tonumber(settings.windowX) or 0, tonumber(settings.windowY) or 0)
+end
 
 function CoALootAdvisor_Toggle()
     EnsureSettings()
     if advisorWindow:IsVisible() then
         advisorWindow:Hide()
     else
+        EnsureSettings().viewMode = "gear"
+        PositionAdvisorWindow()
         advisorWindow:Show()
         RefreshWindow()
     end
+end
+
+function CoALootAdvisor_ShowHistory()
+    EnsureSettings().viewMode = "history"
+    PositionAdvisorWindow()
+    advisorWindow:Show()
+    RefreshWindow()
 end
 
 function CoALootAdvisor_ToggleVisuals()

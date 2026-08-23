@@ -227,7 +227,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.adaptiveBuilds = CoALootDeciderDB.adaptiveBuilds or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.9.6-ui-mover-exit"
+    CoALootDeciderDB.version = "1.10.0-advisor-history"
 end
 
 local function ReadItemStats(itemLink)
@@ -1289,7 +1289,25 @@ local function AddHistory(rollID, decision, automatic)
         itemName = decision.candidate and decision.candidate.name or "Objet inconnu",
         decision = decision.need and "NEED" or "PASS",
         reason = decision.reason,
+        percent = decision.percent,
+        confidence = decision.confidence,
+        fitScore = decision.fitScore,
         automatic = automatic and true or false
+    })
+    while #history > HISTORY_LIMIT do table.remove(history) end
+end
+
+local function AddManualHistory(rollID, itemLink, itemName, reason)
+    local history = CoALootDeciderDB.history
+    table.insert(history, 1, {
+        at = time and time() or 0,
+        rollID = rollID,
+        itemLink = itemLink,
+        itemName = itemName or "Objet inconnu",
+        decision = "MANUEL",
+        reason = reason,
+        confidence = "basse",
+        automatic = false,
     })
     while #history > HISTORY_LIMIT do table.remove(history) end
 end
@@ -1333,6 +1351,7 @@ local function LeaveUnknownRoll(rollID, reason)
     local itemLink = GetLootRollItemLink and GetLootRollItemLink(rollID) or nil
     reason = reason or "objet impossible a analyser dans le delai"
     ShowManual(itemLink, name, reason)
+    AddManualHistory(rollID, itemLink, name, reason)
     Chat("aucun jet automatique pour " .. (itemLink or name or "objet") .. " : " .. tostring(reason))
     pendingRolls[rollID] = nil
 end
@@ -1479,7 +1498,7 @@ local function PrintHelp()
     Chat("/cld threshold 15 - seuil de la specialisation actuelle")
     Chat("/cld threshold auto - revient au seuil de classe/global")
     Chat("/cld weight <stat> <valeur|auto> - surcharge un poids")
-    Chat("/cld history - affiche les dix dernieres decisions")
+    Chat("/cld history - ouvre l'historique visuel ; /cld history clear l'efface")
     Chat("/cld heretic - rappelle les priorites Heretic CAC")
     Chat("/cld sanguine - rappelle les priorites Bloodmage Sanguine")
 end
@@ -1597,12 +1616,19 @@ SlashCmdList.COALOOTDECIDER = function(message)
             Chat("Le profil actif n'est pas detecte comme Bloodmage - Sanguine.")
         end
     elseif command == "history" then
-        local index, entry
-        for index, entry in ipairs(CoALootDeciderDB.history) do
-            if index > 10 then break end
-            Chat(index .. ". " .. entry.decision .. " " .. (entry.itemLink or entry.itemName) .. " - " .. (entry.reason or ""))
+        if Lower(rest) == "clear" or Lower(rest) == "effacer" then
+            CoALootDeciderDB.history = {}
+            Chat("historique des décisions effacé")
+        elseif CoALootAdvisor_ShowHistory then
+            CoALootAdvisor_ShowHistory()
+        else
+            local index, entry
+            for index, entry in ipairs(CoALootDeciderDB.history) do
+                if index > 10 then break end
+                Chat(index .. ". " .. entry.decision .. " " .. (entry.itemLink or entry.itemName) .. " - " .. (entry.reason or ""))
+            end
+            if #CoALootDeciderDB.history == 0 then Chat("aucune decision enregistree") end
         end
-        if #CoALootDeciderDB.history == 0 then Chat("aucune decision enregistree") end
     else
         PrintHelp()
     end

@@ -151,7 +151,11 @@ local function PaintButton(button, link, excludeOwnedCopy)
     if not link then return end
 
     local analysis = Analyze(link, excludeOwnedCopy)
-    if not analysis or analysis.nonEquipable then return end
+    if not analysis or (analysis.nonEquipable and not analysis.lockedChest) then return end
+    if analysis.lockedChest then
+        SetOverlayState(overlay, "+", "COFFRE", 0.20, 0.75, 1.00)
+        return
+    end
     if not analysis.candidateScore then
         if analysis.candidate and analysis.candidate.equipLoc then
             SetOverlayState(overlay, "x", "", 0.95, 0.20, 0.20)
@@ -252,7 +256,11 @@ local function AddTooltipAnalysis(tooltip)
     if not link or tooltip.CoALootAdvisorLink == link then return end
     tooltip.CoALootAdvisorBusy = true
     local analysis = Analyze(link)
-    if not analysis or analysis.nonEquipable then
+    if not analysis then
+        tooltip.CoALootAdvisorBusy = false
+        return
+    end
+    if analysis.nonEquipable and not analysis.lockedChest then
         tooltip.CoALootAdvisorBusy = false
         return
     end
@@ -269,7 +277,11 @@ local function AddTooltipAnalysis(tooltip)
         end
     end
 
-    if not analysis.candidateScore then
+    if analysis.lockedChest then
+        local verdict = analysis.need and "À RÉCUPÉRER" or "RÈGLE COFFRE DÉSACTIVÉE"
+        tooltip:AddLine(verdict, analysis.need and 0.20 or 1.00, analysis.need and 1.00 or 0.35, 0.35)
+        tooltip:AddLine(analysis.reason or "Coffre verrouillé", 0.65, 0.82, 1.00, true)
+    elseif not analysis.candidateScore then
         tooltip:AddLine("INCOMPATIBLE", 1.00, 0.20, 0.20)
         tooltip:AddLine(analysis.reason or "Comparaison impossible", 1.00, 0.55, 0.55, true)
     elseif analysis.manual then
@@ -613,6 +625,8 @@ local function RefreshHistoryWindow(profile)
             local suffix = percent and (" " .. ShortPercent(percent)) or ""
             if entry.decision == "NEED" then
                 row.delta:SetText("|cff33ff4c+ NEED" .. suffix .. "|r")
+            elseif entry.decision == "GREED" then
+                row.delta:SetText("|cff55aaff+ CUPIDITÉ" .. suffix .. "|r")
             elseif entry.decision == "PASS" then
                 row.delta:SetText("|cffff5b5b- PASS" .. suffix .. "|r")
             else

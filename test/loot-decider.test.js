@@ -50,7 +50,7 @@ test('CoA Loot Decider adapts all 70 profiles to live CoA talents, level and spe
   const profileTabs = profileSection.match(/^\s*\["[^"]+:[^"]+"\] = "[^"]+"/gm) ?? [];
   const weightRows = profiles.match(/^\s*\["[^"]+:[^"]+"\]\s*=\s*\{[^\n]+\},?$/gm) ?? [];
 
-  assert.match(toc, /^## Version: 1\.10\.0$/m);
+  assert.match(toc, /^## Version: 1\.10\.1$/m);
   assert.equal(nodeRows.length, 3618, 'the pinned live CoA dataset must remain complete');
   assert.equal(classRows.length, 21, 'every CoA class must have an adaptive talent dataset');
   assert.equal(profileTabs.length, 70, 'every shipped loot profile must resolve to a live talent tab');
@@ -157,22 +157,44 @@ test('CoA Loot Decider rejects incompatible power families before scoring item l
   assert.match(lua, /Une surcharge ne peut jamais reactiver une famille interdite par CoA/);
 });
 
-test('CoA Loot Decider makes only NEED or PASS decisions and handles item-cache delay', async () => {
+test('CoA Loot Decider uses NEED/PASS with a GREED fallback only for locked chests', async () => {
   const lua = await readFile(luaPath, 'utf8');
   for (const required of [
     'START_LOOT_ROLL', 'CANCEL_LOOT_ROLL', 'CONFIRM_LOOT_ROLL',
     'GetLootRollItemLink', 'GetLootRollItemInfo', 'RollOnLoot', 'ConfirmLootRoll',
-    'local ROLL_PASS = 0', 'local ROLL_NEED = 1', 'ITEM_CACHE_TIMEOUT = 3',
+    'local ROLL_PASS = 0', 'local ROLL_NEED = 1', 'local ROLL_GREED = 2', 'ITEM_CACHE_TIMEOUT = 3',
     'LeaveUnknownRoll', 'CHOIX MANUEL', 'NEED indisponible pour cet objet',
     'SLASH_COALOOTDECIDER1 = "/cld"'
   ]) assert.ok(lua.includes(required), `missing roll feature: ${required}`);
-  assert.doesNotMatch(lua, /ROLL_GREED|ROLL_DISENCHANT/);
-  assert.match(lua, /local rollType = decision\.need and ROLL_NEED or ROLL_PASS/);
+  assert.doesNotMatch(lua, /ROLL_DISENCHANT/);
+  assert.match(lua, /if decision\.lockedChest and decision\.need and not canNeed and canGreed then[\s\S]+rollType = ROLL_GREED/);
+  assert.match(lua, /local _, _, _, _, _, canNeed, canGreed = GetLootRollItemInfo\(rollID\)/);
+  assert.match(lua, /if not rollType then rollType = decision\.need and ROLL_NEED or ROLL_PASS end/);
   assert.match(lua, /strictSafetyVersion ~= 2[\s\S]+passUnknown = false/);
   assert.match(lua, /candidate\.equipLoc == "INVTYPE_TRINKET"[\s\S]+verification manuelle recommandee/);
   assert.match(lua, /HasUnscoredEffect\(candidate\.link\)[\s\S]+effet Equipe\/Utiliser non chiffrable/);
   assert.match(lua, /analysis and analysis\.manual[\s\S]+return nil, analysis\.reason/,
     'unknown effects must never trigger an automatic roll');
+});
+
+test('locked loot chests are always rolled instead of being discarded as non-equippable', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  const advisor = await readFile(advisorPath, 'utf8');
+  for (const required of [
+    'CoALootDeciderDB.needLockedChests', 'CoALootDeciderLockedChestScanner',
+    'LOCKED_CHEST_CONTAINER_WORDS', 'LOCKED_CHEST_LOCK_WORDS',
+    '"locked"', '"lockbox"', '"coffre"', '"verrou"', '"crochetage"',
+    'IsLockedChest(candidate)', 'lockedChest = true',
+    'coffre verrouillé : NEED', 'command == "chests" or command == "coffres"',
+    'decision.rollDecision = "GREED"'
+  ]) assert.ok(lua.includes(required), `missing locked-chest loot policy: ${required}`);
+  assert.match(lua, /if IsLockedChest\(candidate\) then[\s\S]+if not EQUIP_SLOTS\[candidate\.equipLoc\] then/,
+    'locked chests must be recognized before the ordinary non-equippable PASS rule');
+  assert.match(lua, /AddHistory\(rollID, decision, automatic\)/,
+    'the NEED/GREED chest decision must remain visible in history');
+  for (const required of ['analysis.lockedChest', 'COFFRE', 'À RÉCUPÉRER', 'CUPIDITÉ']) {
+    assert.ok(advisor.includes(required), `the advisor must explain locked chests: ${required}`);
+  }
 });
 
 test('CoA Loot Advisor compares bags, bank, merchants, loot and universal item tooltips', async () => {
@@ -218,7 +240,7 @@ test('CoA Loot Decider preserves the local 1.9 BagAware and fit-scoring behavior
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   const advisor = await readFile(advisorPath, 'utf8');
-  assert.match(toc, /^## Version: 1\.10\.0$/m,
+  assert.match(toc, /^## Version: 1\.10\.1$/m,
     'the published addon must be newer than the installed 1.9.0 custom build');
   for (const required of [
     'ScanBagItems', 'profile.bagItems = ScanBagItems()', 'OwnedBaselineFor',

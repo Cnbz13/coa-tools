@@ -57,6 +57,8 @@ Les ajustements sont volontairement bornés : un talent renforce uniquement une 
 
 Commandes complémentaires : `/cld talents` affiche l’arbre, le nombre de talents et de sorts détectés ainsi que la confiance ; `/cld explain` liste les talents qui influencent le stuff et les ajustements appliqués. `/cld scan` force une nouvelle détection, `/cld gear` ouvre la comparaison visuelle triable par gain ou emplacement et `/cld history` ouvre l’historique détaillé des décisions.
 
+Les coffres verrouillés proposés dans une fenêtre de jet constituent une exception aux objets non équipables : Loot Decider choisit **NEED** lorsqu’il est disponible, sinon **CUPIDITÉ**, au lieu de les passer. La règle est active par défaut et peut être inversée avec `/cld chests` ou `/cld coffres`.
+
 ## Gestion automatique des addons Ascension
 
 Le manager privilégie automatiquement `C:\Ascension\Launcher\resources\ascension-live\Interface\AddOns`, puis le dernier chemin choisi et les installations usuelles. La configuration avancée permet de sélectionner et mémoriser un autre dossier `Interface\AddOns`.

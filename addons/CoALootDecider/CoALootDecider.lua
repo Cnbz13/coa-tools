@@ -2,6 +2,7 @@ local addonName = ...
 
 local ROLL_PASS = 0
 local ROLL_NEED = 1
+local ROLL_GREED = 2
 local RETRY_INTERVAL = 0.25
 local ITEM_CACHE_TIMEOUT = 3
 local HISTORY_LIMIT = 50
@@ -226,8 +227,9 @@ local function EnsureDatabase()
     CoALootDeciderDB.customWeights = CoALootDeciderDB.customWeights or {}
     CoALootDeciderDB.adaptiveBuilds = CoALootDeciderDB.adaptiveBuilds or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
+    if CoALootDeciderDB.needLockedChests == nil then CoALootDeciderDB.needLockedChests = true end
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.10.0-advisor-history"
+    CoALootDeciderDB.version = "1.10.1-locked-chests"
 end
 
 local function ReadItemStats(itemLink)
@@ -302,6 +304,61 @@ local function ItemData(itemLink)
         stats = ReadItemStats(link or itemLink),
         weaponSpeed = isWeapon and ReadWeaponSpeed(link or itemLink) or nil
     }
+end
+
+local lockedChestScanner = CreateFrame("GameTooltip", "CoALootDeciderLockedChestScanner", nil, "GameTooltipTemplate")
+lockedChestScanner:SetOwner(UIParent, "ANCHOR_NONE")
+local lockedChestCache = {}
+local LOCKED_CHEST_CONTAINER_WORDS = {
+    "chest", "coffer", "lockbox", "strongbox", "crate", "cache",
+    "coffre", "coffret", "boite", "boîte", "malle", "caisse",
+}
+local LOCKED_CHEST_LOCK_WORDS = {
+    "locked", "lockpicking", "requires a key", "requires key",
+    "verrou", "crochetage", "nécessite une clé", "necessite une cle",
+}
+
+local function ContainsPlain(text, words)
+    for _, word in ipairs(words) do
+        if string.find(text or "", word, 1, true) then return true end
+    end
+    return false
+end
+
+local function IsLockedChest(data)
+    if not data or not data.link then return false end
+    if lockedChestCache[data.link] ~= nil then return lockedChestCache[data.link] end
+    local identity = Lower((data.name or "") .. " " .. (data.itemType or "") .. " " .. (data.itemSubType or ""))
+    local looksLikeContainer = ContainsPlain(identity, LOCKED_CHEST_CONTAINER_WORDS)
+    local explicitlyLocked = ContainsPlain(identity, LOCKED_CHEST_LOCK_WORDS)
+        or string.find(identity, "lockbox", 1, true)
+    if looksLikeContainer and explicitlyLocked then
+        lockedChestCache[data.link] = true
+        return true
+    end
+    if not looksLikeContainer then
+        lockedChestCache[data.link] = false
+        return false
+    end
+
+    lockedChestScanner:ClearLines()
+    if not pcall(lockedChestScanner.SetHyperlink, lockedChestScanner, data.link) then
+        lockedChestScanner:Hide()
+        return false
+    end
+    local tooltipText = identity
+    local line
+    for line = 1, lockedChestScanner:NumLines() do
+        local left = _G["CoALootDeciderLockedChestScannerTextLeft" .. line]
+        local right = _G["CoALootDeciderLockedChestScannerTextRight" .. line]
+        tooltipText = tooltipText .. " " .. Lower(left and left:GetText() or "")
+            .. " " .. Lower(right and right:GetText() or "")
+    end
+    lockedChestScanner:Hide()
+    local result = ContainsPlain(tooltipText, LOCKED_CHEST_LOCK_WORDS)
+        or string.find(tooltipText, "lockbox", 1, true) ~= nil
+    lockedChestCache[data.link] = result and true or false
+    return result and true or false
 end
 
 -- Ascension 3.3.5 expose les fonctions de sacs globales de WotLK. Ne pas
@@ -1084,6 +1141,19 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
     if not profile.valid then return nil, profile.error end
     local candidate = ItemData(itemLink)
     if not candidate then return nil, "informations d'objet indisponibles" end
+    if IsLockedChest(candidate) then
+        local wanted = CoALootDeciderDB.needLockedChests ~= false
+        return {
+            need = wanted,
+            candidate = candidate,
+            reason = wanted
+                and "coffre verrouillé : NEED, ou CUPIDITÉ si NEED est indisponible"
+                or "coffre verrouillé : règle de récupération désactivée",
+            confidence = "haute",
+            nonEquipable = true,
+            lockedChest = true,
+        }
+    end
     if not EQUIP_SLOTS[candidate.equipLoc] then
         return {
             need = false,
@@ -1256,7 +1326,13 @@ end)
 local function ShowDecision(decision, automatic)
     local candidate = decision.candidate or {}
     banner.icon:SetTexture(candidate.texture or "Interface\\Icons\\INV_Misc_QuestionMark")
-    if decision.need then
+    if decision.lockedChest and decision.rollDecision == "GREED" then
+        banner.accent:SetVertexColor(0.25, 0.65, 1.00, 1)
+        banner.verdict:SetText("|cff55aaff+ CUPIDITÉ COFFRE|r  " .. (candidate.link or candidate.name or "Coffre"))
+    elseif decision.lockedChest and decision.need then
+        banner.accent:SetVertexColor(0.15, 1.00, 0.25, 1)
+        banner.verdict:SetText("|cff3cff52+ NEED COFFRE|r  " .. (candidate.link or candidate.name or "Coffre"))
+    elseif decision.need then
         local percent = decision.percent and ((decision.percent > 0 and "+" or "") .. Round(decision.percent, 0) .. "%") or ""
         banner.accent:SetVertexColor(0.15, 1.00, 0.25, 1)
         banner.verdict:SetText("|cff3cff52+ AMELIORATION " .. percent .. "|r  " .. (candidate.link or candidate.name or "Objet"))
@@ -1287,7 +1363,7 @@ local function AddHistory(rollID, decision, automatic)
         rollID = rollID,
         itemLink = decision.candidate and decision.candidate.link or nil,
         itemName = decision.candidate and decision.candidate.name or "Objet inconnu",
-        decision = decision.need and "NEED" or "PASS",
+        decision = decision.rollDecision or (decision.need and "NEED" or "PASS"),
         reason = decision.reason,
         percent = decision.percent,
         confidence = decision.confidence,
@@ -1312,16 +1388,25 @@ local function AddManualHistory(rollID, itemLink, itemName, reason)
     while #history > HISTORY_LIMIT do table.remove(history) end
 end
 
-local function ApplyRoll(rollID, decision, canNeed)
-    if decision.need and not canNeed then
+local function ApplyRoll(rollID, decision, canNeed, canGreed)
+    local rollType
+    if decision.lockedChest and decision.need and not canNeed and canGreed then
+        rollType = ROLL_GREED
+        decision.rollDecision = "GREED"
+        decision.reason = "coffre verrouillé : NEED indisponible, jet CUPIDITÉ effectué"
+    elseif decision.lockedChest and decision.need and not canNeed then
+        decision.need = false
+        decision.reason = "coffre verrouillé : NEED et CUPIDITÉ indisponibles pour ce jet"
+    elseif decision.need and not canNeed then
         decision.need = false
         decision.reason = "NEED indisponible pour cet objet"
     end
-    local rollType = decision.need and ROLL_NEED or ROLL_PASS
+    if not rollType then rollType = decision.need and ROLL_NEED or ROLL_PASS end
+    if not decision.rollDecision then decision.rollDecision = decision.need and "NEED" or "PASS" end
     local automatic = CoALootDeciderDB.autoRoll and RollOnLoot ~= nil
     ShowDecision(decision, automatic)
     AddHistory(rollID, decision, automatic)
-    Chat((decision.need and "NEED " or "PASS ") .. (decision.candidate.link or decision.candidate.name or "objet") .. " - " .. decision.reason)
+    Chat(tostring(decision.rollDecision) .. " " .. (decision.candidate.link or decision.candidate.name or "objet") .. " - " .. decision.reason)
 
     if automatic then
         confirmations[rollID] = { rollType = rollType, expires = GetTime() + 15 }
@@ -1340,8 +1425,8 @@ local function TryEvaluateRoll(rollID)
         return false
     end
 
-    local _, _, _, _, _, canNeed = GetLootRollItemInfo(rollID)
-    ApplyRoll(rollID, decision, canNeed)
+    local _, _, _, _, _, canNeed, canGreed = GetLootRollItemInfo(rollID)
+    ApplyRoll(rollID, decision, canNeed, canGreed)
     pendingRolls[rollID] = nil
     return true
 end
@@ -1494,6 +1579,7 @@ local function PrintHelp()
     Chat("/cld gear - meilleurs objets des sacs, banque et marchand")
     Chat("/cld visuals - active/desactive les contours et tooltips")
     Chat("/cld downgrades - affiche/masque les objets moins bons")
+    Chat("/cld chests - NEED les coffres verrouillés, CUPIDITÉ si NEED est indisponible")
     Chat("/cld test [lien] - compare un objet sans lancer de jet")
     Chat("/cld threshold 15 - seuil de la specialisation actuelle")
     Chat("/cld threshold auto - revient au seuil de classe/global")
@@ -1517,6 +1603,7 @@ SlashCmdList.COALOOTDECIDER = function(message)
         local threshold, thresholdSource = ActiveThreshold()
         Chat("auto=" .. (CoALootDeciderDB.autoRoll and "ACTIF" or "inactif")
             .. ", confirmation=" .. (CoALootDeciderDB.autoConfirm and "active" or "inactive")
+            .. ", coffres=" .. (CoALootDeciderDB.needLockedChests and "RECUPERER" or "passer")
             .. ", seuil=" .. threshold .. "% (" .. thresholdSource .. ")")
         Chat(ProfileSummary())
     elseif command == "auto" then
@@ -1546,6 +1633,10 @@ SlashCmdList.COALOOTDECIDER = function(message)
         if CoALootAdvisor_ToggleDowngrades then
             Chat("objets moins bons " .. (CoALootAdvisor_ToggleDowngrades() and "affiches" or "masques"))
         end
+    elseif command == "chests" or command == "coffres" then
+        CoALootDeciderDB.needLockedChests = not CoALootDeciderDB.needLockedChests
+        Chat("coffres verrouillés : " .. (CoALootDeciderDB.needLockedChests
+            and "NEED, avec CUPIDITÉ de secours" or "PASS"))
     elseif command == "threshold" then
         ScanEquipment()
         local key = ThresholdKey(profile)

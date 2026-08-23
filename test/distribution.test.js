@@ -16,7 +16,7 @@ test('release manifest describes every managed component and the official EventA
     assert.ok(artifact.targetFolder);
   }
   const hereticHelper = manifest.artifacts.find(item => item.component === 'heretic-helper');
-  assert.equal(hereticHelper.contentVersion, '3.8.0');
+  assert.equal(hereticHelper.contentVersion, '3.8.1');
   assert.equal(hereticHelper.targetFolder, 'CoAHereticHelper');
   const eventAlert = manifest.artifacts.find(item => item.component === 'event-alert');
   assert.equal(eventAlert.targetFolder, 'EventAlert');
@@ -130,7 +130,7 @@ test('WoW addon metadata matches the package version', async () => {
     assert.match(toc, new RegExp(`^${name}\\.lua$`, 'm'));
   }
   const hereticToc = await readFile('addons/CoAHereticHelper/CoAHereticHelper.toc', 'utf8');
-  assert.match(hereticToc, /^## Version: 3\.8\.0$/m);
+  assert.match(hereticToc, /^## Version: 3\.8\.1$/m);
   assert.match(hereticToc, /^CoAHereticHelper\.lua$/m);
   const compatibilityToc = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.toc', 'utf8');
   const patch = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.lua', 'utf8');

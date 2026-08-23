@@ -1,4 +1,4 @@
-CoA Heretic Proc HUD v3.8.0
+CoA Heretic Proc HUD v3.8.1
 ===========================
 
 PROFIL NIVEAU 39

@@ -6,14 +6,30 @@ import luaparse from 'luaparse';
 const tocPath = 'addons/CoAHereticHelper/CoAHereticHelper.toc';
 const luaPath = 'addons/CoAHereticHelper/CoAHereticHelper.lua';
 
-test('CoA Heretic Helper v3.8.0 remains a Lua 5.1 information HUD, never a rotation bot', async () => {
+test('CoA Heretic Helper v3.8.1 remains a Lua 5.1 information HUD, never a rotation bot', async () => {
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 3\.8\.0$/m);
+  assert.match(toc, /^## Version: 3\.8\.1$/m);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
   assert.doesNotMatch(lua, /lance Malevolence maintenant/i);
+});
+
+test('Heretic settings panel is draggable, persistent and never obscures its tests', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  for (const required of [
+    'menu:SetMovable(true)', 'menuDragHandle:RegisterForDrag("LeftButton")',
+    'menu:StartMoving()', 'menu:StopMovingOrSizing()',
+    'db.menuX=menuX-parentX', 'db.menuY=menuY-parentY',
+    'type(db.menuX)=="number"', 'PositionHereticMenu(centered)'
+  ]) assert.ok(lua.includes(required), `missing movable menu feature: ${required}`);
+  assert.match(lua, /elseif msg=="test" then menu:Hide\(\); testUntil=/,
+    'the visual test must hide the settings panel first');
+  assert.match(lua, /elseif msg=="bbsound" then\s+menu:Hide\(\)/,
+    'the Black Blood sound test must hide the settings panel first');
+  assert.match(lua, /db\.menuX=nil; db\.menuY=nil; ApplyPreset\("compact"\); PositionHereticMenu\(true\)/,
+    'reset must clear and recenter the saved menu position');
 });
 
 test('Heretic 3.8 provides a compact proc and per-member Black Blood HUD', async () => {

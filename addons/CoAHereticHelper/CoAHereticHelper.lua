@@ -1,6 +1,6 @@
 local addonName = ...
 
--- CoA Heretic Helper v3.8.0
+-- CoA Heretic Helper v3.8.1
 -- One proc only: instant Eldritch Mending.
 -- Separate, compact Black Blood tracker.
 -- Optional neutral 3-pip progress indicator for Malevolent Power.
@@ -120,7 +120,7 @@ local function EnsureDB()
     if db.buttonHidden == nil then db.buttonHidden = false end
     if type(db.eventTrace) ~= "table" then db.eventTrace = {} end
     -- Preserve positions/settings across addon updates.
-    db.version = 380
+    db.version = 381
     return db
 end
 
@@ -934,10 +934,25 @@ controlHighlight:SetWidth(32); controlHighlight:SetHeight(32); controlHighlight:
 controlHighlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"); controlHighlight:SetBlendMode("ADD")
 
 local menu=CreateFrame("Frame","CoAHereticHUDMenu",UIParent)
-menu:SetWidth(286); menu:SetHeight(358); menu:SetClampedToScreen(true); menu:SetFrameStrata("DIALOG")
+menu:SetWidth(286); menu:SetHeight(358); menu:SetMovable(true); menu:SetClampedToScreen(true); menu:SetFrameStrata("DIALOG")
 menu:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
 menu:SetBackdropColor(0.012,0.025,0.055,0.97); menu:SetBackdropBorderColor(0.25,0.88,1.0,0.90); menu:Hide()
 local mt=menu:CreateFontString(nil,"OVERLAY","GameFontNormal"); mt:SetPoint("TOPLEFT",12,-12); mt:SetText("HERETIC • PROC HUD"); mt:SetTextColor(0.45,0.95,1)
+local menuMoveHint=menu:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); menuMoveHint:SetPoint("TOPRIGHT",-10,-12); menuMoveHint:SetText("Glisser pour deplacer"); menuMoveHint:SetTextColor(0.55,0.72,0.80)
+local menuDragHandle=CreateFrame("Frame",nil,menu)
+menuDragHandle:SetPoint("TOPLEFT",menu,"TOPLEFT",1,-1); menuDragHandle:SetPoint("TOPRIGHT",menu,"TOPRIGHT",-1,-1); menuDragHandle:SetHeight(30)
+menuDragHandle:EnableMouse(true); menuDragHandle:RegisterForDrag("LeftButton")
+menuDragHandle:SetScript("OnDragStart",function() menu:StartMoving() end)
+menuDragHandle:SetScript("OnDragStop",function()
+    menu:StopMovingOrSizing()
+    local menuX,menuY=menu:GetCenter()
+    local parentX,parentY=UIParent:GetCenter()
+    if menuX and menuY and parentX and parentY then
+        local db=EnsureDB()
+        db.menuX=menuX-parentX
+        db.menuY=menuY-parentY
+    end
+end)
 local md=menu:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); md:SetPoint("TOPLEFT",12,-34); md:SetWidth(260); md:SetJustifyH("LEFT"); md:SetText("Soin occulte : icone uniquement quand le proc est pret.\nSang noir : un point par membre du groupe.\nAucun sort n'est lance automatiquement.")
 local function MenuButton(text,x,y,w)
     local b=CreateFrame("Button",nil,menu,"UIPanelButtonTemplate"); b:SetWidth(w or 122); b:SetHeight(22); b:SetPoint("TOPLEFT",x,y); b:SetText(text); return b
@@ -1018,17 +1033,24 @@ local function UpdateMenu()
     bMinimap:SetText("BOUTON : "..(db.buttonHidden and "OFF" or "ON"))
 end
 
+local function PositionHereticMenu(centered)
+    local db=EnsureDB()
+    menu:ClearAllPoints()
+    if type(db.menuX)=="number" and type(db.menuY)=="number" then
+        menu:SetPoint("CENTER",UIParent,"CENTER",db.menuX,db.menuY)
+    elseif centered or not control:IsVisible() then
+        menu:SetPoint("CENTER",UIParent,"CENTER",0,0)
+    else
+        menu:SetPoint("TOPLEFT",control,"BOTTOMRIGHT",5,-5)
+    end
+end
+
 local function ToggleHereticMenu(centered)
     if menu:IsShown() then
         menu:Hide()
         return
     end
-    menu:ClearAllPoints()
-    if centered or not control:IsVisible() then
-        menu:SetPoint("CENTER",UIParent,"CENTER",0,0)
-    else
-        menu:SetPoint("TOPLEFT",control,"BOTTOMRIGHT",5,-5)
-    end
+    PositionHereticMenu(centered)
     UpdateMenu()
     menu:Show()
 end
@@ -1173,13 +1195,14 @@ local function HandleCommand(msg)
     local db=EnsureDB(); msg=string.lower((msg or ""):gsub("^%s+",""):gsub("%s+$",""))
     if msg=="" or msg=="menu" or msg=="help" then
         ToggleHereticMenu(true)
-    elseif msg=="test" then testUntil=GetTime()+8; Chat("test 8 s : progression -> proc instant + Sang noir.")
+    elseif msg=="test" then menu:Hide(); testUntil=GetTime()+8; Chat("test 8 s : progression -> proc instant + Sang noir.")
     elseif msg=="unlock" then db.locked=false
     elseif msg=="lock" then db.locked=true
     elseif msg=="bbunlock" then db.bbLocked=false
     elseif msg=="bblock" then db.bbLocked=true
     elseif msg=="sound" then db.sound=not db.sound
     elseif msg=="bbsound" then
+        menu:Hide()
         PlayBlackBloodWarning("expiring", true)
         bbSoundTestAt=GetTime()+0.8
         Chat("test Sang noir : avertissement, puis alarme critique.")
@@ -1205,7 +1228,7 @@ local function HandleCommand(msg)
         end
     elseif msg=="bbalways" then db.bbAlways=not db.bbAlways
     elseif msg=="reset" then
-        db.buttonAngle=4.15; db.buttonHidden=false; db.showKeybind=true; ApplyPreset("compact"); localProcProgress=0; localInstantUntil=0; procReady=false; procReadyUntil=0; lastMalevolentAuraSeen=0; lastMalevolentStacks=0; lastMalevolentExpiration=0; lastQualifyingCastAt=0; pendingMelee=false; pendingMeleeAt=0; lastProcessedMeleeAt=0; lastMalevolentScanAt=0; lastMendingScanAt=0; bbPrevCovered=0; bbPrevTotal=0; bbWarnedExpiryCycle=false; bbWarnedCriticalCycle=false; bbWarnedMissingCycle=false; bbLastScanAt=0; bbCachedState={covered=0,total=1,remain=0,duration=10,maxStacks=0,details={},sampledAt=0}; localBB={}; Chat("positions et trackers reinitialises.")
+        db.buttonAngle=4.15; db.buttonHidden=false; db.showKeybind=true; db.menuX=nil; db.menuY=nil; ApplyPreset("compact"); PositionHereticMenu(true); localProcProgress=0; localInstantUntil=0; procReady=false; procReadyUntil=0; lastMalevolentAuraSeen=0; lastMalevolentStacks=0; lastMalevolentExpiration=0; lastQualifyingCastAt=0; pendingMelee=false; pendingMeleeAt=0; lastProcessedMeleeAt=0; lastMalevolentScanAt=0; lastMendingScanAt=0; bbPrevCovered=0; bbPrevTotal=0; bbWarnedExpiryCycle=false; bbWarnedCriticalCycle=false; bbWarnedMissingCycle=false; bbLastScanAt=0; bbCachedState={covered=0,total=1,remain=0,duration=10,maxStacks=0,details={},sampledAt=0}; localBB={}; Chat("positions et trackers reinitialises.")
     elseif msg=="debug" then
         RefreshSpecDetection(); local instant,aura,castMS=GetMendingInstantState(); local c,t,r,d,s=ScanBlackBlood()
         Chat("Profil="..BUILD_PROFILE.name.." | niveau="..tostring(playerLevel).." | Heretic="..tostring(hereticDetected).." | Soin appris="..tostring(spellbook.mending and spellbook.mending.learned or false).." | cast="..tostring(castMS).."ms | instant="..tostring(instant))
@@ -1305,7 +1328,7 @@ for _,ev in ipairs({"PLAYER_LOGIN","PLAYER_ENTERING_WORLD","PLAYER_LEVEL_UP","PL
 end
 events:SetScript("OnEvent",function(self,event,...)
     if event=="PLAYER_LOGIN" then
-        EnsureDB(); ApplyPositions(); RefreshSpecDetection(); Chat("v3.8.0 charge : HUD compact, touche du proc et points Sang noir par membre. /hh")
+        EnsureDB(); ApplyPositions(); RefreshSpecDetection(); Chat("v3.8.1 charge : panneau deplacable, HUD compact, touche du proc et points Sang noir par membre. /hh")
     elseif event=="SPELLS_CHANGED" or event=="PLAYER_TALENT_UPDATE" or event=="PLAYER_LEVEL_UP" or event=="PLAYER_ENTERING_WORLD" then
         RefreshSpecDetection()
     elseif event=="UNIT_SPELLCAST_SUCCEEDED" then

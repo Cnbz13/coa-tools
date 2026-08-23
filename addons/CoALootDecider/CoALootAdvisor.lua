@@ -246,6 +246,11 @@ local function AddTooltipAnalysis(tooltip)
     local profile = api.GetProfile()
     if profile and profile.valid then
         tooltip:AddLine(profile.className .. " - " .. profile.specName, 0.70, 0.70, 0.70)
+        if profile.adaptive then
+            tooltip:AddLine("Profil adaptatif : " .. tostring(profile.adaptive.confidence or "basse")
+                .. " ; " .. tostring(profile.adaptive.selectedCount or 0) .. " talents ; niveau "
+                .. tostring(profile.adaptive.level or "?"), 0.45, 0.82, 1.00)
+        end
     end
 
     if not analysis.candidateScore then
@@ -505,6 +510,9 @@ local function RefreshWindow()
     if bankOpen then sourceText = sourceText .. " + banque" end
     advisorWindow.status:SetText((profile and profile.valid
         and (profile.className .. " - " .. profile.specName) or "Profil indisponible")
+        .. (profile and profile.adaptive
+            and (" | adaptatif " .. tostring(profile.adaptive.confidence or "basse")
+                .. " (" .. tostring(profile.adaptive.selectedCount or 0) .. " talents)") or "")
         .. " | meilleur candidat par emplacement | " .. sourceText)
 
     local index, row

@@ -31,6 +31,14 @@ const newsPayload = {
   }]
 };
 
+const talentCommitPayload = [{
+  sha: 'abc123', html_url: 'https://github.com/srhinos/coa-datamine/commit/abc123',
+  commit: {
+    message: 'Update CoA talent data',
+    committer: { date: '2026-08-08T11:00:00Z' }
+  }
+}];
+
 test('official changelog and news payloads are normalized without HTML noise', () => {
   const changelog = flattenChangelog(changelogPayload);
   assert.equal(changelog.length, 1);
@@ -76,6 +84,7 @@ test('weekly watch persists fingerprints and never proposes the same publication
   const fetchImpl = async url => {
     if (String(url).includes('/changelog?')) return Response.json(changelogPayload);
     if (String(url).includes('/article?page=')) return Response.json(newsPayload);
+    if (String(url).includes('/srhinos/coa-datamine/commits?')) return Response.json(talentCommitPayload);
     return new Response('missing', { status: 404 });
   };
 
@@ -83,8 +92,8 @@ test('weekly watch persists fingerprints and never proposes the same publication
     statePath, reportPath, fetchImpl,
     now: () => new Date('2026-08-09T20:00:00Z')
   });
-  assert.equal(first.newCount, 2);
-  assert.equal(first.significantCount, 2);
+  assert.equal(first.newCount, 3);
+  assert.equal(first.significantCount, 3);
   assert.equal(first.items.every(item => item.impacts.length > 0), true);
 
   const second = await runCoaWatch({
@@ -92,11 +101,11 @@ test('weekly watch persists fingerprints and never proposes the same publication
     now: () => new Date('2026-08-16T20:00:00Z')
   });
   assert.equal(second.newCount, 0);
-  assert.equal(second.items.length, 2);
+  assert.equal(second.items.length, 3);
   assert.equal(second.items.every(item => item.new === false), true);
 
   const state = JSON.parse(await readFile(statePath, 'utf8'));
-  assert.equal(Object.keys(state.seen).length, 3);
+  assert.equal(Object.keys(state.seen).length, 4);
   assert.equal(state.lastCheckedAt, '2026-08-16T20:00:00.000Z');
 });
 

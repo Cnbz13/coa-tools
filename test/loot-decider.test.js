@@ -6,28 +6,85 @@ import luaparse from 'luaparse';
 const tocPath = 'addons/CoALootDecider/CoALootDecider.toc';
 const luaPath = 'addons/CoALootDecider/CoALootDecider.lua';
 const profilesPath = 'addons/CoALootDecider/CoALootProfiles.lua';
+const talentDataPath = 'addons/CoALootDecider/CoALootTalentData.lua';
+const adaptationPath = 'addons/CoALootDecider/CoALootAdaptation.lua';
 const advisorPath = 'addons/CoALootDecider/CoALootAdvisor.lua';
 
 test('CoA Loot Decider targets Ascension 3.3.5 and parses as Lua 5.1', async () => {
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   const profiles = await readFile(profilesPath, 'utf8');
+  const talentData = await readFile(talentDataPath, 'utf8');
+  const adaptation = await readFile(adaptationPath, 'utf8');
   const advisor = await readFile(advisorPath, 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
   assert.match(toc, /^## SavedVariables: CoALootDeciderDB$/m);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotThrow(() => luaparse.parse(profiles, { luaVersion: '5.1', comments: false, locations: true }));
+  assert.doesNotThrow(() => luaparse.parse(talentData, { luaVersion: '5.1', comments: false, locations: true }));
+  assert.doesNotThrow(() => luaparse.parse(adaptation, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotThrow(() => luaparse.parse(advisor, { luaVersion: '5.1', comments: false, locations: true }));
-  assert.match(toc, /CoALootProfiles\.lua\s+CoALootDecider\.lua/,
-    'profiles must load before the decision engine');
+  assert.match(toc, /CoALootTalentData\.lua\s+CoALootAdaptation\.lua\s+CoALootProfiles\.lua\s+CoALootDecider\.lua/,
+    'talent data, adaptation and profiles must load before the decision engine');
 
   for (const retailApi of [
     'BackdropTemplate', 'SetShown', 'SetSize', 'C_Timer',
     'C_Item', 'Enum.', 'CreateFromMixins', 'RegisterUnitEvent'
   ]) {
     assert.equal(lua.includes(retailApi), false, `forbidden Retail API in engine: ${retailApi}`);
+    assert.equal(adaptation.includes(retailApi), false, `forbidden Retail API in adaptive engine: ${retailApi}`);
     assert.equal(advisor.includes(retailApi), false, `forbidden Retail API in advisor: ${retailApi}`);
   }
+});
+
+test('CoA Loot Decider adapts all 70 profiles to live CoA talents, level and spellbook', async () => {
+  const toc = await readFile(tocPath, 'utf8');
+  const lua = await readFile(luaPath, 'utf8');
+  const profiles = await readFile(profilesPath, 'utf8');
+  const talentData = await readFile(talentDataPath, 'utf8');
+  const adaptation = await readFile(adaptationPath, 'utf8');
+  const generator = await readFile('scripts/generate-loot-talent-data.mjs', 'utf8');
+  const nodeRows = talentData.match(/^\s*\{ id=\d+, level=\d+, tab="[^"]+", name=/gm) ?? [];
+  const classRows = talentData.match(/^\s*\["[^"]+"\] = \{ classID=\d+, sourceClass=/gm) ?? [];
+  const profileSection = talentData.match(/profileTabs = \{([\s\S]*?)\n\s*\},\n\s*classes = \{/m)?.[1] ?? '';
+  const profileTabs = profileSection.match(/^\s*\["[^"]+:[^"]+"\] = "[^"]+"/gm) ?? [];
+  const weightRows = profiles.match(/^\s*\["[^"]+:[^"]+"\]\s*=\s*\{[^\n]+\},?$/gm) ?? [];
+
+  assert.match(toc, /^## Version: 1\.9\.2$/m);
+  assert.equal(nodeRows.length, 3618, 'the pinned live CoA dataset must remain complete');
+  assert.equal(classRows.length, 21, 'every CoA class must have an adaptive talent dataset');
+  assert.equal(profileTabs.length, 70, 'every shipped loot profile must resolve to a live talent tab');
+  assert.equal(weightRows.filter(row => /\b(?:str|agi|int|spi|ap|sp|crit|sta)=/.test(row)).length, 70);
+
+  for (const required of [
+    'C_CharacterAdvancement.GetTalentRankByID',
+    'C_CharacterAdvancement.GetTalentRankBySpellID',
+    'SpellbookCount', 'ApplyLevelBand', 'SavedFallback', 'SaveSnapshot',
+    'selectedSignalCount', 'weaponSignals', 'MAX_SIGNAL_BONUS',
+    'GetAdaptiveBuild', 'PrintAdaptiveDetails', 'SPELLS_CHANGED', 'PLAYER_LEVEL_UP'
+  ]) assert.ok(adaptation.includes(required) || lua.includes(required), `missing adaptive feature: ${required}`);
+
+  assert.match(generator, /Expected 70 loot profiles/,
+    'generation must fail rather than silently dropping a specialization');
+  assert.match(generator, /No live talent tab for/,
+    'generation must fail when a profile no longer maps to the current CoA trees');
+  assert.match(talentData, /source = "srhinos\/coa-datamine@8c051d20a1e999839a7783651c1c9d1cd3fbd477"/);
+  assert.match(talentData, /signalNodeCount = 580/,
+    'the conservative gear-signal snapshot must only change after a reviewed regeneration');
+  assert.match(talentData, /name="Power of Yogg-Saron"[^\n]+signals=\{ crit=2 \}/,
+    'Heretic level-50 crit scaling must be detected from the live talent text');
+  assert.match(talentData, /name="Void Strikes"[^\n]+signals=\{ defense=2 \}/,
+    'Dreadnought defense-rating scaling must be detected');
+  assert.match(talentData, /name="Libram of Fervor"[^\n]+signals=\{ agi=2, int=2 \}/,
+    'hybrid primary-stat conversion must influence the active build');
+  assert.match(talentData, /name="Brutal Spirit"[^\n]+signals=\{\}/,
+    'CoA mechanics named Spirit must not be mistaken for the equipment stat');
+  assert.match(adaptation, /if key and \(weights\[key\] or 0\) > 0/,
+    'talents must never reactivate a stat forbidden by the specialization profile');
+  assert.match(adaptation, /customWeights\[key\] ~= nil/,
+    'explicit user weights must remain authoritative');
+  assert.match(lua, /weaponRule\.preferDualWield[\s\S]+weaponRule\.preferShield/,
+    'weapon talents must affect one-hand, off-hand and shield comparison scores');
 });
 
 test('CoA Loot Decider ships data-driven profiles for every current CoA specialization', async () => {
@@ -161,7 +218,7 @@ test('CoA Loot Decider preserves the local 1.9 BagAware and fit-scoring behavior
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   const advisor = await readFile(advisorPath, 'utf8');
-  assert.match(toc, /^## Version: 1\.9\.1$/m,
+  assert.match(toc, /^## Version: 1\.9\.2$/m,
     'the published addon must be newer than the installed 1.9.0 custom build');
   for (const required of [
     'ScanBagItems', 'profile.bagItems = ScanBagItems()', 'OwnedBaselineFor',

@@ -224,9 +224,10 @@ local function EnsureDatabase()
         CoALootDeciderDB.itemLevelWeight = tonumber(CoALootDeciderDB.itemLevelWeight) or 0
     end
     CoALootDeciderDB.customWeights = CoALootDeciderDB.customWeights or {}
+    CoALootDeciderDB.adaptiveBuilds = CoALootDeciderDB.adaptiveBuilds or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.9.1-bag-aware-universal"
+    CoALootDeciderDB.version = "1.9.2-adaptive-talents"
 end
 
 local function ReadItemStats(itemLink)
@@ -690,6 +691,15 @@ local function ScanEquipment()
         return profile
     end
 
+    local adaptive = nil
+    if type(CoALootAdaptation) == "table" and type(CoALootAdaptation.Scan) == "function" then
+        weights, weaponRule, adaptive = CoALootAdaptation.Scan(
+            specialization.className, specialization.specName, presetKey,
+            weights, weaponRule
+        )
+        weightSource = weightSource .. " + niveau/spellbook/talents CoA"
+    end
+
     profile = {
         valid = true,
         items = items,
@@ -710,6 +720,7 @@ local function ScanEquipment()
         weightSource = weightSource,
         presetKey = presetKey,
         weaponRule = weaponRule,
+        adaptive = adaptive,
         level = PlayerLevel(),
         isCultistHeretic = presetKey == "Cultist:Heretic",
         isBloodmageSanguine = presetKey == "Bloodmage:Sanguine",
@@ -862,6 +873,15 @@ local function ScoreItem(data)
     end
     if weaponRule and weaponRule.preferTwoHand and data.equipLoc == "INVTYPE_2HWEAPON" then
         score = score + 30
+    end
+    if weaponRule and weaponRule.preferDualWield
+        and (data.equipLoc == "INVTYPE_WEAPON" or data.equipLoc == "INVTYPE_WEAPONMAINHAND"
+            or data.equipLoc == "INVTYPE_WEAPONOFFHAND")
+    then
+        score = score + 12
+    end
+    if weaponRule and weaponRule.preferShield and data.equipLoc == "INVTYPE_SHIELD" then
+        score = score + 24
     end
     -- Les bonus d'armure restent de simples departageurs. Les poids EP publics
     -- conservent toute la priorite dans le score principal.
@@ -1158,6 +1178,7 @@ CoALootDeciderAPI = {
     AnalyzeItem = AnalyzeItem,
     RefreshProfile = ScanEquipment,
     GetProfile = function() return profile end,
+    GetAdaptiveBuild = function() return profile and profile.adaptive or nil end,
     GetDisplayStats = function() return DISPLAY_STATS end,
     ScoreItem = ScoreItem,
     Round = Round
@@ -1304,6 +1325,12 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 eventFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
+eventFrame:RegisterEvent("PLAYER_LEVEL_UP")
+eventFrame:RegisterEvent("SPELLS_CHANGED")
+if eventFrame.RegisterEvent then
+    pcall(eventFrame.RegisterEvent, eventFrame, "CHARACTER_ADVANCEMENT_UPDATE_ENTRIES_RESULT")
+    pcall(eventFrame.RegisterEvent, eventFrame, "ASCENSION_CA_SPECIALIZATION_ACTIVE_ID_CHANGED")
+end
 eventFrame:RegisterEvent("START_LOOT_ROLL")
 eventFrame:RegisterEvent("CANCEL_LOOT_ROLL")
 eventFrame:RegisterEvent("CONFIRM_LOOT_ROLL")
@@ -1322,6 +1349,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_EQUIPMENT_CHANGED"
         or event == "PLAYER_SPECIALIZATION_CHANGED"
         or event == "PLAYER_TALENT_UPDATE"
+        or event == "PLAYER_LEVEL_UP"
+        or event == "SPELLS_CHANGED"
+        or event == "CHARACTER_ADVANCEMENT_UPDATE_ENTRIES_RESULT"
+        or event == "ASCENSION_CA_SPECIALIZATION_ACTIVE_ID_CHANGED"
     then
         ScanEquipment()
     elseif event == "START_LOOT_ROLL" then
@@ -1381,12 +1412,40 @@ local function ProfileSummary()
     table.insert(values, "CRIT=" .. Round(profile.weights.ITEM_MOD_CRIT_RATING_SHORT, 2))
     table.insert(values, "HATE=" .. Round(profile.weights.ITEM_MOD_HASTE_RATING_SHORT, 2))
     table.insert(values, "TOUCH=" .. Round(profile.weights.ITEM_MOD_HIT_RATING_SHORT, 2))
+    local adaptiveSummary = type(CoALootAdaptation) == "table"
+        and type(CoALootAdaptation.Summary) == "function"
+        and CoALootAdaptation.Summary(profile.adaptive) or "adaptation indisponible"
     return profile.className .. " - " .. profile.specName .. " [" .. profile.role .. "]"
         .. " | physique=" .. (profile.physical and "oui" or "non")
         .. ", caster=" .. (profile.caster and "oui" or "non")
         .. ", primaire=" .. tostring(profile.primarySource or "inconnue")
         .. ", poids=" .. tostring(profile.weightSource or "inconnu")
         .. " | " .. table.concat(values, ", ")
+        .. " | " .. adaptiveSummary
+end
+
+local function PrintAdaptiveDetails()
+    if not profile then ScanEquipment() end
+    local adaptive = profile and profile.adaptive or nil
+    if not adaptive then
+        Chat("profil adaptatif indisponible")
+        return
+    end
+    Chat("adaptation : " .. CoALootAdaptation.Summary(adaptive))
+    Chat("arbre attendu : " .. tostring(adaptive.expectedTab or profile.specName)
+        .. " ; source : " .. tostring(adaptive.source or "inconnue"))
+    if adaptive.fallback then Chat("repli : " .. tostring(adaptive.fallback)) end
+    if adaptive.error then Chat("limite : " .. tostring(adaptive.error)) end
+    if adaptive.selectedNames and #adaptive.selectedNames > 0 then
+        Chat("talents influencant le stuff : " .. table.concat(adaptive.selectedNames, ", "))
+    else
+        Chat("aucun talent selectionne ne modifie les priorites de stats de facon certaine")
+    end
+    if adaptive.changes and #adaptive.changes > 0 then
+        Chat("ajustements : " .. table.concat(adaptive.changes, " ; "))
+    else
+        Chat("poids du profil de specialisation conserves sans ajustement")
+    end
 end
 
 local function PrintHelp()
@@ -1394,6 +1453,8 @@ local function PrintHelp()
     Chat("/cld auto - active/desactive NEED/PASS automatique")
     Chat("/cld confirm - confirme automatiquement les objets lies")
     Chat("/cld scan - rescane l'equipement")
+    Chat("/cld talents - talents, spellbook et confiance detectes")
+    Chat("/cld explain - explique les ajustements adaptatifs")
     Chat("/cld gear - meilleurs objets des sacs, banque et marchand")
     Chat("/cld visuals - active/desactive les contours et tooltips")
     Chat("/cld downgrades - affiche/masque les objets moins bons")
@@ -1436,6 +1497,9 @@ SlashCmdList.COALOOTDECIDER = function(message)
     elseif command == "scan" then
         ScanEquipment()
         Chat("equipement rescane : " .. ProfileSummary())
+    elseif command == "talents" or command == "explain" then
+        ScanEquipment()
+        PrintAdaptiveDetails()
     elseif command == "gear" then
         if CoALootAdvisor_Toggle then CoALootAdvisor_Toggle() else Chat("interface de comparaison indisponible") end
     elseif command == "visuals" then

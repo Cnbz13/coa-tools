@@ -16,6 +16,13 @@ export const COA_WATCH_SOURCES = Object.freeze({
     api: 'https://api.ascension.gg/api/v3/article?page=',
     page: 'https://ascension.gg/en/news/board',
     primary: true
+  },
+  talentData: {
+    id: 'coa-talent-dataset',
+    name: 'Données publiques des 21 arbres CoA',
+    api: 'https://api.github.com/repos/srhinos/coa-datamine/commits?path=data/talents/coa&per_page=1',
+    page: 'https://github.com/srhinos/coa-datamine/tree/master/data/talents/coa',
+    primary: false
   }
 });
 
@@ -27,6 +34,15 @@ const COA_NEWS_MARKERS = [
 ];
 
 const IMPACT_RULES = [
+  {
+    component: 'loot-decider', name: 'CoA Loot Decider',
+    keywords: [
+      'talent', 'specialization', 'stat', 'critical strike', 'haste', 'hit rating',
+      'expertise', 'armor penetration', 'attack power', 'spell power', 'weapon',
+      'shield', 'two-handed', 'dual wield', 'item', 'gear'
+    ],
+    suggestion: 'Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.'
+  },
   {
     component: 'combat-assistant', name: 'CoA Combat Assistant',
     keywords: [
@@ -118,12 +134,15 @@ export function classifyImpact(item) {
     .map(({ keywords, ...impact }) => impact);
   const numericChange = /\b(?:increased|decreased|reduced|from|to|cooldown|duration|cost|damage|healing)\b/i.test(searchable);
   const breakingChange = /\b(?:removed|reworked|replaced|no longer|new spell|new talent|fixed an issue|fixed a bug)\b/i.test(searchable);
-  const significant = impacts.length > 0 && (numericChange || breakingChange || /necromancer|dispel|proc|interface|combat log/i.test(searchable));
+  const significant = impacts.length > 0 && (numericChange || breakingChange
+    || item.sourceId === COA_WATCH_SOURCES.talentData.id
+    || /necromancer|dispel|proc|interface|combat log/i.test(searchable));
   return {
     ...item,
     impacts,
     significant,
-    confidence: item.sourceType === 'official' ? (significant ? 'élevée' : 'moyenne') : 'faible',
+    confidence: item.sourceType === 'official' ? (significant ? 'élevée' : 'moyenne')
+      : (item.sourceId === COA_WATCH_SOURCES.talentData.id ? 'moyenne' : 'faible'),
     reason: impacts.length
       ? impacts.map(impact => `${impact.name} : ${impact.suggestion}`).join(' ')
       : 'Information conservée pour suivi, sans impact technique direct détecté.'
@@ -211,6 +230,25 @@ async function fetchNews(fetchImpl, since) {
   return items;
 }
 
+async function fetchTalentData(fetchImpl) {
+  const payload = await fetchJson(fetchImpl, COA_WATCH_SOURCES.talentData.api);
+  const commit = Array.isArray(payload) ? payload[0] : null;
+  if (!commit?.sha) return [];
+  const title = decodeHtml(commit.commit?.message).split('\n')[0] || 'Mise à jour des arbres CoA';
+  const updatedAt = commit.commit?.committer?.date || commit.commit?.author?.date;
+  return [{
+    id: commit.sha,
+    sourceId: COA_WATCH_SOURCES.talentData.id,
+    sourceName: COA_WATCH_SOURCES.talentData.name,
+    sourceType: 'community-data',
+    title: 'Données de talents CoA modifiées',
+    summary: `Les données publiques des talents, spécialisations, sorts ou arbres CoA ont changé. ${title}`,
+    publishedAt: updatedAt,
+    updatedAt,
+    url: commit.html_url || COA_WATCH_SOURCES.talentData.page
+  }];
+}
+
 export async function runCoaWatch({
   statePath, reportPath, fetchImpl = fetch, now = () => new Date(), initialLookbackDays = 7
 }) {
@@ -224,7 +262,8 @@ export async function runCoaWatch({
 
   for (const [source, loader] of [
     [COA_WATCH_SOURCES.changelog, fetchChangelog],
-    [COA_WATCH_SOURCES.news, fetchNews]
+    [COA_WATCH_SOURCES.news, fetchNews],
+    [COA_WATCH_SOURCES.talentData, fetchTalentData]
   ]) {
     try {
       const items = await loader(fetchImpl, since - 86_400_000);

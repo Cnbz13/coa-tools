@@ -49,6 +49,14 @@ Commandes :
 
 CoA UI Manager remplace les fonctions essentielles de MoveAnything : `/cui unlock` affiche les movers, `/cui lock` enregistre, et `/cui profile global|character` change de profil. La molette règle l’échelle, Maj+molette règle l’alpha, et `/cui add NomDuFrame` ajoute un frame Lua personnalisé. Aucun frame sécurisé n’est déplacé pendant un combat.
 
+## CoA Loot Decider
+
+Les 70 profils de spécialisation servent de base, puis sont affinés localement en fonction du niveau, des sorts réellement présents dans le spellbook et des talents actifs. La base embarque les 3 618 nœuds des 21 classes CoA issus de la capture publique du builder Ascension du 6 août 2026. L’addon interroge directement les rangs avec `C_CharacterAdvancement.GetTalentRankByID` et `GetTalentRankBySpellID` ; l’ouverture de la fenêtre de talents n’est donc pas requise.
+
+Les ajustements sont volontairement bornés : un talent renforce uniquement une statistique déjà autorisée par le profil de spécialisation. Il ne peut jamais réactiver une famille interdite ni remplacer un poids réglé manuellement. Un dernier profil fiable est mémorisé par personnage et spécialisation pour couvrir les quelques secondes où l’API de talents peut être vide pendant la connexion.
+
+Commandes complémentaires : `/cld talents` affiche l’arbre, le nombre de talents et de sorts détectés ainsi que la confiance ; `/cld explain` liste les talents qui influencent le stuff et les ajustements appliqués. `/cld scan` force une nouvelle détection et `/cld gear` ouvre la comparaison visuelle.
+
 ## Gestion automatique des addons Ascension
 
 Le manager privilégie automatiquement `C:\Ascension\Launcher\resources\ascension-live\Interface\AddOns`, puis le dernier chemin choisi et les installations usuelles. La configuration avancée permet de sélectionner et mémoriser un autre dossier `Interface\AddOns`.
@@ -63,9 +71,9 @@ Les installations individuelles et la mise à jour globale sont suivies en direc
 
 ## Veille hebdomadaire CoA
 
-Le manager présente les changements susceptibles d’affecter Combat Assistant, EventAlertCoA, GridCoA ou UI Manager dans l’onglet **Mises à jour**. Chaque proposition indique la source, la date, les addons concernés, le niveau de confiance et la raison technique. Aucune règle d’addon n’est modifiée ou publiée automatiquement à partir d’un patch note.
+Le manager présente les changements susceptibles d’affecter Combat Assistant, Loot Decider, EventAlertCoA, GridCoA ou UI Manager dans l’onglet **Mises à jour**. Chaque proposition indique la source, la date, les addons concernés, le niveau de confiance et la raison technique. Aucune règle d’addon n’est modifiée ou publiée automatiquement à partir d’un patch note.
 
-La veille lit en priorité le [changelog officiel Conquest of Azeroth](https://ascension.gg/en/changelog/4), puis les [actualités officielles Ascension](https://ascension.gg/en/news/board). Elle utilise leurs API publiques, regroupe les changements rang par rang, conserve les empreintes des publications déjà vues dans `watch/state.json` et publie le rapport lisible dans `watch/report.json`.
+La veille lit en priorité le [changelog officiel Conquest of Azeroth](https://ascension.gg/en/changelog/4), puis les [actualités officielles Ascension](https://ascension.gg/en/news/board). Elle surveille aussi la révision des [données publiques des arbres CoA](https://github.com/srhinos/coa-datamine/tree/master/data/talents/coa). Elle utilise leurs API publiques, regroupe les changements rang par rang, conserve les empreintes déjà vues dans `watch/state.json` et publie le rapport lisible dans `watch/report.json`.
 
 Le workflow `Veille CoA hebdomadaire` s’exécute chaque lundi, teste le parseur et les règles d’impact, puis ne commit que le rapport et l’état anti-doublon. Une vérification manuelle peut être déclenchée depuis le manager ou localement :
 
@@ -80,6 +88,7 @@ Prérequis : Node.js 24.14 ou supérieur.
 ```bash
 npm install
 npm start
+npm run generate:loot-talents
 ```
 
 Ouvrez ensuite <http://127.0.0.1:4173>. Les données locales sont stockées dans `data/`, ignoré par Git. Les chemins et le port peuvent être adaptés avec les variables de [`.env.example`](.env.example).

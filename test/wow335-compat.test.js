@@ -301,7 +301,9 @@ test('UI Manager provides persistent movers and never applies frames during comb
     'PlayerFrame', 'TargetFrame', 'FocusFrame', 'PetFrame', 'PartyMemberFrame4',
     'MinimapCluster', 'BuffFrame', 'WatchFrame', 'CastingBarFrame', 'MainMenuBar',
     'MultiBarBottomLeft', 'MultiBarBottomRight', 'MultiBarRight', 'MultiBarLeft',
-    'CoACombatAssistantFrame', 'EA_Main_Frame', 'EA_Anchor_Frame', 'CoAUIManagerPanel'
+    'CoACombatAssistantFrame', 'EA_Main_Frame', 'EA_Anchor_Frame', 'CoAUIManagerPanel',
+    'CoALootDeciderBanner', 'CoALootAdvisorWindow', 'CoAHereticProcAnchor',
+    'CoAHereticBlackBloodTracker', 'CoAHereticHUDMenu', 'CoAMessageCenterFrame'
   ]) assert.ok(lua.includes(`"${frame}"`), `UI Manager is missing mover target ${frame}`);
   for (const required of [
     'profiles.global', 'profiles.characters', 'characterModes', 'customFrames',
@@ -329,4 +331,14 @@ test('UI Manager provides a persistent draggable minimap menu button', async () 
     'right-click must toggle UI movers');
   assert.match(lua, /math\.cos\(angle\) \* radius, math\.sin\(angle\) \* radius/,
     'the button must remain anchored to the minimap ring');
+});
+
+test('UI Manager minimap button is the shared CoA tools hub', async () => {
+  const lua = await readFile('addons/CoAUIManager/CoAUIManager.lua', 'utf8');
+  for (const required of [
+    'Centre CoA', 'OUTILS COA', 'Loot Decider', 'Heretic', 'Messages',
+    'CoALootAdvisor_Toggle', 'CoAHereticHelperAPI:Toggle()',
+    'CoAMessageCenter:Toggle()', 'SetHubManaged(true)',
+    'minimapUnreadText', 'CoAMessageCenterDB.unread', 'UpdateHubAvailability'
+  ]) assert.ok(lua.includes(required), `missing shared CoA hub feature: ${required}`);
 });

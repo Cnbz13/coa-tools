@@ -1,4 +1,4 @@
-CoA Heretic Proc HUD v3.7.1
+CoA Heretic Proc HUD v3.8.0
 ===========================
 
 PROFIL NIVEAU 39
@@ -16,13 +16,14 @@ PROC SOIN OCCULTE
 - Aucune rotation.
 - 1 petit point apres la premiere capacite melee valide, 2 apres la deuxieme, sans texte superflu.
 - Au 3e declenchement, les points disparaissent et l'icone SOIN INSTANT apparait.
+- L'icone 52 px montre le temps restant avec un balayage circulaire, le compteur et la touche de barre d'action si elle est detectable.
 - Detection croisee par Spell ID, Combat Log et UNIT_SPELLCAST_SUCCEEDED. Les doubles evenements d'un meme cast sont fusionnes.
 - Les IDs des capacites custom sont aussi recuperes depuis le grimoire lorsque CoA les expose.
 - L'etat READY reste verrouille jusqu'au cast reussi de Soin occulte / Eldritch Mending ou expiration.
 
 SANG NOIR
 ---------
-- Tracker beaucoup plus compact : petite icone + couverture (5/5) + stacks x2 si present + temps restant + mini barre.
+- Tracker compact : icone + couverture (5/5) + un point colore par membre + stacks + temps restant + mini barre.
 - Base actuelle : 10 s. Herald of the Depths est pris en compte a 20 s en fallback si l'aura est detectee.
 - >3 s et groupe couvert : discret violet/bleu.
 - <=3 s : orange + pulsation + RaidWarning net (plus aucun son de chuchotement).
@@ -42,6 +43,11 @@ COMMANDES
 /hh bbunlock        deplacer Sang noir
 /hh bblock          verrouiller Sang noir
 /hh progress        progression ON/OFF
+/hh keybind         touche du proc ON/OFF
+/hh button          bouton individuel de minicarte ON/OFF
+/hh preset compact  disposition compacte
+/hh preset central  disposition sous le personnage
+/hh preset healer   disposition agrandie pour soigneur
 /hh bbalways        tracker Sang noir toujours visible ON/OFF
 /hh sound           sons ON/OFF
 /hh scale 1         taille proc

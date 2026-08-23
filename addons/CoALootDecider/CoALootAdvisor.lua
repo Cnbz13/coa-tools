@@ -72,7 +72,13 @@ local function EnsureSettings()
     CoALootDeciderDB.advisor = CoALootDeciderDB.advisor or {}
     local settings = CoALootDeciderDB.advisor
     if settings.enabled == nil then settings.enabled = true end
-    if settings.showDowngrades == nil then settings.showDowngrades = true end
+    if settings.visualVersion ~= 2 then
+        settings.visualVersion = 2
+        settings.showDowngrades = false
+        settings.showAllCandidates = false
+    end
+    if settings.showDowngrades == nil then settings.showDowngrades = false end
+    if settings.showAllCandidates == nil then settings.showAllCandidates = false end
     if settings.tooltip == nil then settings.tooltip = true end
     return settings
 end
@@ -109,16 +115,35 @@ local function EnsureOverlay(button)
     overlay.border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
     overlay.border:SetBlendMode("ADD")
     overlay.border:SetPoint("CENTER", overlay, "CENTER", 0, 0)
-    overlay.border:SetWidth(64)
-    overlay.border:SetHeight(64)
+    overlay.border:SetWidth(42)
+    overlay.border:SetHeight(42)
+
+    overlay.marker = CreateFrame("Frame", nil, overlay)
+    overlay.marker:SetWidth(15)
+    overlay.marker:SetHeight(15)
+    overlay.marker:SetPoint("TOPRIGHT", overlay, "TOPRIGHT", 2, 2)
+    overlay.markerBg = overlay.marker:CreateTexture(nil, "BACKGROUND")
+    overlay.markerBg:SetAllPoints(overlay.marker)
+    overlay.markerBg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    overlay.markerText = overlay.marker:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    overlay.markerText:SetPoint("CENTER", overlay.marker, "CENTER", 0, 0)
+    overlay.markerText:SetTextColor(1, 1, 1)
 
     overlay.badge = overlay:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    overlay.badge:SetPoint("BOTTOM", overlay, "BOTTOM", 0, 1)
+    overlay.badge:SetPoint("BOTTOM", overlay, "BOTTOM", 0, -1)
     overlay.badge:SetTextColor(1, 1, 1)
 
     overlay:Hide()
     overlays[button] = overlay
     return overlay
+end
+
+local function SetOverlayState(overlay, marker, percent, red, green, blue)
+    overlay.border:SetVertexColor(red, green, blue)
+    overlay.markerBg:SetVertexColor(red * 0.45, green * 0.45, blue * 0.45, 0.95)
+    overlay.markerText:SetText(marker)
+    overlay.badge:SetText(percent or "")
+    overlay:Show()
 end
 
 local function PaintButton(button, link, excludeOwnedCopy)
@@ -131,29 +156,22 @@ local function PaintButton(button, link, excludeOwnedCopy)
     if not analysis or analysis.nonEquipable then return end
     if not analysis.candidateScore then
         if analysis.candidate and analysis.candidate.equipLoc then
-            overlay.border:SetVertexColor(0.95, 0.20, 0.20)
-            overlay.badge:SetText("x")
-            overlay:Show()
+            SetOverlayState(overlay, "x", "", 0.95, 0.20, 0.20)
         end
         return
     end
 
     if analysis.manual then
-        overlay.border:SetVertexColor(1.00, 0.75, 0.10)
-        overlay.badge:SetText("?")
+        SetOverlayState(overlay, "?", "", 1.00, 0.75, 0.10)
     elseif analysis.need then
-        overlay.border:SetVertexColor(0.15, 1.00, 0.25)
-        overlay.badge:SetText(ShortPercent(analysis.percent))
+        SetOverlayState(overlay, "+", ShortPercent(analysis.percent), 0.15, 1.00, 0.25)
     elseif (tonumber(analysis.percent) or 0) > 0 then
-        overlay.border:SetVertexColor(1.00, 0.75, 0.10)
-        overlay.badge:SetText(ShortPercent(analysis.percent))
+        SetOverlayState(overlay, "~", ShortPercent(analysis.percent), 1.00, 0.75, 0.10)
     elseif EnsureSettings().showDowngrades and (tonumber(analysis.percent) or 0) < -0.5 then
-        overlay.border:SetVertexColor(1.00, 0.18, 0.18)
-        overlay.badge:SetText(ShortPercent(analysis.percent))
+        SetOverlayState(overlay, "-", ShortPercent(analysis.percent), 1.00, 0.18, 0.18)
     else
         return
     end
-    overlay:Show()
 end
 
 local function UpdateBagButtons()
@@ -364,7 +382,7 @@ end
 
 local advisorWindow = CreateFrame("Frame", "CoALootAdvisorWindow", UIParent)
 advisorWindow:SetWidth(620)
-advisorWindow:SetHeight(490)
+advisorWindow:SetHeight(455)
 advisorWindow:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 advisorWindow:SetFrameStrata("DIALOG")
 advisorWindow:SetMovable(true)
@@ -381,24 +399,39 @@ advisorWindow:SetBackdrop({
 advisorWindow:Hide()
 
 advisorWindow.title = advisorWindow:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-advisorWindow.title:SetPoint("TOP", advisorWindow, "TOP", 0, -18)
-advisorWindow.title:SetText("CoA Loot Advisor - meilleurs objets disponibles")
+advisorWindow.title:SetPoint("TOP", advisorWindow, "TOP", 0, -15)
+advisorWindow.title:SetText("CoA Loot Decider")
 
 advisorWindow.close = CreateFrame("Button", nil, advisorWindow, "UIPanelCloseButton")
 advisorWindow.close:SetPoint("TOPRIGHT", advisorWindow, "TOPRIGHT", -6, -6)
 
+advisorWindow.profileTitle = advisorWindow:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+advisorWindow.profileTitle:SetPoint("TOPLEFT", advisorWindow, "TOPLEFT", 22, -43)
+advisorWindow.profileTitle:SetWidth(575)
+advisorWindow.profileTitle:SetJustifyH("LEFT")
+advisorWindow.profileTitle:SetTextColor(0.35, 0.88, 1.00)
+
 advisorWindow.status = advisorWindow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-advisorWindow.status:SetPoint("TOPLEFT", advisorWindow, "TOPLEFT", 22, -47)
+advisorWindow.status:SetPoint("TOPLEFT", advisorWindow, "TOPLEFT", 22, -62)
 advisorWindow.status:SetWidth(575)
 advisorWindow.status:SetJustifyH("LEFT")
 
 advisorWindow.rows = {}
 local rowIndex
-for rowIndex = 1, 17 do
+for rowIndex = 1, 13 do
     local row = CreateFrame("Button", nil, advisorWindow)
     row:SetWidth(575)
-    row:SetHeight(23)
-    row:SetPoint("TOPLEFT", advisorWindow, "TOPLEFT", 22, -70 - ((rowIndex - 1) * 23))
+    row:SetHeight(24)
+    row:SetPoint("TOPLEFT", advisorWindow, "TOPLEFT", 22, -86 - ((rowIndex - 1) * 24))
+
+    row.background = row:CreateTexture(nil, "BACKGROUND")
+    row.background:SetAllPoints(row)
+    row.background:SetTexture("Interface\\Buttons\\WHITE8X8")
+    if rowIndex % 2 == 0 then
+        row.background:SetVertexColor(0.08, 0.16, 0.22, 0.32)
+    else
+        row.background:SetVertexColor(0.02, 0.05, 0.08, 0.18)
+    end
 
     row.icon = row:CreateTexture(nil, "ARTWORK")
     row.icon:SetWidth(20)
@@ -407,12 +440,12 @@ for rowIndex = 1, 17 do
 
     row.slot = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     row.slot:SetPoint("LEFT", row.icon, "RIGHT", 5, 0)
-    row.slot:SetWidth(95)
+    row.slot:SetWidth(82)
     row.slot:SetJustifyH("LEFT")
 
     row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     row.name:SetPoint("LEFT", row.slot, "RIGHT", 3, 0)
-    row.name:SetWidth(305)
+    row.name:SetWidth(310)
     row.name:SetJustifyH("LEFT")
 
     row.source = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -445,9 +478,15 @@ advisorWindow.refresh:SetHeight(24)
 advisorWindow.refresh:SetPoint("BOTTOMLEFT", advisorWindow, "BOTTOMLEFT", 22, 18)
 advisorWindow.refresh:SetText("Actualiser")
 
+advisorWindow.mode = CreateFrame("Button", nil, advisorWindow, "UIPanelButtonTemplate")
+advisorWindow.mode:SetWidth(130)
+advisorWindow.mode:SetHeight(24)
+advisorWindow.mode:SetPoint("LEFT", advisorWindow.refresh, "RIGHT", 8, 0)
+advisorWindow.mode:SetText("Voir tout")
+
 advisorWindow.hint = advisorWindow:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 advisorWindow.hint:SetPoint("BOTTOMRIGHT", advisorWindow, "BOTTOMRIGHT", -22, 24)
-advisorWindow.hint:SetText("Vert = mieux | Jaune = incertain | Rouge = moins bien")
+advisorWindow.hint:SetText("+ amélioration  •  ~ situationnel  •  ? manuel")
 
 local function AddCandidate(best, link, source)
     local analysis = Analyze(link, source == "Sacs")
@@ -504,16 +543,31 @@ end
 
 local function RefreshWindow()
     if not advisorWindow:IsVisible() then return end
-    local result = CollectBestCandidates()
+    local allResults = CollectBestCandidates()
     local profile = api.GetProfile()
+    local settings = EnsureSettings()
     local sourceText = merchantOpen and "sacs + marchand" or "sacs"
     if bankOpen then sourceText = sourceText .. " + banque" end
-    advisorWindow.status:SetText((profile and profile.valid
-        and (profile.className .. " - " .. profile.specName) or "Profil indisponible")
-        .. (profile and profile.adaptive
-            and (" | adaptatif " .. tostring(profile.adaptive.confidence or "basse")
-                .. " (" .. tostring(profile.adaptive.selectedCount or 0) .. " talents)") or "")
-        .. " | meilleur candidat par emplacement | " .. sourceText)
+    local result = {}
+    local _, candidateEntry
+    for _, candidateEntry in ipairs(allResults) do
+        local analysis = candidateEntry.analysis
+        if settings.showAllCandidates or analysis.need or analysis.manual
+            or (tonumber(analysis.percent) or 0) > 0 then
+            table.insert(result, candidateEntry)
+        end
+    end
+    local confidence = profile and profile.adaptive and profile.adaptive.confidence or "standard"
+    local talentCount = profile and profile.adaptive and profile.adaptive.selectedCount or 0
+    local level = profile and profile.adaptive and profile.adaptive.level or (UnitLevel and UnitLevel("player")) or "?"
+    advisorWindow.profileTitle:SetText(profile and profile.valid
+        and (profile.className .. "  •  " .. profile.specName .. "  •  niveau " .. tostring(level))
+        or "Profil CoA indisponible")
+    advisorWindow.status:SetText("Confiance " .. tostring(confidence)
+        .. "  •  " .. tostring(talentCount) .. " talents détectés"
+        .. "  •  " .. sourceText
+        .. "  •  " .. tostring(#result) .. (settings.showAllCandidates and " objet(s)" or " candidat(s) utile(s)"))
+    advisorWindow.mode:SetText(settings.showAllCandidates and "Améliorations" or "Voir tout")
 
     local index, row
     for index, row in ipairs(advisorWindow.rows) do
@@ -527,13 +581,13 @@ local function RefreshWindow()
             row.name:SetText(candidate.link or candidate.name)
             row.source:SetText(entry.source)
             if analysis.manual then
-                row.delta:SetText("|cffffbf19?|r")
+                row.delta:SetText("|cffffbf19? MANUEL|r")
             elseif analysis.need then
-                row.delta:SetText("|cff33ff4c" .. ShortPercent(analysis.percent) .. "|r")
+                row.delta:SetText("|cff33ff4c+ " .. ShortPercent(analysis.percent) .. "|r")
             elseif (analysis.percent or 0) > 0 then
-                row.delta:SetText("|cffffbf19" .. ShortPercent(analysis.percent) .. "|r")
+                row.delta:SetText("|cffffbf19~ " .. ShortPercent(analysis.percent) .. "|r")
             else
-                row.delta:SetText("|cffff4040" .. ShortPercent(analysis.percent) .. "|r")
+                row.delta:SetText("|cffff4040- " .. ShortPercent(analysis.percent) .. "|r")
             end
             row:Show()
         else
@@ -547,6 +601,11 @@ local function RefreshWindow()
 end
 
 advisorWindow.refresh:SetScript("OnClick", RefreshWindow)
+advisorWindow.mode:SetScript("OnClick", function()
+    local settings = EnsureSettings()
+    settings.showAllCandidates = not settings.showAllCandidates
+    RefreshWindow()
+end)
 
 function CoALootAdvisor_Toggle()
     EnsureSettings()

@@ -50,7 +50,7 @@ test('CoA Loot Decider adapts all 70 profiles to live CoA talents, level and spe
   const profileTabs = profileSection.match(/^\s*\["[^"]+:[^"]+"\] = "[^"]+"/gm) ?? [];
   const weightRows = profiles.match(/^\s*\["[^"]+:[^"]+"\]\s*=\s*\{[^\n]+\},?$/gm) ?? [];
 
-  assert.match(toc, /^## Version: 1\.9\.3$/m);
+  assert.match(toc, /^## Version: 1\.9\.4$/m);
   assert.equal(nodeRows.length, 3618, 'the pinned live CoA dataset must remain complete');
   assert.equal(classRows.length, 21, 'every CoA class must have an adaptive talent dataset');
   assert.equal(profileTabs.length, 70, 'every shipped loot profile must resolve to a live talent tab');
@@ -188,7 +188,7 @@ test('CoA Loot Advisor compares bags, bank, merchants, loot and universal item t
     'GetLootSlotLink', 'LOOT_OPENED', 'OnTooltipSetItem',
     'GameTooltip', 'ItemRefTooltip', 'ShoppingTooltip1',
     'AdiBags_UpdateButton', 'AceEvent-3.0',
-    'CoALootAdvisor_Toggle', 'meilleur candidat par emplacement',
+    'CoALootAdvisor_Toggle', 'candidat(s) utile(s)',
     'AMELIORATION', 'VERIFICATION MANUELLE', 'Confiance :'
   ]) assert.ok(lua.includes(required) || advisor.includes(required), `missing universal advisor feature: ${required}`);
   assert.match(advisor, /for merchantIndex = 1, \(tonumber\(GetMerchantNumItems\(\)\) or 0\)/,
@@ -218,7 +218,7 @@ test('CoA Loot Decider preserves the local 1.9 BagAware and fit-scoring behavior
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   const advisor = await readFile(advisorPath, 'utf8');
-  assert.match(toc, /^## Version: 1\.9\.3$/m,
+  assert.match(toc, /^## Version: 1\.9\.4$/m,
     'the published addon must be newer than the installed 1.9.0 custom build');
   for (const required of [
     'ScanBagItems', 'profile.bagItems = ScanBagItems()', 'OwnedBaselineFor',
@@ -235,4 +235,20 @@ test('CoA Loot Decider preserves the local 1.9 BagAware and fit-scoring behavior
     'bag candidates must opt into self-exclusion');
   assert.equal(lua.includes('C_Container'), false,
     'the merged scanner must remain strict Ascension 3.3.5');
+});
+
+test('CoA Loot Decider uses a compact two-level visual language', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  const advisor = await readFile(advisorPath, 'utf8');
+  for (const required of [
+    'settings.visualVersion = 2', 'settings.showDowngrades = false',
+    'settings.showAllCandidates = false', 'SetOverlayState',
+    'overlay.markerText', 'overlay.markerBg', 'advisorWindow.profileTitle',
+    'advisorWindow.mode', 'Confiance ', 'candidat(s) utile(s)',
+    '? MANUEL', '+ AMELIORATION', '? CHOIX MANUEL'
+  ]) assert.ok(lua.includes(required) || advisor.includes(required), `missing compact loot visual: ${required}`);
+  assert.match(advisor, /analysis\.need or analysis\.manual[\s\S]+analysis\.percent/,
+    'the default comparison view must hide ordinary downgrades');
+  assert.match(advisor, /SetOverlayState\(overlay, "\+"[\s\S]+SetOverlayState\(overlay, "~"[\s\S]+SetOverlayState\(overlay, "-"/,
+    'item overlays must remain understandable without relying on colors alone');
 });

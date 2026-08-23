@@ -6,14 +6,30 @@ import luaparse from 'luaparse';
 const tocPath = 'addons/CoAHereticHelper/CoAHereticHelper.toc';
 const luaPath = 'addons/CoAHereticHelper/CoAHereticHelper.lua';
 
-test('CoA Heretic Helper v3.7.1 remains a Lua 5.1 information HUD, never a rotation bot', async () => {
+test('CoA Heretic Helper v3.8.0 remains a Lua 5.1 information HUD, never a rotation bot', async () => {
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 3\.7\.1$/m);
+  assert.match(toc, /^## Version: 3\.8\.0$/m);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
   assert.doesNotMatch(lua, /lance Malevolence maintenant/i);
+});
+
+test('Heretic 3.8 provides a compact proc and per-member Black Blood HUD', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  for (const required of [
+    'CooldownFrameTemplate', 'instantCooldown:SetCooldown', 'FindSpellKeybind',
+    'BindingForActionSlot', 'instantKeybind', 'for i=1,2 do',
+    'local bbDots = {}', 'for i=1,40 do', 'UpdateBlackBloodDots',
+    'details=details', 'ApplyPreset', 'preset compact|central|healer',
+    'CoAHereticHelperAPI', 'SetHubManaged', 'CoAHereticHUDControl',
+    'MiniMap-TrackingBorder', 'buttonAngle'
+  ]) assert.ok(lua.includes(required), `missing Heretic visual feature: ${required}`);
+  assert.match(lua, /if total<=5 then size,step,columns=9,13,5/,
+    'party coverage must use large individual dots');
+  assert.match(lua, /elseif total<=10 then size,step,columns=7,10,10/,
+    'larger groups must compact the per-member visualization');
 });
 
 test('instant Eldritch Mending is locked until successful consumption or timeout', async () => {

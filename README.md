@@ -17,7 +17,7 @@ Chaque release publie huit ZIP :
 - `CoAUIManager-vX.Y.Z.zip` : extrayez le dossier `CoAUIManager` dans le dossier `Interface/AddOns` de Project Ascension.
 - `CoALootDecider-vX.Y.Z.zip` : compare automatiquement le butin, les sacs, la banque, les vendeurs PNJ et tout lien d'objet avec l'équipement et le profil de spécialisation du personnage ; ajoute des contours vert/jaune/rouge, un pourcentage dans les icônes, un diagnostic dans les tooltips et la fenêtre `/cld gear` ;
 - `CoAMessageCenter-vX.Y.Z.zip` : centralise les messages des addons CoA hors du chat général ;
-- `CoAHereticHelper-v3.7.1.zip` : HUD discret dédié au Cultist Heretic heal, avec proc de Soin occulte et suivi de Sang noir adapté aux sorts réellement appris ;
+- `CoAHereticHelper-v3.8.0.zip` : HUD visuel compact dédié au Cultist Heretic heal, avec proc de Soin occulte, raccourci et couverture Sang noir membre par membre ;
 - `GridCoA-vX.Y.Z.zip` : compagnon du véritable Grid ; il détecte les dissipations apprises et réserve l’icône centrale aux seuls affaiblissements que le personnage peut retirer.
 - `EventAlertCoA-vX.Y.Z.zip` : couche de compatibilité appliquée automatiquement par le manager au véritable EventAlert 4.3.6. Le code original, sous licence « All Rights Reserved », est téléchargé séparément depuis [sa fiche CurseForge officielle](https://www.curseforge.com/wow/addons/event-alert/files/456081), puis vérifié par taille et SHA-256.
 

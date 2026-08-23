@@ -48,7 +48,8 @@ test('CoA Message Center provides a minimap inbox, unread badge, history and fil
     'CoAMessageCenterFrame', 'ScrollingMessageFrame', 'HISTORY_LIMIT = 300',
     'CoAMessageCenterDB.history', 'CoAMessageCenterDB.unread', 'Tout vider',
     'Tous', 'Infos', 'Alertes', 'Erreurs', 'ScrollToBottom',
-    'SLASH_COAMESSAGECENTER1 = "/cmc"', 'function API:AddMessage', 'function API:RegisterPrefix'
+    'SLASH_COAMESSAGECENTER1 = "/cmc"', 'function API:AddMessage', 'function API:RegisterPrefix',
+    'function API:SetHubManaged'
   ]) assert.ok(lua.includes(required), `missing message-center feature: ${required}`);
   assert.match(lua, /CreateFrame\("Button", "CoAMessageCenterMinimapButton", UIParent\)/,
     'the icon must be parented to UIParent so it can move across the whole screen');

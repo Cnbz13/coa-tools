@@ -227,7 +227,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.adaptiveBuilds = CoALootDeciderDB.adaptiveBuilds or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.9.3-adaptive-talents"
+    CoALootDeciderDB.version = "1.9.4-visual-advisor"
 end
 
 local function ReadItemStats(itemLink)
@@ -1185,14 +1185,22 @@ CoALootDeciderAPI = {
 }
 
 local banner = CreateFrame("Frame", "CoALootDeciderBanner", UIParent)
-banner:SetWidth(430)
-banner:SetHeight(78)
+banner:SetWidth(400)
+banner:SetHeight(70)
 banner:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -24, -170)
 banner:SetFrameStrata("DIALOG")
 banner:SetMovable(true)
 banner:EnableMouse(true)
 banner:RegisterForDrag("LeftButton")
 if banner.SetClampedToScreen then banner:SetClampedToScreen(true) end
+banner:SetBackdrop({
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true, tileSize = 16, edgeSize = 10,
+    insets = { left = 3, right = 3, top = 3, bottom = 3 }
+})
+banner:SetBackdropColor(0.01, 0.025, 0.045, 0.94)
+banner:SetBackdropBorderColor(0.18, 0.45, 0.62, 0.92)
 banner:Hide()
 
 local function ApplyBannerPosition()
@@ -1216,20 +1224,28 @@ end)
 
 banner.background = banner:CreateTexture(nil, "BACKGROUND")
 banner.background:SetAllPoints(banner)
-banner.background:SetTexture(0, 0, 0, 0.86)
+banner.background:SetTexture(0.01, 0.025, 0.045, 0.78)
+
+banner.accent = banner:CreateTexture(nil, "BORDER")
+banner.accent:SetWidth(4)
+banner.accent:SetPoint("TOPLEFT", banner, "TOPLEFT", 4, -5)
+banner.accent:SetPoint("BOTTOMLEFT", banner, "BOTTOMLEFT", 4, 5)
+banner.accent:SetTexture("Interface\\Buttons\\WHITE8X8")
 
 banner.icon = banner:CreateTexture(nil, "ARTWORK")
-banner.icon:SetWidth(48)
-banner.icon:SetHeight(48)
-banner.icon:SetPoint("LEFT", banner, "LEFT", 10, 0)
+banner.icon:SetWidth(44)
+banner.icon:SetHeight(44)
+banner.icon:SetPoint("LEFT", banner, "LEFT", 14, 0)
+banner.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
 banner.verdict = banner:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 banner.verdict:SetPoint("TOPLEFT", banner.icon, "TOPRIGHT", 12, -2)
+banner.verdict:SetWidth(320)
 banner.verdict:SetJustifyH("LEFT")
 
 banner.detail = banner:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 banner.detail:SetPoint("TOPLEFT", banner.verdict, "BOTTOMLEFT", 0, -5)
-banner.detail:SetWidth(350)
+banner.detail:SetWidth(320)
 banner.detail:SetJustifyH("LEFT")
 
 banner.expires = 0
@@ -1241,13 +1257,13 @@ local function ShowDecision(decision, automatic)
     local candidate = decision.candidate or {}
     banner.icon:SetTexture(candidate.texture or "Interface\\Icons\\INV_Misc_QuestionMark")
     if decision.need then
-        local tier = decision.fitTier or "UPGRADE"
-        local color = "|cff3cff52"
-        if tier == "TEMPORAIRE" or tier == "MAUVAIS" then color = "|cffffcc33"
-        elseif tier == "BON" then color = "|cff67d9ff" end
-        banner.verdict:SetText(color .. "NEED " .. tier .. "|r  " .. (candidate.link or candidate.name or "Objet"))
+        local percent = decision.percent and ((decision.percent > 0 and "+" or "") .. Round(decision.percent, 0) .. "%") or ""
+        banner.accent:SetVertexColor(0.15, 1.00, 0.25, 1)
+        banner.verdict:SetText("|cff3cff52+ AMELIORATION " .. percent .. "|r  " .. (candidate.link or candidate.name or "Objet"))
     else
-        banner.verdict:SetText("|cffff5b5bPASS|r  " .. (candidate.link or candidate.name or "Objet"))
+        local percent = decision.percent and (Round(decision.percent, 0) .. "%") or ""
+        banner.accent:SetVertexColor(1.00, 0.24, 0.24, 1)
+        banner.verdict:SetText("|cffff5b5b- PASS " .. percent .. "|r  " .. (candidate.link or candidate.name or "Objet"))
     end
     banner.detail:SetText((automatic and "Jet automatique - " or "Conseil - ") .. (decision.reason or "raison inconnue"))
     banner.expires = GetTime() + 6
@@ -1257,7 +1273,8 @@ end
 local function ShowManual(itemLink, itemName, reason)
     local data = ItemData(itemLink)
     banner.icon:SetTexture(data and data.texture or "Interface\\Icons\\INV_Misc_QuestionMark")
-    banner.verdict:SetText("|cffffcc33CHOIX MANUEL|r  " .. (itemLink or itemName or "Objet"))
+    banner.accent:SetVertexColor(1.00, 0.75, 0.10, 1)
+    banner.verdict:SetText("|cffffcc33? CHOIX MANUEL|r  " .. (itemLink or itemName or "Objet"))
     banner.detail:SetText(reason or "evaluation stricte impossible")
     banner.expires = GetTime() + 10
     banner:Show()

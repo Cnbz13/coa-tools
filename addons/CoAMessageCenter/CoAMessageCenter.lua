@@ -3,6 +3,7 @@ local addonName = ...
 local HISTORY_LIMIT = 300
 local activeFilter = "ALL"
 local initialized = false
+local hubManaged = false
 local prefixes = {}
 local originalChatAddMessage = nil
 
@@ -209,6 +210,13 @@ end
 function API:Toggle()
     if not panel then return end
     if panel:IsShown() then panel:Hide() else panel:Show() end
+end
+
+function API:SetHubManaged(value)
+    hubManaged = value and true or false
+    if minimapButton then
+        if hubManaged then minimapButton:Hide() else minimapButton:Show() end
+    end
 end
 
 local function ChatInterceptor(frame, text, ...)
@@ -441,6 +449,7 @@ local function BuildMinimapButton()
     end)
     minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
     UpdateBadge()
+    if hubManaged then minimapButton:Hide() end
 end
 
 local function Initialize()

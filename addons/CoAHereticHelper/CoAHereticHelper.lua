@@ -1,6 +1,6 @@
 local addonName = ...
 
--- CoA Heretic Helper v3.7.1
+-- CoA Heretic Helper v3.8.0
 -- One proc only: instant Eldritch Mending.
 -- Separate, compact Black Blood tracker.
 -- Optional neutral 3-pip progress indicator for Malevolent Power.
@@ -44,7 +44,7 @@ local bbWarnedCriticalCycle = false
 local bbWarnedMissingCycle = false
 local bbPulse = 0
 local bbLastScanAt = 0
-local bbCachedState = {covered=0,total=1,remain=0,duration=10,maxStacks=0,sampledAt=0}
+local bbCachedState = {covered=0,total=1,remain=0,duration=10,maxStacks=0,details={},sampledAt=0}
 local bbSoundTestAt = 0
 local playerLevel = 0
 
@@ -114,9 +114,13 @@ local function EnsureDB()
     if db.buttonY == nil then db.buttonY = -140 end
     if db.showProgress == nil then db.showProgress = true end
     if db.bbAlways == nil then db.bbAlways = true end
+    if db.showKeybind == nil then db.showKeybind = true end
+    if db.hudPreset == nil then db.hudPreset = "compact" end
+    if type(db.buttonAngle) ~= "number" then db.buttonAngle = 4.15 end
+    if db.buttonHidden == nil then db.buttonHidden = false end
     if type(db.eventTrace) ~= "table" then db.eventTrace = {} end
     -- Preserve positions/settings across addon updates.
-    db.version = 371
+    db.version = 380
     return db
 end
 
@@ -346,8 +350,51 @@ end
 -- ============================================================
 -- PROC DISPLAY: only instant heal
 -- ============================================================
+local function BindingForActionSlot(slot)
+    if slot >= 1 and slot <= 12 then return "ACTIONBUTTON" .. slot end
+    if slot >= 25 and slot <= 36 then return "MULTIACTIONBAR3BUTTON" .. (slot - 24) end
+    if slot >= 37 and slot <= 48 then return "MULTIACTIONBAR4BUTTON" .. (slot - 36) end
+    if slot >= 49 and slot <= 60 then return "MULTIACTIONBAR2BUTTON" .. (slot - 48) end
+    if slot >= 61 and slot <= 72 then return "MULTIACTIONBAR1BUTTON" .. (slot - 60) end
+    return nil
+end
+
+local cachedKeybind = ""
+local cachedKeybindSpell = nil
+local cachedKeybindAt = 0
+local function FindSpellKeybind(spell)
+    if not spell or not spell.name or not GetActionInfo or not GetBindingKey then return "" end
+    local now = GetTime and GetTime() or 0
+    if cachedKeybindSpell == spell.name and now - cachedKeybindAt < 2 then return cachedKeybind end
+    cachedKeybindSpell = spell.name
+    cachedKeybindAt = now
+    cachedKeybind = ""
+    local slot
+    for slot = 1, 120 do
+        local actionType, actionID = GetActionInfo(slot)
+        local actionName = nil
+        if actionType == "spell" and actionID then
+            actionName = SafeGetSpellInfo(actionID)
+        elseif actionType == "macro" and actionID and GetMacroSpell then
+            local macroSpell = GetMacroSpell(actionID)
+            if type(macroSpell) == "number" or type(macroSpell) == "string" then
+                actionName = SafeGetSpellInfo(macroSpell) or macroSpell
+            end
+        end
+        if actionName and Lower(actionName) == Lower(spell.name) then
+            local binding = BindingForActionSlot(slot)
+            local key = binding and GetBindingKey(binding) or nil
+            if key then
+                cachedKeybind = GetBindingText and (GetBindingText(key, "KEY_", 1) or key) or key
+                return cachedKeybind
+            end
+        end
+    end
+    return cachedKeybind
+end
+
 local procAnchor = CreateFrame("Frame", "CoAHereticProcAnchor", UIParent)
-procAnchor:SetWidth(74); procAnchor:SetHeight(70)
+procAnchor:SetWidth(82); procAnchor:SetHeight(78)
 procAnchor:SetMovable(true); procAnchor:SetClampedToScreen(true)
 procAnchor:RegisterForDrag("LeftButton"); procAnchor:SetFrameStrata("HIGH")
 procAnchor:EnableMouse(false)
@@ -370,19 +417,24 @@ procAnchor:SetScript("OnDragStop", function(self)
 end)
 
 local instantFrame = CreateFrame("Frame", nil, procAnchor)
-instantFrame:SetWidth(62); instantFrame:SetHeight(58); instantFrame:SetPoint("CENTER"); instantFrame:Hide()
+instantFrame:SetWidth(72); instantFrame:SetHeight(70); instantFrame:SetPoint("CENTER"); instantFrame:Hide()
 local instantIcon = instantFrame:CreateTexture(nil,"ARTWORK")
-instantIcon:SetWidth(46); instantIcon:SetHeight(46); instantIcon:SetPoint("TOP",0,0); instantIcon:SetTexCoord(0.08,0.92,0.08,0.92)
+instantIcon:SetWidth(52); instantIcon:SetHeight(52); instantIcon:SetPoint("TOP",0,0); instantIcon:SetTexCoord(0.08,0.92,0.08,0.92)
+local instantCooldown = CreateFrame("Cooldown", nil, instantFrame, "CooldownFrameTemplate")
+instantCooldown:SetAllPoints(instantIcon)
+instantCooldown:SetFrameLevel(instantFrame:GetFrameLevel() + 2)
 local instantBorder = instantFrame:CreateTexture(nil,"OVERLAY")
-instantBorder:SetWidth(56); instantBorder:SetHeight(56); instantBorder:SetPoint("CENTER",instantIcon,"CENTER")
-instantBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border"); instantBorder:SetBlendMode("ADD"); instantBorder:SetVertexColor(0.20,1.00,0.70,0.95)
+instantBorder:SetWidth(62); instantBorder:SetHeight(62); instantBorder:SetPoint("CENTER",instantIcon,"CENTER")
+instantBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border"); instantBorder:SetBlendMode("ADD"); instantBorder:SetVertexColor(0.28,0.92,1.00,0.95)
 local instantGlow = instantFrame:CreateTexture(nil,"OVERLAY")
-instantGlow:SetWidth(74); instantGlow:SetHeight(74); instantGlow:SetPoint("CENTER",instantIcon,"CENTER")
-instantGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border"); instantGlow:SetBlendMode("ADD"); instantGlow:SetVertexColor(0.20,1.00,0.70,0.75)
+instantGlow:SetWidth(82); instantGlow:SetHeight(82); instantGlow:SetPoint("CENTER",instantIcon,"CENTER")
+instantGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border"); instantGlow:SetBlendMode("ADD"); instantGlow:SetVertexColor(0.28,0.92,1.00,0.75)
 local instantTimer = instantFrame:CreateFontString(nil,"OVERLAY","NumberFontNormal")
 instantTimer:SetPoint("BOTTOMRIGHT",instantIcon,"BOTTOMRIGHT",1,1)
+local instantKeybind = instantFrame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
+instantKeybind:SetPoint("TOPRIGHT",instantIcon,"TOPRIGHT",-2,-2); instantKeybind:SetTextColor(1.0,0.88,0.40)
 local instantLabel = instantFrame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
-instantLabel:SetPoint("TOP",instantIcon,"BOTTOM",0,-1); instantLabel:SetText(""); instantLabel:SetTextColor(0.25,1.0,0.72)
+instantLabel:SetPoint("TOP",instantIcon,"BOTTOM",0,-1); instantLabel:SetText(""); instantLabel:SetTextColor(0.42,0.92,1.00)
 instantFrame.pulse=0
 instantFrame:SetScript("OnUpdate",function(self,dt)
     self.pulse=(self.pulse or 0)+dt*4.5
@@ -393,10 +445,10 @@ end)
 local progressFrame = CreateFrame("Frame", nil, procAnchor)
 progressFrame:SetWidth(58); progressFrame:SetHeight(16); progressFrame:SetPoint("CENTER",procAnchor,"CENTER",0,-2); progressFrame:Hide()
 local progressPips = {}
-for i=1,3 do
+for i=1,2 do
     local p = progressFrame:CreateTexture(nil,"ARTWORK")
-    p:SetWidth(10); p:SetHeight(10); p:SetTexture("Interface\\Buttons\\WHITE8X8")
-    p:SetPoint("CENTER",progressFrame,"CENTER",(i-2)*17,0)
+    p:SetWidth(12); p:SetHeight(12); p:SetTexture("Interface\\Buttons\\WHITE8X8")
+    p:SetPoint("CENTER",progressFrame,"CENTER",(i-1.5)*20,0)
     p:SetVertexColor(0.32,0.18,0.48,0.28)
     progressPips[i]=p
 end
@@ -416,7 +468,7 @@ local function UpdateProgressVisual(progress, testMode)
     -- The user should only ever see preparation state 1/3 or 2/3.
     -- 3/3 is not displayed: the real proc replaces it once Mental Expansion is active.
     if not progress or progress<=0 or progress>=3 then progressFrame:Hide(); return end
-    for i=1,3 do
+    for i=1,2 do
         if i<=progress then
             progressPips[i]:SetVertexColor(0.65,0.30,1.00,0.95)
         else
@@ -431,19 +483,19 @@ end
 -- BLACK BLOOD tracker: compact, readable, strong expiry warning
 -- ============================================================
 local bbFrame=CreateFrame("Frame","CoAHereticBlackBloodTracker",UIParent)
-bbFrame:SetWidth(128); bbFrame:SetHeight(25); bbFrame:SetMovable(true); bbFrame:SetClampedToScreen(true)
+bbFrame:SetWidth(160); bbFrame:SetHeight(42); bbFrame:SetMovable(true); bbFrame:SetClampedToScreen(true)
 bbFrame:RegisterForDrag("LeftButton"); bbFrame:SetFrameStrata("HIGH"); bbFrame:EnableMouse(false)
 
 local bbIcon=bbFrame:CreateTexture(nil,"ARTWORK")
-bbIcon:SetWidth(20); bbIcon:SetHeight(20); bbIcon:SetPoint("LEFT",bbFrame,"LEFT",0,0)
+bbIcon:SetWidth(24); bbIcon:SetHeight(24); bbIcon:SetPoint("TOPLEFT",bbFrame,"TOPLEFT",0,-2)
 local _,_,bbIconTexture=SafeGetSpellInfo(SPELL.BLACK_BLOOD)
 bbIcon:SetTexture(bbIconTexture or "Interface\Icons\Spell_Shadow_LifeDrain02"); bbIcon:SetTexCoord(0.10,0.90,0.10,0.90)
 local bbGlow=bbFrame:CreateTexture(nil,"OVERLAY")
-bbGlow:SetWidth(29); bbGlow:SetHeight(29); bbGlow:SetPoint("CENTER",bbIcon,"CENTER")
+bbGlow:SetWidth(34); bbGlow:SetHeight(34); bbGlow:SetPoint("CENTER",bbIcon,"CENTER")
 bbGlow:SetTexture("Interface\Buttons\UI-ActionButton-Border"); bbGlow:SetBlendMode("ADD"); bbGlow:SetVertexColor(0.58,0.30,1.0,0.35)
 
 local bbCount=bbFrame:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
-bbCount:SetPoint("TOPLEFT",bbIcon,"TOPRIGHT",5,0); bbCount:SetText("0/1")
+bbCount:SetPoint("TOPLEFT",bbIcon,"TOPRIGHT",7,0); bbCount:SetText("0/1")
 local bbStack=bbFrame:CreateFontString(nil,"OVERLAY","GameFontDisableSmall")
 bbStack:SetPoint("LEFT",bbCount,"RIGHT",4,0); bbStack:SetText("")
 local bbTime=bbFrame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
@@ -452,9 +504,18 @@ local bbWarn=bbFrame:CreateFontString(nil,"OVERLAY","GameFontNormalSmall")
 bbWarn:SetPoint("RIGHT",bbTime,"LEFT",-3,0); bbWarn:SetText("")
 
 local bbBar=CreateFrame("StatusBar",nil,bbFrame)
-bbBar:SetWidth(99); bbBar:SetHeight(4); bbBar:SetPoint("BOTTOMLEFT",bbIcon,"BOTTOMRIGHT",5,2)
+bbBar:SetWidth(129); bbBar:SetHeight(4); bbBar:SetPoint("BOTTOMLEFT",bbFrame,"BOTTOMLEFT",31,2)
 bbBar:SetStatusBarTexture("Interface\TargetingFrame\UI-StatusBar"); bbBar:SetStatusBarColor(0.52,0.24,0.92,0.90); bbBar:SetMinMaxValues(0,10); bbBar:SetValue(0)
 local bbBarBg=bbBar:CreateTexture(nil,"BACKGROUND"); bbBarBg:SetAllPoints(bbBar); bbBarBg:SetTexture("Interface\Buttons\WHITE8X8"); bbBarBg:SetVertexColor(0.02,0.02,0.04,0.32)
+
+local bbDots = {}
+for i=1,40 do
+    local dot=bbFrame:CreateTexture(nil,"ARTWORK")
+    dot:SetTexture("Interface\\Buttons\\WHITE8X8")
+    dot:SetVertexColor(0.22,0.18,0.28,0.55)
+    dot:Hide()
+    bbDots[i]=dot
+end
 
 local bbEdit=CreateFrame("Frame",nil,bbFrame); bbEdit:SetAllPoints(bbFrame)
 bbEdit:SetBackdrop({bgFile="Interface\Tooltips\UI-Tooltip-Background",edgeFile="Interface\Buttons\WHITE8X8",edgeSize=1})
@@ -520,7 +581,7 @@ end
 local function ScanBlackBlood()
     CleanupLocalBB()
     local units=GroupUnits(); local total=0; local covered=0; local minRemain=nil
-    local durationForBar=GetBlackBloodFallbackDuration(); local maxStacks=0
+    local durationForBar=GetBlackBloodFallbackDuration(); local maxStacks=0; local details={}
     local now=GetTime()
     for _,unit in ipairs(units) do
         if UnitExists(unit) and (not UnitIsDeadOrGhost or not UnitIsDeadOrGhost(unit)) then
@@ -543,30 +604,75 @@ local function ScanBlackBlood()
                 if not minRemain or rem<minRemain then minRemain=rem end
                 if stacks>maxStacks then maxStacks=stacks end
             end
+            table.insert(details, {
+                unit=unit,
+                name=(UnitName and UnitName(unit)) or unit,
+                covered=rem>0,
+                remain=rem,
+                stacks=stacks,
+            })
         end
     end
-    return covered,total,minRemain or 0,durationForBar,maxStacks
+    return covered,total,minRemain or 0,durationForBar,maxStacks,details
 end
 
 local function ReadBlackBloodState(forceScan)
     local now = GetTime()
     if forceScan or bbLastScanAt <= 0 or now - bbLastScanAt >= BLACK_BLOOD_SCAN_INTERVAL then
-        local covered,total,remain,duration,maxStacks = ScanBlackBlood()
+        local covered,total,remain,duration,maxStacks,details = ScanBlackBlood()
         bbCachedState = {
             covered=covered, total=total, remain=remain, duration=duration,
-            maxStacks=maxStacks, sampledAt=now,
+            maxStacks=maxStacks, details=details, sampledAt=now,
         }
         bbLastScanAt = now
     end
     local state = bbCachedState
     local remain = math.max(0, (state.remain or 0) - math.max(0, now - (state.sampledAt or now)))
-    return state.covered or 0, state.total or 1, remain, state.duration or 10, state.maxStacks or 0
+    return state.covered or 0, state.total or 1, remain, state.duration or 10,
+        state.maxStacks or 0, state.details or {}
+end
+
+local function UpdateBlackBloodDots(details, testMode)
+    if testMode then
+        details={
+            {name="Joueur",covered=true,remain=8}, {name="Groupe 1",covered=true,remain=6},
+            {name="Groupe 2",covered=true,remain=2.4}, {name="Groupe 3",covered=true,remain=5},
+            {name="Groupe 4",covered=false,remain=0},
+        }
+    end
+    local total=#details
+    local size,step,columns=5,6,20
+    if total<=5 then size,step,columns=9,13,5
+    elseif total<=10 then size,step,columns=7,10,10 end
+    local i,dot
+    for i,dot in ipairs(bbDots) do
+        local detail=details[i]
+        if detail then
+            local column=(i-1)%columns
+            local row=math.floor((i-1)/columns)
+            dot:ClearAllPoints()
+            dot:SetWidth(size); dot:SetHeight(size)
+            dot:SetPoint("TOPLEFT",bbFrame,"TOPLEFT",31+(column*step),-21-(row*step))
+            if detail.covered and (detail.remain or 0)<=1.5 then
+                dot:SetVertexColor(1.00,0.18,0.22,0.95)
+            elseif detail.covered and (detail.remain or 0)<=3.0 then
+                dot:SetVertexColor(1.00,0.52,0.10,0.95)
+            elseif detail.covered then
+                dot:SetVertexColor(0.56,0.34,1.00,0.95)
+            else
+                dot:SetVertexColor(0.95,0.20,0.30,0.88)
+            end
+            dot:Show()
+        else
+            dot:Hide()
+        end
+    end
 end
 
 local function UpdateBlackBlood(testMode, forceScan)
     local db=EnsureDB()
     if not db.enabled then bbFrame:Hide(); return end
-    local covered,total,remain,duration,maxStacks=ReadBlackBloodState(forceScan)
+    local covered,total,remain,duration,maxStacks,details=ReadBlackBloodState(forceScan)
     if testMode then covered,total,remain,duration,maxStacks=5,5,2.4,10,2 end
     total=math.max(total,1)
 
@@ -574,6 +680,7 @@ local function UpdateBlackBlood(testMode, forceScan)
     bbStack:SetText(maxStacks>1 and ("x"..tostring(maxStacks)) or "")
     bbTime:SetText(remain>0 and string.format("%.1f",remain) or "OFF")
     bbBar:SetMinMaxValues(0,math.max(duration,1)); bbBar:SetValue(math.min(remain,duration))
+    UpdateBlackBloodDots(details,testMode)
 
     local full = covered>=total and covered>0
     local partial = covered>0 and covered<total
@@ -814,17 +921,24 @@ end
 -- Compact control button/menu
 -- ============================================================
 local control=CreateFrame("Button","CoAHereticHUDControl",UIParent)
-control:SetWidth(28); control:SetHeight(28); control:SetMovable(true); control:SetClampedToScreen(true); control:RegisterForDrag("LeftButton"); control:SetFrameStrata("DIALOG")
-control:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
-control:SetBackdropColor(0.01,0.03,0.06,0.90); control:SetBackdropBorderColor(0.25,0.90,1.0,0.90)
-local ct=control:CreateFontString(nil,"OVERLAY","GameFontNormalSmall"); ct:SetPoint("CENTER"); ct:SetText("HH"); ct:SetTextColor(0.65,0.95,1)
+control:SetWidth(32); control:SetHeight(32); control:SetMovable(true); control:SetClampedToScreen(true); control:RegisterForDrag("LeftButton"); control:SetFrameStrata("DIALOG")
+control:RegisterForClicks("LeftButtonUp")
+local controlIcon=control:CreateTexture(nil,"BACKGROUND")
+controlIcon:SetWidth(22); controlIcon:SetHeight(22); controlIcon:SetPoint("CENTER",control,"CENTER",0,0)
+controlIcon:SetTexture("Interface\\Icons\\Spell_Shadow_LifeDrain02"); controlIcon:SetTexCoord(0.08,0.92,0.08,0.92)
+local controlBorder=control:CreateTexture(nil,"OVERLAY")
+controlBorder:SetWidth(52); controlBorder:SetHeight(52); controlBorder:SetPoint("TOPLEFT",control,"TOPLEFT",0,0)
+controlBorder:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+local controlHighlight=control:CreateTexture(nil,"HIGHLIGHT")
+controlHighlight:SetWidth(32); controlHighlight:SetHeight(32); controlHighlight:SetPoint("CENTER",control,"CENTER",0,0)
+controlHighlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"); controlHighlight:SetBlendMode("ADD")
 
 local menu=CreateFrame("Frame","CoAHereticHUDMenu",UIParent)
-menu:SetWidth(286); menu:SetHeight(296); menu:SetClampedToScreen(true); menu:SetFrameStrata("DIALOG")
+menu:SetWidth(286); menu:SetHeight(358); menu:SetClampedToScreen(true); menu:SetFrameStrata("DIALOG")
 menu:SetBackdrop({bgFile="Interface\\Tooltips\\UI-Tooltip-Background",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
 menu:SetBackdropColor(0.012,0.025,0.055,0.97); menu:SetBackdropBorderColor(0.25,0.88,1.0,0.90); menu:Hide()
 local mt=menu:CreateFontString(nil,"OVERLAY","GameFontNormal"); mt:SetPoint("TOPLEFT",12,-12); mt:SetText("HERETIC • PROC HUD"); mt:SetTextColor(0.45,0.95,1)
-local md=menu:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); md:SetPoint("TOPLEFT",12,-34); md:SetWidth(260); md:SetJustifyH("LEFT"); md:SetText("Une seule alerte : Soin occulte instantane.\n1 point, puis 2 points. Au 3e declenchement : proc instant.\nSang noir est suivi separement.")
+local md=menu:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall"); md:SetPoint("TOPLEFT",12,-34); md:SetWidth(260); md:SetJustifyH("LEFT"); md:SetText("Soin occulte : icone uniquement quand le proc est pret.\nSang noir : un point par membre du groupe.\nAucun sort n'est lance automatiquement.")
 local function MenuButton(text,x,y,w)
     local b=CreateFrame("Button",nil,menu,"UIPanelButtonTemplate"); b:SetWidth(w or 122); b:SetHeight(22); b:SetPoint("TOPLEFT",x,y); b:SetText(text); return b
 end
@@ -834,35 +948,111 @@ local bBBMove=MenuButton("DEPLACER SANG NOIR",12,-122,122)
 local bSound=MenuButton("SON : ON",148,-122,126)
 local bProgress=MenuButton("PROGRESSION : ON",12,-152,122)
 local bBBAlways=MenuButton("BB TOUJOURS : ON",148,-152,126)
-local bScaleMinus=MenuButton("PROC -",12,-182,80)
-local bScalePlus=MenuButton("PROC +",98,-182,80)
-local bBBScaleMinus=MenuButton("BB -",184,-182,42)
-local bBBScalePlus=MenuButton("BB +",232,-182,42)
-local bBBAlert=MenuButton("TEST ALERTE BB",12,-212,262)
-local bDebug=MenuButton("DIAGNOSTIC",12,-242,122)
-local bReset=MenuButton("RESET",148,-242,126)
+local bKeybind=MenuButton("TOUCHE : ON",12,-182,122)
+local bMinimap=MenuButton("BOUTON : ON",148,-182,126)
+local bPresetCompact=MenuButton("COMPACT",12,-212,82)
+local bPresetCentral=MenuButton("CENTRAL",102,-212,82)
+local bPresetHealer=MenuButton("SOIGNEUR",192,-212,82)
+local bScaleMinus=MenuButton("PROC -",12,-242,80)
+local bScalePlus=MenuButton("PROC +",98,-242,80)
+local bBBScaleMinus=MenuButton("BB -",184,-242,42)
+local bBBScalePlus=MenuButton("BB +",232,-242,42)
+local bBBAlert=MenuButton("TEST ALERTE BB",12,-272,262)
+local bDebug=MenuButton("DIAGNOSTIC",12,-302,122)
+local bReset=MenuButton("RESET",148,-302,126)
+
+local hubManaged=false
+local controlWasDragged=false
+local function Atan2(y,x)
+    if x>0 then return math.atan(y/x) end
+    if x<0 and y>=0 then return math.atan(y/x)+math.pi end
+    if x<0 and y<0 then return math.atan(y/x)-math.pi end
+    if x==0 and y>0 then return math.pi/2 end
+    if x==0 and y<0 then return -math.pi/2 end
+    return 0
+end
+
+local function PositionControlButton()
+    local db=EnsureDB()
+    control:ClearAllPoints()
+    if Minimap then
+        local radius=80
+        control:SetPoint("CENTER",Minimap,"CENTER",math.cos(db.buttonAngle or 4.15)*radius,math.sin(db.buttonAngle or 4.15)*radius)
+    else
+        control:SetPoint("TOPRIGHT",UIParent,"TOPRIGHT",-210,-58)
+    end
+end
 
 local function ApplyPositions()
     local db=EnsureDB()
     procAnchor:ClearAllPoints(); procAnchor:SetPoint("CENTER",UIParent,"CENTER",db.x,db.y); procAnchor:SetScale(db.procScale)
     bbFrame:ClearAllPoints(); bbFrame:SetPoint("CENTER",UIParent,"CENTER",db.bbX,db.bbY); bbFrame:SetScale(db.bbScale)
-    control:ClearAllPoints(); control:SetPoint("CENTER",UIParent,"CENTER",db.buttonX,db.buttonY)
+    PositionControlButton()
+end
+
+local function ApplyPreset(name)
+    local db=EnsureDB()
+    name=string.lower(name or "compact")
+    if name=="central" then
+        db.x,db.y=0,-105; db.bbX,db.bbY=0,-165; db.procScale,db.bbScale=1.05,1.0
+    elseif name=="healer" or name=="soigneur" then
+        name="healer"
+        db.x,db.y=-185,-85; db.bbX,db.bbY=-185,-145; db.procScale,db.bbScale=1.15,1.10
+    else
+        name="compact"
+        db.x,db.y=-250,-205; db.bbX,db.bbY=-250,-262; db.procScale,db.bbScale=0.90,0.90
+    end
+    db.hudPreset=name
+    ApplyPositions()
 end
 
 local function UpdateMenu()
     local db=EnsureDB()
-    md:SetText("Profil : Cultist Heretic Build Hub • niveau "..tostring(playerLevel > 0 and playerLevel or "?")..".\nUne seule alerte : Soin occulte instantane.\n1 point, puis 2 points; Sang noir est suivi separement.")
+    md:SetText("Cultist Heretic • niveau "..tostring(playerLevel > 0 and playerLevel or "?").." • mode "..tostring(db.hudPreset or "compact")..".\nSoin occulte apparait seulement quand il est instantane.\nChaque point represente un membre pour Sang noir.")
     bProcMove:SetText(db.locked and "DEPLACER PROC" or "VERROUILLER PROC")
     bBBMove:SetText(db.bbLocked and "DEPLACER SANG NOIR" or "VERROUILLER SANG NOIR")
     bSound:SetText("SON : "..(db.sound and "ON" or "OFF"))
     bProgress:SetText("PROGRESSION : "..(db.showProgress and "ON" or "OFF"))
     bBBAlways:SetText("BB TOUJOURS : "..(db.bbAlways and "ON" or "OFF"))
+    bKeybind:SetText("TOUCHE : "..(db.showKeybind and "ON" or "OFF"))
+    bMinimap:SetText("BOUTON : "..(db.buttonHidden and "OFF" or "ON"))
 end
 
-control:SetScript("OnDragStart",function(self) if IsShiftKeyDown and not IsShiftKeyDown() then return end self:StartMoving() end)
-control:SetScript("OnDragStop",function(self) self:StopMovingOrSizing(); local db=EnsureDB(); local _,_,_,x,y=self:GetPoint(1); db.buttonX=x or db.buttonX; db.buttonY=y or db.buttonY end)
-control:SetScript("OnClick",function() if menu:IsShown() then menu:Hide() else menu:ClearAllPoints(); menu:SetPoint("TOPLEFT",control,"BOTTOMRIGHT",5,-5); UpdateMenu(); menu:Show() end end)
-control:SetScript("OnEnter",function(self) if GameTooltip then GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine("Heretic HUD"); GameTooltip:AddLine("Clic : reglages",1,1,1); GameTooltip:AddLine("Shift + glisser : deplacer HH",0.7,0.9,1); GameTooltip:Show() end end)
+local function ToggleHereticMenu(centered)
+    if menu:IsShown() then
+        menu:Hide()
+        return
+    end
+    menu:ClearAllPoints()
+    if centered or not control:IsVisible() then
+        menu:SetPoint("CENTER",UIParent,"CENTER",0,0)
+    else
+        menu:SetPoint("TOPLEFT",control,"BOTTOMRIGHT",5,-5)
+    end
+    UpdateMenu()
+    menu:Show()
+end
+
+control:SetScript("OnMouseDown",function() controlWasDragged=false end)
+control:SetScript("OnDragStart",function(self)
+    controlWasDragged=true
+    self:SetScript("OnUpdate",function()
+        if not Minimap then return end
+        local cursorX,cursorY=GetCursorPosition()
+        local scale=UIParent:GetEffectiveScale() or 1
+        local minimapX,minimapY=Minimap:GetCenter()
+        if not minimapX or not minimapY then return end
+        cursorX,cursorY=cursorX/scale,cursorY/scale
+        EnsureDB().buttonAngle=Atan2(cursorY-minimapY,cursorX-minimapX)
+        PositionControlButton()
+    end)
+end)
+control:SetScript("OnDragStop",function(self) self:SetScript("OnUpdate",nil); PositionControlButton() end)
+control:SetScript("OnClick",function()
+    if controlWasDragged then controlWasDragged=false; return end
+    ToggleHereticMenu(false)
+end)
+control:SetScript("OnEnter",function(self) if GameTooltip then GameTooltip:SetOwner(self,"ANCHOR_RIGHT"); GameTooltip:AddLine("CoA Heretic Helper",0.55,0.88,1); GameTooltip:AddLine("Clic : reglages",1,1,1); GameTooltip:AddLine("Glisser : deplacer autour de la minicarte",0.7,0.9,1); GameTooltip:Show() end end)
 control:SetScript("OnLeave",function() if GameTooltip then GameTooltip:Hide() end end)
 
 local function SyncMalevolentPowerState(forceScan)
@@ -934,7 +1124,8 @@ local function Refresh(forceAuraScan)
         bbSoundTestAt=0
         PlayBlackBloodWarning("critical", true)
     end
-    if context then control:Show() else control:Hide(); menu:Hide() end
+    if context and not hubManaged and not db.buttonHidden then control:Show() else control:Hide() end
+    if not context then menu:Hide() end
     if not db.enabled or not context then instantFrame:Hide(); progressFrame:Hide(); procAnchor:Hide(); bbFrame:Hide(); return end
 
     SyncMalevolentPowerState(forceAuraScan)
@@ -948,10 +1139,18 @@ local function Refresh(forceAuraScan)
         progressFrame:Hide()
         instantIcon:SetTexture((spellbook.mending and spellbook.mending.icon) or (aura and aura.icon) or "Interface\\Icons\\Spell_Holy_FlashHeal")
         local rem=0
+        local duration=10
         if aura then rem=Remaining(aura)
         elseif localInstantUntil and localInstantUntil>now then rem=localInstantUntil-now
         elseif testMode then rem=math.max(0,testUntil-now) end
+        if aura and aura.duration and aura.duration>0 then duration=aura.duration end
         instantTimer:SetText(rem>0 and string.format("%.1f",rem) or "")
+        instantLabel:SetText((spellbook.mending and spellbook.mending.name) or "Soin occulte")
+        instantKeybind:SetText(db.showKeybind and FindSpellKeybind(spellbook.mending) or "")
+        if instantCooldown and instantCooldown.SetCooldown then
+            if rem>0 then instantCooldown:SetCooldown(now + rem - duration, duration)
+            else instantCooldown:SetCooldown(0, 0) end
+        end
         instantFrame:Show(); procAnchor:Show()
     else
         instantFrame:Hide()
@@ -973,7 +1172,7 @@ end
 local function HandleCommand(msg)
     local db=EnsureDB(); msg=string.lower((msg or ""):gsub("^%s+",""):gsub("%s+$",""))
     if msg=="" or msg=="menu" or msg=="help" then
-        if menu:IsShown() then menu:Hide() else menu:ClearAllPoints(); menu:SetPoint("CENTER",UIParent,"CENTER",0,0); UpdateMenu(); menu:Show() end
+        ToggleHereticMenu(true)
     elseif msg=="test" then testUntil=GetTime()+8; Chat("test 8 s : progression -> proc instant + Sang noir.")
     elseif msg=="unlock" then db.locked=false
     elseif msg=="lock" then db.locked=true
@@ -985,6 +1184,16 @@ local function HandleCommand(msg)
         bbSoundTestAt=GetTime()+0.8
         Chat("test Sang noir : avertissement, puis alarme critique.")
     elseif msg=="progress" then db.showProgress=not db.showProgress
+    elseif msg=="keybind" then db.showKeybind=not db.showKeybind
+    elseif msg=="button" then db.buttonHidden=not db.buttonHidden
+    elseif string.match(msg,"^preset%s+") then
+        local preset=string.match(msg,"^preset%s+(%S+)$")
+        if preset=="compact" or preset=="central" or preset=="healer" or preset=="soigneur" then
+            ApplyPreset(preset)
+            Chat("mode visuel "..tostring(db.hudPreset).." applique.")
+        else
+            Chat("Usage : /hh preset compact|central|healer")
+        end
     elseif msg=="trace" then traceEnabled=not traceEnabled; Chat("trace combat="..(traceEnabled and "ON" or "OFF"))
     elseif msg=="trace clear" then db.eventTrace={}; Chat("journal des evenements efface.")
     elseif msg=="events" then
@@ -996,7 +1205,7 @@ local function HandleCommand(msg)
         end
     elseif msg=="bbalways" then db.bbAlways=not db.bbAlways
     elseif msg=="reset" then
-        db.x,db.y=-250,-205; db.bbX,db.bbY=-250,-255; db.buttonX,db.buttonY=250,-140; db.procScale,db.bbScale=1.0,1.0; ApplyPositions(); localProcProgress=0; localInstantUntil=0; procReady=false; procReadyUntil=0; lastMalevolentAuraSeen=0; lastMalevolentStacks=0; lastMalevolentExpiration=0; lastQualifyingCastAt=0; pendingMelee=false; pendingMeleeAt=0; lastProcessedMeleeAt=0; lastMalevolentScanAt=0; lastMendingScanAt=0; bbPrevCovered=0; bbPrevTotal=0; bbWarnedExpiryCycle=false; bbWarnedCriticalCycle=false; bbWarnedMissingCycle=false; bbLastScanAt=0; bbCachedState={covered=0,total=1,remain=0,duration=10,maxStacks=0,sampledAt=0}; localBB={}; Chat("positions et trackers reinitialises.")
+        db.buttonAngle=4.15; db.buttonHidden=false; db.showKeybind=true; ApplyPreset("compact"); localProcProgress=0; localInstantUntil=0; procReady=false; procReadyUntil=0; lastMalevolentAuraSeen=0; lastMalevolentStacks=0; lastMalevolentExpiration=0; lastQualifyingCastAt=0; pendingMelee=false; pendingMeleeAt=0; lastProcessedMeleeAt=0; lastMalevolentScanAt=0; lastMendingScanAt=0; bbPrevCovered=0; bbPrevTotal=0; bbWarnedExpiryCycle=false; bbWarnedCriticalCycle=false; bbWarnedMissingCycle=false; bbLastScanAt=0; bbCachedState={covered=0,total=1,remain=0,duration=10,maxStacks=0,details={},sampledAt=0}; localBB={}; Chat("positions et trackers reinitialises.")
     elseif msg=="debug" then
         RefreshSpecDetection(); local instant,aura,castMS=GetMendingInstantState(); local c,t,r,d,s=ScanBlackBlood()
         Chat("Profil="..BUILD_PROFILE.name.." | niveau="..tostring(playerLevel).." | Heretic="..tostring(hereticDetected).." | Soin appris="..tostring(spellbook.mending and spellbook.mending.learned or false).." | cast="..tostring(castMS).."ms | instant="..tostring(instant))
@@ -1008,7 +1217,7 @@ local function HandleCommand(msg)
         else
             v=string.match(msg,"^bbscale%s+([%d%.]+)$")
             if v then db.bbScale=Clamp(tonumber(v),0.60,1.80); bbFrame:SetScale(db.bbScale)
-            else Chat("/hh test | bbsound | unlock/lock | bbunlock/bblock | sound | progress | bbalways | trace | events | scale 1 | bbscale 1 | debug | reset") end
+            else Chat("/hh test | preset compact|central|healer | unlock/lock | sound | progress | keybind | button | bbalways | trace | events | debug | reset") end
         end
     end
     UpdateMenu(); Refresh()
@@ -1020,6 +1229,11 @@ bBBMove:SetScript("OnClick",function() HandleCommand(EnsureDB().bbLocked and "bb
 bSound:SetScript("OnClick",function() HandleCommand("sound") end)
 bProgress:SetScript("OnClick",function() HandleCommand("progress") end)
 bBBAlways:SetScript("OnClick",function() HandleCommand("bbalways") end)
+bKeybind:SetScript("OnClick",function() HandleCommand("keybind") end)
+bMinimap:SetScript("OnClick",function() HandleCommand("button") end)
+bPresetCompact:SetScript("OnClick",function() HandleCommand("preset compact") end)
+bPresetCentral:SetScript("OnClick",function() HandleCommand("preset central") end)
+bPresetHealer:SetScript("OnClick",function() HandleCommand("preset healer") end)
 bScaleMinus:SetScript("OnClick",function() local d=EnsureDB(); d.procScale=Clamp(d.procScale-0.1,0.6,1.8); procAnchor:SetScale(d.procScale); UpdateMenu() end)
 bScalePlus:SetScript("OnClick",function() local d=EnsureDB(); d.procScale=Clamp(d.procScale+0.1,0.6,1.8); procAnchor:SetScale(d.procScale); UpdateMenu() end)
 bBBScaleMinus:SetScript("OnClick",function() local d=EnsureDB(); d.bbScale=Clamp(d.bbScale-0.1,0.6,1.8); bbFrame:SetScale(d.bbScale); UpdateMenu() end)
@@ -1027,6 +1241,18 @@ bBBScalePlus:SetScript("OnClick",function() local d=EnsureDB(); d.bbScale=Clamp(
 bBBAlert:SetScript("OnClick",function() HandleCommand("bbsound") end)
 bDebug:SetScript("OnClick",function() HandleCommand("debug") end)
 bReset:SetScript("OnClick",function() HandleCommand("reset") end)
+
+CoAHereticHelperAPI = CoAHereticHelperAPI or {}
+function CoAHereticHelperAPI:Toggle()
+    ToggleHereticMenu(true)
+end
+function CoAHereticHelperAPI:Show()
+    if not menu:IsShown() then ToggleHereticMenu(true) end
+end
+function CoAHereticHelperAPI:SetHubManaged(value)
+    hubManaged=value and true or false
+    Refresh(false)
+end
 
 -- Robust cast-consumption fallback for CoA custom spells.
 -- On 3.3.5/Ascension, COMBAT_LOG_EVENT_UNFILTERED can miss or localize custom spell casts,
@@ -1079,7 +1305,7 @@ for _,ev in ipairs({"PLAYER_LOGIN","PLAYER_ENTERING_WORLD","PLAYER_LEVEL_UP","PL
 end
 events:SetScript("OnEvent",function(self,event,...)
     if event=="PLAYER_LOGIN" then
-        EnsureDB(); ApplyPositions(); RefreshSpecDetection(); Chat("v3.7.1 charge : profil Build Hub adapte au niveau "..tostring(playerLevel).." et uniquement aux sorts appris + double alerte Sang noir. /hh")
+        EnsureDB(); ApplyPositions(); RefreshSpecDetection(); Chat("v3.8.0 charge : HUD compact, touche du proc et points Sang noir par membre. /hh")
     elseif event=="SPELLS_CHANGED" or event=="PLAYER_TALENT_UPDATE" or event=="PLAYER_LEVEL_UP" or event=="PLAYER_ENTERING_WORLD" then
         RefreshSpecDetection()
     elseif event=="UNIT_SPELLCAST_SUCCEEDED" then

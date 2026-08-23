@@ -6,7 +6,9 @@ local DEFAULT_FRAMES = {
     "MinimapCluster", "BuffFrame", "WatchFrame", "CastingBarFrame",
     "MainMenuBar", "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight", "MultiBarLeft",
     "BonusActionBarFrame", "PetActionBarFrame", "ShapeshiftBarFrame", "PossessBarFrame",
-    "CoACombatAssistantFrame", "EA_Main_Frame", "EA_Anchor_Frame", "CoAUIManagerPanel"
+    "CoACombatAssistantFrame", "EA_Main_Frame", "EA_Anchor_Frame", "CoAUIManagerPanel",
+    "CoALootDeciderBanner", "CoALootAdvisorWindow", "CoAHereticProcAnchor",
+    "CoAHereticBlackBloodTracker", "CoAHereticHUDMenu", "CoAMessageCenterFrame"
 }
 
 local FRAME_LABELS = {
@@ -20,7 +22,10 @@ local FRAME_LABELS = {
     BonusActionBarFrame = "Barre bonus", PetActionBarFrame = "Barre familier",
     ShapeshiftBarFrame = "Barre formes", PossessBarFrame = "Barre contrôle",
     CoACombatAssistantFrame = "CoA Combat Assistant", EA_Main_Frame = "EventAlert",
-    EA_Anchor_Frame = "Ancre EventAlert", CoAUIManagerPanel = "CoA UI Manager"
+    EA_Anchor_Frame = "Ancre EventAlert", CoAUIManagerPanel = "Centre CoA",
+    CoALootDeciderBanner = "Décision de butin", CoALootAdvisorWindow = "Comparateur de butin",
+    CoAHereticProcAnchor = "Heretic : proc", CoAHereticBlackBloodTracker = "Heretic : Sang noir",
+    CoAHereticHUDMenu = "Réglages Heretic", CoAMessageCenterFrame = "Messages CoA"
 }
 
 local movers = {}
@@ -31,6 +36,8 @@ local pendingApply = false
 local scheduledAt = {}
 local initialized = false
 local minimapButton = nil
+local minimapUnreadText = nil
+local nextBadgeUpdate = 0
 
 local function Chat(message)
     if DEFAULT_CHAT_FRAME then
@@ -170,7 +177,7 @@ end
 
 local panel = CreateFrame("Frame", "CoAUIManagerPanel", UIParent)
 panel:SetWidth(370)
-panel:SetHeight(145)
+panel:SetHeight(215)
 panel:SetPoint("TOP", UIParent, "TOP", 0, -90)
 panel:SetFrameStrata("DIALOG")
 panel:SetMovable(true)
@@ -188,7 +195,7 @@ panel:Hide()
 
 local panelTitle = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 panelTitle:SetPoint("TOP", panel, "TOP", 0, -14)
-panelTitle:SetText("CoA UI Manager 3.3.5")
+panelTitle:SetText("Centre CoA")
 
 local panelStatus = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 panelStatus:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -44)
@@ -201,6 +208,60 @@ panelHelp:SetPoint("TOPLEFT", panelStatus, "BOTTOMLEFT", 0, -8)
 panelHelp:SetWidth(334)
 panelHelp:SetJustifyH("LEFT")
 panelHelp:SetText("Glisser: position  •  Molette: échelle  •  Maj+molette: alpha\n/cui add NomDuFrame  •  /cui profile global|character")
+
+local hubLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+hubLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -94)
+hubLabel:SetText("OUTILS COA")
+hubLabel:SetTextColor(0.35, 0.82, 1.00)
+
+local function HubButton(text, x)
+    local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    button:SetWidth(104)
+    button:SetHeight(24)
+    button:SetPoint("TOPLEFT", panel, "TOPLEFT", x, -112)
+    button:SetText(text)
+    return button
+end
+
+local lootHubButton = HubButton("Loot Decider", 18)
+local hereticHubButton = HubButton("Heretic", 133)
+local messagesHubButton = HubButton("Messages", 248)
+
+local hubHint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+hubHint:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -143)
+hubHint:SetWidth(334)
+hubHint:SetJustifyH("LEFT")
+hubHint:SetText("Un seul bouton de minicarte pour les outils CoA. Les fenêtres sont aussi disponibles dans le mode déplacement.")
+
+lootHubButton:SetScript("OnClick", function()
+    if CoALootAdvisor_Toggle then CoALootAdvisor_Toggle() else Chat("CoA Loot Decider n'est pas chargé.") end
+end)
+hereticHubButton:SetScript("OnClick", function()
+    if CoAHereticHelperAPI and CoAHereticHelperAPI.Toggle then
+        CoAHereticHelperAPI:Toggle()
+    else
+        Chat("CoA Heretic Helper n'est pas chargé pour ce personnage.")
+    end
+end)
+messagesHubButton:SetScript("OnClick", function()
+    if CoAMessageCenter and CoAMessageCenter.Toggle then CoAMessageCenter:Toggle()
+    else Chat("CoA Message Center n'est pas chargé.") end
+end)
+
+local function UpdateHubBadge()
+    local unread = tonumber(CoAMessageCenterDB and CoAMessageCenterDB.unread) or 0
+    messagesHubButton:SetText(unread > 0 and ("Messages (" .. tostring(unread) .. ")") or "Messages")
+    if minimapUnreadText then minimapUnreadText:SetText(unread > 0 and tostring(unread) or "") end
+end
+
+local function UpdateHubAvailability()
+    if CoAHereticHelperAPI and CoAHereticHelperAPI.SetHubManaged then CoAHereticHelperAPI:SetHubManaged(true) end
+    if CoAMessageCenter and CoAMessageCenter.SetHubManaged then CoAMessageCenter:SetHubManaged(true) end
+    if CoALootAdvisor_Toggle then lootHubButton:Enable() else lootHubButton:Disable() end
+    if CoAHereticHelperAPI and CoAHereticHelperAPI.Toggle then hereticHubButton:Enable() else hereticHubButton:Disable() end
+    if CoAMessageCenter and CoAMessageCenter.Toggle then messagesHubButton:Enable() else messagesHubButton:Disable() end
+    UpdateHubBadge()
+end
 
 local lockButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 lockButton:SetWidth(92)
@@ -451,6 +512,11 @@ local function BuildMinimapButton()
     highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     highlight:SetBlendMode("ADD")
 
+    minimapUnreadText = minimapButton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    minimapUnreadText:SetPoint("BOTTOMRIGHT", minimapButton, "BOTTOMRIGHT", 3, -2)
+    minimapUnreadText:SetTextColor(1, 0.82, 0.10)
+    minimapUnreadText:SetShadowOffset(1, -1)
+
     minimapButton:SetScript("OnMouseDown", function() iconWasDragged = false end)
     minimapButton:SetScript("OnDragStart", function(self)
         iconWasDragged = true
@@ -482,8 +548,8 @@ local function BuildMinimapButton()
     end)
     minimapButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("CoA UI Manager", 1, 0.82, 0.20)
-        GameTooltip:AddLine("Clic gauche : ouvrir les réglages.", 1, 1, 1)
+        GameTooltip:AddLine("CoA Tools", 1, 0.82, 0.20)
+        GameTooltip:AddLine("Clic gauche : ouvrir le centre CoA.", 1, 1, 1)
         GameTooltip:AddLine("Clic droit : verrouiller/déverrouiller l'interface.", 1, 1, 1)
         GameTooltip:AddLine("Glisser : déplacer l'icône autour de la minicarte.", 0.65, 0.78, 1)
         GameTooltip:AddLine("/cui minimap hide pour masquer l'icône.", 0.65, 0.72, 0.80)
@@ -493,6 +559,7 @@ local function BuildMinimapButton()
 
     PositionMinimapButton()
     if CoAUIManagerDB.minimap.hidden then minimapButton:Hide() else minimapButton:Show() end
+    UpdateHubAvailability()
 end
 
 panel:SetScript("OnDragStart", function(self)
@@ -525,8 +592,13 @@ eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
 eventFrame:SetScript("OnUpdate", function()
     if not initialized then return end
+    local now = GetTime()
+    if now >= nextBadgeUpdate then
+        nextBadgeUpdate = now + 0.5
+        UpdateHubBadge()
+    end
     if pendingApply and (not InCombatLockdown or not InCombatLockdown()) then ApplyAll() end
-    if scheduledAt[1] and GetTime() >= scheduledAt[1] then
+    if scheduledAt[1] and now >= scheduledAt[1] then
         table.remove(scheduledAt, 1)
         ApplyAll()
         if unlocked then ForEachFrameName(CreateMover) end
@@ -550,8 +622,10 @@ eventFrame:SetScript("OnEvent", function(_, event, loaded)
         if unlocked then ForEachFrameName(CreateMover) end
     elseif event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
         PositionMinimapButton()
+        UpdateHubAvailability()
         ScheduleApply()
     elseif event == "ADDON_LOADED" then
+        UpdateHubAvailability()
         ScheduleApply()
     end
 end)

@@ -2,7 +2,7 @@
 ## Title: EventAlert - Compatibilite CoA
 ## Notes: Chargeur de compatibilite Project Ascension pour le veritable EventAlert 4.3.6
 ## Author: CoA Tools
-## Version: 1.12.0
+## Version: 1.13.0
 ## RequiredDeps: EventAlert
 ## X-CoA-Compatibility-Version: 1.9.1
 

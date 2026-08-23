@@ -1,9 +1,10 @@
 ## Interface: 30300
 ## Title: CoA Loot Decider
-## Notes: Compare les jets de butin a l'equipement actuel et choisit NEED ou PASS sur Conquest of Azeroth.
+## Notes: Compare butin, sacs, banque, marchands et tous les liens d'objets au profil CoA actif.
 ## Author: Cnbz13
-## Version: 1.5.7
+## Version: 1.5.8
 ## SavedVariables: CoALootDeciderDB
 
 CoALootProfiles.lua
 CoALootDecider.lua
+CoALootAdvisor.lua

@@ -6,22 +6,28 @@ import luaparse from 'luaparse';
 const tocPath = 'addons/CoALootDecider/CoALootDecider.toc';
 const luaPath = 'addons/CoALootDecider/CoALootDecider.lua';
 const profilesPath = 'addons/CoALootDecider/CoALootProfiles.lua';
+const advisorPath = 'addons/CoALootDecider/CoALootAdvisor.lua';
 
 test('CoA Loot Decider targets Ascension 3.3.5 and parses as Lua 5.1', async () => {
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   const profiles = await readFile(profilesPath, 'utf8');
+  const advisor = await readFile(advisorPath, 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
   assert.match(toc, /^## SavedVariables: CoALootDeciderDB$/m);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   assert.doesNotThrow(() => luaparse.parse(profiles, { luaVersion: '5.1', comments: false, locations: true }));
+  assert.doesNotThrow(() => luaparse.parse(advisor, { luaVersion: '5.1', comments: false, locations: true }));
   assert.match(toc, /CoALootProfiles\.lua\s+CoALootDecider\.lua/,
     'profiles must load before the decision engine');
 
   for (const retailApi of [
     'BackdropTemplate', 'SetShown', 'SetSize', 'C_Timer',
     'C_Item', 'Enum.', 'CreateFromMixins', 'RegisterUnitEvent'
-  ]) assert.equal(lua.includes(retailApi), false, `forbidden Retail API: ${retailApi}`);
+  ]) {
+    assert.equal(lua.includes(retailApi), false, `forbidden Retail API in engine: ${retailApi}`);
+    assert.equal(advisor.includes(retailApi), false, `forbidden Retail API in advisor: ${retailApi}`);
+  }
 });
 
 test('CoA Loot Decider ships data-driven profiles for every current CoA specialization', async () => {
@@ -106,6 +112,47 @@ test('CoA Loot Decider makes only NEED or PASS decisions and handles item-cache 
   assert.doesNotMatch(lua, /ROLL_GREED|ROLL_DISENCHANT/);
   assert.match(lua, /local rollType = decision\.need and ROLL_NEED or ROLL_PASS/);
   assert.match(lua, /strictSafetyVersion ~= 2[\s\S]+passUnknown = false/);
-  assert.match(lua, /candidate\.equipLoc == "INVTYPE_TRINKET"[\s\S]+decision manuelle requise/);
+  assert.match(lua, /candidate\.equipLoc == "INVTYPE_TRINKET"[\s\S]+verification manuelle recommandee/);
   assert.match(lua, /HasUnscoredEffect\(candidate\.link\)[\s\S]+effet Equipe\/Utiliser non chiffrable/);
+  assert.match(lua, /analysis and analysis\.manual[\s\S]+return nil, analysis\.reason/,
+    'unknown effects must never trigger an automatic roll');
+});
+
+test('CoA Loot Advisor compares bags, bank, merchants, loot and universal item tooltips', async () => {
+  const toc = await readFile(tocPath, 'utf8');
+  const lua = await readFile(luaPath, 'utf8');
+  const advisor = await readFile(advisorPath, 'utf8');
+  assert.match(toc, /CoALootDecider\.lua\s+CoALootAdvisor\.lua/,
+    'the visual advisor must load after the scoring engine');
+  for (const required of [
+    'CoALootDeciderAPI', 'AnalyzeItem', 'currentStats',
+    'GetContainerItemLink', 'GetContainerNumSlots', 'BANKFRAME_OPENED',
+    'GetMerchantNumItems', 'GetMerchantItemLink', 'MERCHANT_SHOW',
+    'GetLootSlotLink', 'LOOT_OPENED', 'OnTooltipSetItem',
+    'GameTooltip', 'ItemRefTooltip', 'ShoppingTooltip1',
+    'AdiBags_UpdateButton', 'AceEvent-3.0',
+    'CoALootAdvisor_Toggle', 'meilleur candidat par emplacement',
+    'AMELIORATION', 'VERIFICATION MANUELLE', 'Confiance :'
+  ]) assert.ok(lua.includes(required) || advisor.includes(required), `missing universal advisor feature: ${required}`);
+  assert.match(advisor, /for merchantIndex = 1, \(tonumber\(GetMerchantNumItems\(\)\) or 0\)/,
+    'the comparison window must inspect every merchant page, not only visible buttons');
+  for (const verdict of ['AMELIORATION', 'GAIN SOUS LE SEUIL', 'MOINS BON', 'EQUIVALENT']) {
+    assert.ok(advisor.includes(verdict), `missing visual verdict: ${verdict}`);
+  }
+  assert.match(advisor, /local positive = analysis\.need/,
+    'visual advice must derive its verdict from the strict upgrade decision');
+  assert.match(advisor, /MerchantNextPageButton:HookScript\("OnClick", RequestRefresh\)/,
+    'merchant overlays must refresh when browsing NPC pages');
+  assert.match(advisor, /AdiBags_UpdateButton[\s\S]+PaintButton\(button, link\)/,
+    'the real Ascension AdiBags installation must receive the same visual markers');
+  assert.match(advisor, /SLOT_GROUP[\s\S]+INVTYPE_ROBE = "INVTYPE_CHEST"/,
+    'equivalent inventory types must compete for the same equipment slot');
+  assert.match(lua, /INVTYPE_WEAPON"[\s\S]+profile\.items\[16\]\.equipLoc == "INVTYPE_2HWEAPON"/,
+    'one-handed candidates must not treat the off-hand behind an equipped two-hander as free');
+  assert.match(lua, /STANDARD_EQUIP_TEXT[\s\S]+isEquip and not ContainsAny\(text, STANDARD_EQUIP_TEXT\)/,
+    'ordinary WotLK Equip stat lines must remain scoreable while special effects stay manual');
+  assert.match(lua, /lowestLink and HasUnscoredEffect\(lowestLink\)[\s\S]+l'equipement remplace contient un effet non chiffrable/,
+    'an unscored effect on currently equipped gear must lower comparison confidence');
+  assert.match(lua, /INVTYPE_WEAPONOFFHAND[\s\S]+necessite aussi une arme a une main compatible/,
+    'an off-hand item cannot be recommended alone behind an equipped two-hander');
 });

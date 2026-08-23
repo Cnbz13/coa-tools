@@ -217,7 +217,7 @@ local function EnsureDatabase()
     end
     CoALootDeciderDB.customWeights = CoALootDeciderDB.customWeights or {}
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
-    CoALootDeciderDB.version = "0.2.3"
+    CoALootDeciderDB.version = "0.3.0"
 end
 
 local function ReadItemStats(itemLink)
@@ -278,34 +278,78 @@ end
 
 local effectScanner = CreateFrame("GameTooltip", "CoALootDeciderEffectScanner", nil, "GameTooltipTemplate")
 effectScanner:SetOwner(UIParent, "ANCHOR_NONE")
+local effectCache = {}
+
+local STANDARD_EQUIP_TEXT = {
+    "attack power", "ranged attack power", "spell power", "healing done",
+    "critical strike rating", "crit rating", "hit rating", "haste rating",
+    "expertise rating", "armor penetration rating", "defense rating",
+    "dodge rating", "parry rating", "block rating", "block value",
+    "mana per 5", "mana every 5", "spell penetration",
+    "puissance d'attaque", "puissance des sorts", "puissance de soin",
+    "score de coup critique", "score de toucher", "score de hate",
+    "score d'expertise", "penetration d'armure", "score de defense",
+    "score d'esquive", "score de parade", "score de blocage",
+    "mana toutes les 5"
+}
+
+local SPECIAL_EFFECT_TEXT = {
+    "chance", "when you", "whenever", "each time", "on hit", "for 10 sec",
+    "for 15 sec", "for 20 sec", "stack", "summon", "your attacks have",
+    "your spells have", "lorsque", "chaque fois", "pendant 10 sec",
+    "pendant 15 sec", "pendant 20 sec", "cumul", "invoque",
+    "vos attaques ont", "vos sorts ont"
+}
+
+local function ContainsAny(text, needles)
+    local _, needle
+    for _, needle in ipairs(needles) do
+        if string.find(text, needle, 1, true) then return true end
+    end
+    return false
+end
 
 local function HasUnscoredEffect(itemLink)
     if not itemLink then return false end
+    if effectCache[itemLink] ~= nil then return effectCache[itemLink] end
     effectScanner:ClearLines()
     local success = pcall(effectScanner.SetHyperlink, effectScanner, itemLink)
-    if not success then return true end
+    if not success then
+        effectScanner:Hide()
+        effectCache[itemLink] = true
+        return true
+    end
 
     local line
     for line = 2, effectScanner:NumLines() do
         local fontString = _G["CoALootDeciderEffectScannerTextLeft" .. line]
         local rawText = fontString and fontString:GetText() or ""
         local text = Lower(rawText)
-        if string.find(text, "equip:", 1, true)
-            or string.find(text, "use:", 1, true)
-            or string.find(text, "chance on hit", 1, true)
+        local isUse = string.find(text, "use:", 1, true)
+            or string.find(text, "utiliser :", 1, true)
+            or string.find(text, "utiliser:", 1, true)
+        local isEquip = string.find(text, "equip:", 1, true)
             or string.find(text, "equipe :", 1, true)
             or string.find(text, "equipe:", 1, true)
             or string.find(rawText, "Équipé", 1, true)
             or string.find(rawText, "Équipée", 1, true)
-            or string.find(text, "utiliser :", 1, true)
-            or string.find(text, "utiliser:", 1, true)
-            or string.find(text, "chance de", 1, true)
+        local isSet = string.find(text, "set:", 1, true)
+            or string.find(text, "set bonus", 1, true)
+            or string.find(text, "bonus d'ensemble", 1, true)
+        -- Les statistiques ordinaires de WotLK sont souvent ecrites comme
+        -- "Equip: +score". Elles sont deja retournees par GetItemStats et ne
+        -- doivent pas rendre presque tout le stuff incertain. Seuls les procs,
+        -- utilisations et effets non standards restent en choix manuel.
+        if isUse or isSet or ContainsAny(text, SPECIAL_EFFECT_TEXT)
+            or (isEquip and not ContainsAny(text, STANDARD_EQUIP_TEXT))
         then
             effectScanner:Hide()
+            effectCache[itemLink] = true
             return true
         end
     end
     effectScanner:Hide()
+    effectCache[itemLink] = false
     return false
 end
 
@@ -698,12 +742,41 @@ local function ComparisonFor(data)
         local off = profile.items[17]
         local combined = ScoreItem(main) + ScoreItem(off)
         local currentLevel = math.max(main and main.itemLevel or 0, off and off.itemLevel or 0)
-        return combined, currentLevel, main and main.link or nil
+        local combinedStats = {}
+        AddStats(combinedStats, main and main.stats)
+        AddStats(combinedStats, off and off.stats)
+        local warning = (main and HasUnscoredEffect(main.link)) or (off and HasUnscoredEffect(off.link))
+        return combined, currentLevel, main and main.link or nil, combinedStats,
+            warning and "l'equipement remplace contient un effet non chiffrable" or nil
+    end
+
+    -- Une arme a une main ne remplit pas gratuitement la main gauche lorsqu'une
+    -- arme 2M est equipee. Elle doit d'abord battre la configuration 2M active.
+    if data.equipLoc == "INVTYPE_WEAPON"
+        and profile.items[16]
+        and profile.items[16].equipLoc == "INVTYPE_2HWEAPON"
+    then
+        local main = profile.items[16]
+        return ScoreItem(main), main.itemLevel or 0, main.link, main.stats or {},
+            HasUnscoredEffect(main.link) and "l'arme 2M equipee contient un effet non chiffrable" or nil
+    end
+
+    if (data.equipLoc == "INVTYPE_WEAPONOFFHAND"
+        or data.equipLoc == "INVTYPE_SHIELD"
+        or data.equipLoc == "INVTYPE_HOLDABLE")
+        and profile.items[16]
+        and profile.items[16].equipLoc == "INVTYPE_2HWEAPON"
+    then
+        local main = profile.items[16]
+        return ScoreItem(main), main.itemLevel or 0, main.link, main.stats or {},
+            "necessite aussi une arme a une main compatible"
     end
 
     if data.equipLoc == "INVTYPE_WEAPON" and not profile.items[17] then
         local main = profile.items[16]
-        return ScoreItem(main), main and main.itemLevel or 0, main and main.link or nil
+        return ScoreItem(main), main and main.itemLevel or 0, main and main.link or nil,
+            main and main.stats or {}, main and HasUnscoredEffect(main.link)
+                and "l'equipement remplace contient un effet non chiffrable" or nil
     end
 
     local lowestScore, lowestLevel, lowestLink = nil, nil, nil
@@ -717,32 +790,32 @@ local function ComparisonFor(data)
             lowestLink = current and current.link or nil
         end
     end
-    return lowestScore or 0, lowestLevel or 0, lowestLink
+    local currentData = lowestLink and ItemData(lowestLink) or nil
+    return lowestScore or 0, lowestLevel or 0, lowestLink, currentData and currentData.stats or {},
+        lowestLink and HasUnscoredEffect(lowestLink)
+            and "l'equipement remplace contient un effet non chiffrable" or nil
 end
 
-local function EvaluateItem(itemLink)
-    profile = ScanEquipment()
+local function AnalyzeItem(itemLink, refreshEquipment)
+    if refreshEquipment ~= false or not profile then profile = ScanEquipment() end
     if not profile.valid then return nil, profile.error end
     local candidate = ItemData(itemLink)
     if not candidate then return nil, "informations d'objet indisponibles" end
     if not EQUIP_SLOTS[candidate.equipLoc] then
-        return { need = false, candidate = candidate, reason = "objet non equipable", confidence = "haute" }
+        return {
+            need = false,
+            candidate = candidate,
+            reason = "objet non equipable",
+            confidence = "haute",
+            nonEquipable = true
+        }
     end
     local compatibilityProblem = CompatibilityProblem(candidate)
     if compatibilityProblem then
         return { need = false, candidate = candidate, reason = compatibilityProblem, confidence = "haute" }
     end
-    if candidate.equipLoc == "INVTYPE_TRINKET" then
-        return nil, "bijou avec effet non chiffrable : decision manuelle requise"
-    end
-    if HasUnscoredEffect(candidate.link) then
-        return nil, "effet Equipe/Utiliser non chiffrable : decision manuelle requise"
-    end
-    if not next(candidate.stats or {}) then
-        return nil, "aucune statistique chiffrable : decision manuelle requise"
-    end
 
-    local currentScore, currentLevel, currentLinkOrReason = ComparisonFor(candidate)
+    local currentScore, currentLevel, currentLinkOrReason, currentStats, comparisonWarning = ComparisonFor(candidate)
     if currentScore == nil then
         return { need = false, candidate = candidate, reason = currentLinkOrReason or "comparaison impossible", confidence = "basse" }
     end
@@ -753,8 +826,18 @@ local function EvaluateItem(itemLink)
     local threshold, thresholdSource = ActiveThreshold()
     local minimum = math.max(1, currentScore * (threshold / 100))
     local need = currentScore <= 0 and candidateScore > 0 or delta >= minimum
+    local manualReason = comparisonWarning
+    if not manualReason and candidate.equipLoc == "INVTYPE_TRINKET" then
+        manualReason = "bijou : effet non chiffrable"
+    elseif not manualReason and HasUnscoredEffect(candidate.link) then
+        manualReason = "effet Equipe/Utiliser non chiffrable"
+    elseif not manualReason and not next(candidate.stats or {}) then
+        manualReason = "aucune statistique chiffrable"
+    end
     local reason
-    if currentScore <= 0 and candidateScore > 0 then
+    if manualReason then
+        reason = manualReason .. " : verification manuelle recommandee"
+    elseif currentScore <= 0 and candidateScore > 0 then
         reason = "emplacement vide"
     elseif need then
         reason = "+" .. Round(percent, 1) .. "% (ilvl " .. candidate.itemLevel .. " contre " .. currentLevel
@@ -771,13 +854,32 @@ local function EvaluateItem(itemLink)
         currentScore = currentScore,
         currentLevel = currentLevel,
         currentLink = currentLinkOrReason,
+        currentStats = currentStats or {},
         percent = percent,
         threshold = threshold,
         thresholdSource = thresholdSource,
         reason = reason,
-        confidence = next(candidate.stats or {}) and "haute" or "moyenne"
+        manual = manualReason and true or false,
+        confidence = manualReason and "moyenne" or "haute"
     }
 end
+
+local function EvaluateItem(itemLink)
+    local analysis, errorMessage = AnalyzeItem(itemLink, true)
+    if analysis and analysis.manual then return nil, analysis.reason end
+    return analysis, errorMessage
+end
+
+-- API interne stable pour la couche universelle (sacs, marchands, quetes,
+-- butin, liens de chat et fenetres tierces). Aucune dependance externe.
+CoALootDeciderAPI = {
+    AnalyzeItem = AnalyzeItem,
+    RefreshProfile = ScanEquipment,
+    GetProfile = function() return profile end,
+    GetDisplayStats = function() return DISPLAY_STATS end,
+    ScoreItem = ScoreItem,
+    Round = Round
+}
 
 local banner = CreateFrame("Frame", "CoALootDeciderBanner", UIParent)
 banner:SetWidth(430)
@@ -982,6 +1084,9 @@ local function PrintHelp()
     Chat("/cld auto - active/desactive NEED/PASS automatique")
     Chat("/cld confirm - confirme automatiquement les objets lies")
     Chat("/cld scan - rescane l'equipement")
+    Chat("/cld gear - meilleurs objets des sacs, banque et marchand")
+    Chat("/cld visuals - active/desactive les contours et tooltips")
+    Chat("/cld downgrades - affiche/masque les objets moins bons")
     Chat("/cld test [lien] - compare un objet sans lancer de jet")
     Chat("/cld threshold 15 - seuil de la specialisation actuelle")
     Chat("/cld threshold auto - revient au seuil de classe/global")
@@ -1019,6 +1124,16 @@ SlashCmdList.COALOOTDECIDER = function(message)
     elseif command == "scan" then
         ScanEquipment()
         Chat("equipement rescane : " .. ProfileSummary())
+    elseif command == "gear" then
+        if CoALootAdvisor_Toggle then CoALootAdvisor_Toggle() else Chat("interface de comparaison indisponible") end
+    elseif command == "visuals" then
+        if CoALootAdvisor_ToggleVisuals then
+            Chat("conseils visuels " .. (CoALootAdvisor_ToggleVisuals() and "ACTIVES" or "desactives"))
+        end
+    elseif command == "downgrades" then
+        if CoALootAdvisor_ToggleDowngrades then
+            Chat("objets moins bons " .. (CoALootAdvisor_ToggleDowngrades() and "affiches" or "masques"))
+        end
     elseif command == "threshold" then
         ScanEquipment()
         local key = ThresholdKey(profile)

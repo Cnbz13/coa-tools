@@ -7,11 +7,12 @@ Suite locale sans télémétrie regroupant les outils CoA suivants :
 - **CoA Combat Assistant** — addon WoW de recommandations visuelles et de mémoire des combats ;
 - **CoA UI Manager** — gestionnaire complet de positions, profils, échelle et alpha ;
 - **CoA Rotation Guide** — guide hors ligne consultable, adapté à la classe, la spécialisation, au niveau, au spellbook et aux talents actifs ;
+- **CoA Dungeon Navigator** — enregistreur discret de parcours, packs, boss et raccourcis pour construire des routes Ascension fiables ;
 - **CoA Addon Manager** — application Windows qui détecte Project Ascension et gère automatiquement les addons CoA.
 
 ## Artefacts installables
 
-Chaque release publie neuf ZIP :
+Chaque release publie dix ZIP :
 
 - `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
 - `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans le dossier `Interface/AddOns` de Project Ascension ;
@@ -19,6 +20,7 @@ Chaque release publie neuf ZIP :
 - `CoALootDecider-vX.Y.Z.zip` : compare automatiquement le butin, les sacs, la banque, les vendeurs PNJ et tout lien d'objet avec l'équipement et le profil de spécialisation du personnage ; ajoute des contours vert/jaune/rouge, un pourcentage dans les icônes, un diagnostic dans les tooltips et la fenêtre `/cld gear` ;
 - `CoAMessageCenter-vX.Y.Z.zip` : centralise les messages des addons CoA hors du chat général ;
 - `CoARotationGuide-vX.Y.Z.zip` : ouvre un guide de priorités ST/AOE et solo/groupe, toujours filtré par les sorts réellement appris ;
+- `CoADungeonNavigator-vX.Y.Z.zip` : démarre automatiquement son mode apprentissage en donjon, relève le trajet et permet d'exporter un parcours sans enregistrer le chat ni le nom des autres joueurs ;
 - `CoAHereticHelper-v3.9.0.zip` : HUD visuel compact dédié au Cultist Heretic heal, avec diagnostic au survol, sons séparés, seuils Sang noir réglables, proc de Soin occulte et couverture membre par membre ;
 - `GridCoA-vX.Y.Z.zip` : compagnon du véritable Grid ; il détecte les dissipations apprises et réserve l’icône centrale aux seuls affaiblissements que le personnage peut retirer.
 - `EventAlertCoA-vX.Y.Z.zip` : couche de compatibilité appliquée automatiquement par le manager au véritable EventAlert 4.3.6. Le code original, sous licence « All Rights Reserved », est téléchargé séparément depuis [sa fiche CurseForge officielle](https://www.curseforge.com/wow/addons/event-alert/files/456081), puis vérifié par taille et SHA-256.
@@ -62,6 +64,14 @@ La préparation reste séparée de la rotation principale pour que les buffs ne 
 Les modes **Solo/Groupe** et **ST/AOE** sont sélectionnables dans la fenêtre. Les explications précises issues d’un guide sont distinguées des repères prudents déduits du tooltip, du rôle et des talents. Les soins ou défensifs contextuels ne sont plus injectés dans la boucle offensive uniquement parce qu’ils sont disponibles. Commandes : `/rotation comprendre`, `/rotation pourquoi`, `/rotation situations`, `/rotation actus`, `/rotation scan`, `/rotation status`, `/rotation st|aoe`, `/rotation solo|groupe`, `/rotation sources`, `/rotation reset`.
 
 La veille hebdomadaire lit le changelog et les actualités officiels Ascension. À chaque ouverture du manager, le rapport est transformé en un petit fichier Lua 5.1 puis transmis au guide installé. Au prochain lancement ou `/reload`, une alerte en jeu apparaît uniquement si une note non lue correspond au personnage. L’alerte est conservatrice : elle signale le changement et garde la note officielle, mais ne réécrit jamais silencieusement une priorité non vérifiée. Le jeu 3.3.5 ne pouvant pas accéder lui-même à Internet, le manager doit avoir été ouvert au moins une fois depuis la publication du rapport.
+
+## CoA Dungeon Navigator
+
+La première étape du navigateur est un mode apprentissage utilisable immédiatement sur un DPS ou un soigneur pendant qu'un tank expérimenté mène le groupe. Il démarre automatiquement dans une instance de type donjon et s'arrête à la sortie. Il mémorise des points de parcours espacés, les changements de carte et d'étage disponibles, les pulls du groupe, les créatures rencontrées, les morts observées et les boss potentiels. Il ne relève jamais le chat ni le nom des autres joueurs.
+
+La fenêtre **Centre CoA → Donjons** permet de poser en un clic un repère Raccourci, Porte, Escalier, Danger, Boss ou Pack évité. **Exporter** produit un bloc texte sélectionné automatiquement avec `Ctrl+C`, destiné à être comparé à d'autres passages avant de devenir une route guidée. Le petit témoin vert n'apparaît que pendant l'enregistrement et peut être déplacé.
+
+Commandes : `/cdn`, `/cdn start`, `/cdn stop`, `/cdn status`, `/cdn auto on|off`, `/cdn mark raccourci|porte|escalier|danger|boss|skip [note]` et `/cdn export`.
 
 ## CoA Loot Decider
 
@@ -130,10 +140,10 @@ npm run validate:manifest -- dist/manifest.json
 
 Pour publier :
 
-1. Mettre à jour `version` dans `package.json`, `package-lock.json`, `manifest.json` et les deux fichiers `.toc`.
+1. Mettre à jour `version` dans `package.json`, `package-lock.json`, `manifest.json` et les métadonnées `.toc`.
 2. Exécuter `npm run release` et reporter les tailles et SHA-256 obtenus dans le manifeste versionné.
 3. Pousser le commit puis le tag correspondant.
-4. Le workflow `Release` teste, crée les sept ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
+4. Le workflow `Release` teste, crée les dix ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
 
 Le workflow peut aussi être lancé manuellement avec une version. Le client utilise par défaut le manifeste de la dernière release ; `COA_UPDATE_MANIFEST` permet de cibler un autre canal. `COA_WATCH_REPORT` permet de remplacer l’URL du rapport de veille.
 

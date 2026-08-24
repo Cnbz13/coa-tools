@@ -20,7 +20,7 @@
         "required": ["name", "component", "version", "platform", "arch", "targetFolder", "installPath", "file", "url", "sha256", "size"],
         "properties": {
           "name": { "type": "string", "minLength": 1 },
-          "component": { "enum": ["addon-manager", "combat-assistant", "ui-manager", "loot-decider", "message-center", "rotation-guide", "heretic-helper", "event-alert", "grid-compat"] },
+          "component": { "enum": ["addon-manager", "combat-assistant", "ui-manager", "loot-decider", "message-center", "rotation-guide", "dungeon-navigator", "heretic-helper", "event-alert", "grid-compat"] },
           "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
           "contentVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
           "platform": { "enum": ["win32", "linux", "darwin", "any"] },

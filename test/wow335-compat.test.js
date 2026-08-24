@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import luaparse from 'luaparse';
 
-const addons = ['CoACombatAssistant', 'CoAUIManager', 'CoARotationGuide'];
+const addons = ['CoACombatAssistant', 'CoAUIManager', 'CoARotationGuide', 'CoADungeonNavigator'];
 const forbiddenRetailApis = [
   'BackdropTemplate', 'SetShown', 'SetSize', 'SetObeyStepOnDrag', 'C_Timer',
   'GetSpecialization', 'CombatLogGetCurrentEventInfo', 'RegisterUnitEvent',
@@ -310,7 +310,7 @@ test('UI Manager provides persistent movers and never applies frames during comb
     'CoACombatAssistantFrame', 'EA_Main_Frame', 'EA_Anchor_Frame', 'CoAUIManagerPanel',
     'CoALootDeciderBanner', 'CoALootAdvisorWindow', 'CoAHereticProcAnchor',
     'CoAHereticBlackBloodTracker', 'CoAHereticHUDMenu', 'CoAMessageCenterFrame',
-    'CoARotationGuideFrame'
+    'CoARotationGuideFrame', 'CoADungeonNavigatorFrame', 'CoADungeonNavigatorRecorder'
   ]) assert.ok(lua.includes(`"${frame}"`), `UI Manager is missing mover target ${frame}`);
   for (const required of [
     'profiles.global', 'profiles.characters', 'characterModes', 'customFrames',
@@ -364,7 +364,7 @@ test('UI Manager minimap button is the shared CoA tools hub', async () => {
   for (const required of [
     'Centre CoA', 'OUTILS COA', 'Butin', 'Heretic', 'Rotations', 'Messages',
     'CoALootAdvisor_Toggle', 'CoAHereticHelperAPI:Toggle()',
-    'CoAMessageCenter:Toggle()', 'CoARotationGuideAPI:Toggle()', 'SetHubManaged(true)',
+    'CoAMessageCenter:Toggle()', 'CoARotationGuideAPI:Toggle()', 'CoADungeonNavigatorAPI:Toggle()', 'SetHubManaged(true)',
     'minimapUnreadText', 'CoAMessageCenterDB.unread', 'UpdateHubAvailability'
   ]) assert.ok(lua.includes(required), `missing shared CoA hub feature: ${required}`);
 });

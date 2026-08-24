@@ -9,7 +9,7 @@ local DEFAULT_FRAMES = {
     "CoACombatAssistantFrame", "EA_Main_Frame", "EA_Anchor_Frame", "CoAUIManagerPanel",
     "CoALootDeciderBanner", "CoALootAdvisorWindow", "CoAHereticProcAnchor",
     "CoAHereticBlackBloodTracker", "CoAHereticHUDMenu", "CoAMessageCenterFrame",
-    "CoARotationGuideFrame"
+    "CoARotationGuideFrame", "CoADungeonNavigatorFrame", "CoADungeonNavigatorRecorder"
 }
 
 local FRAME_LABELS = {
@@ -27,7 +27,8 @@ local FRAME_LABELS = {
     CoALootDeciderBanner = "Décision de butin", CoALootAdvisorWindow = "Comparateur de butin",
     CoAHereticProcAnchor = "Heretic : proc", CoAHereticBlackBloodTracker = "Heretic : Sang noir",
     CoAHereticHUDMenu = "Réglages Heretic", CoAMessageCenterFrame = "Messages CoA",
-    CoARotationGuideFrame = "Guide de rotation"
+    CoARotationGuideFrame = "Guide de rotation", CoADungeonNavigatorFrame = "Navigateur de donjon",
+    CoADungeonNavigatorRecorder = "Enregistrement de donjon"
 }
 
 local movers = {}
@@ -179,7 +180,7 @@ end
 
 local panel = CreateFrame("Frame", "CoAUIManagerPanel", UIParent)
 panel:SetWidth(370)
-panel:SetHeight(215)
+panel:SetHeight(245)
 panel:SetPoint("TOP", UIParent, "TOP", 0, -90)
 panel:SetFrameStrata("DIALOG")
 panel:SetFrameLevel(20)
@@ -217,11 +218,11 @@ hubLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -94)
 hubLabel:SetText("OUTILS COA")
 hubLabel:SetTextColor(0.35, 0.82, 1.00)
 
-local function HubButton(text, x)
+local function HubButton(text, x, y)
     local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     button:SetWidth(78)
     button:SetHeight(24)
-    button:SetPoint("TOPLEFT", panel, "TOPLEFT", x, -112)
+    button:SetPoint("TOPLEFT", panel, "TOPLEFT", x, y or -112)
     button:SetText(text)
     return button
 end
@@ -230,9 +231,10 @@ local lootHubButton = HubButton("Butin", 18)
 local hereticHubButton = HubButton("Heretic", 101)
 local rotationHubButton = HubButton("Rotations", 184)
 local messagesHubButton = HubButton("Messages", 267)
+local dungeonHubButton = HubButton("Donjons", 18, -143)
 
 local hubHint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-hubHint:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -143)
+hubHint:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -174)
 hubHint:SetWidth(334)
 hubHint:SetJustifyH("LEFT")
 hubHint:SetText("Un seul bouton de minicarte pour les outils CoA. Les fenêtres sont aussi disponibles dans le mode déplacement.")
@@ -258,6 +260,13 @@ messagesHubButton:SetScript("OnClick", function()
     if CoAMessageCenter and CoAMessageCenter.Toggle then CoAMessageCenter:Toggle()
     else Chat("CoA Message Center n'est pas chargé.") end
 end)
+dungeonHubButton:SetScript("OnClick", function()
+    if CoADungeonNavigatorAPI and CoADungeonNavigatorAPI.Toggle then
+        CoADungeonNavigatorAPI:Toggle()
+    else
+        Chat("CoA Dungeon Navigator n'est pas chargé.")
+    end
+end)
 
 local function UpdateHubBadge()
     local unread = tonumber(CoAMessageCenterDB and CoAMessageCenterDB.unread) or 0
@@ -269,10 +278,12 @@ local function UpdateHubAvailability()
     if CoAHereticHelperAPI and CoAHereticHelperAPI.SetHubManaged then CoAHereticHelperAPI:SetHubManaged(true) end
     if CoARotationGuideAPI and CoARotationGuideAPI.SetHubManaged then CoARotationGuideAPI:SetHubManaged(true) end
     if CoAMessageCenter and CoAMessageCenter.SetHubManaged then CoAMessageCenter:SetHubManaged(true) end
+    if CoADungeonNavigatorAPI and CoADungeonNavigatorAPI.SetHubManaged then CoADungeonNavigatorAPI:SetHubManaged(true) end
     if CoALootAdvisor_Toggle then lootHubButton:Enable() else lootHubButton:Disable() end
     if CoAHereticHelperAPI and CoAHereticHelperAPI.Toggle then hereticHubButton:Enable() else hereticHubButton:Disable() end
     if CoARotationGuideAPI and CoARotationGuideAPI.Toggle then rotationHubButton:Enable() else rotationHubButton:Disable() end
     if CoAMessageCenter and CoAMessageCenter.Toggle then messagesHubButton:Enable() else messagesHubButton:Disable() end
+    if CoADungeonNavigatorAPI and CoADungeonNavigatorAPI.Toggle then dungeonHubButton:Enable() else dungeonHubButton:Disable() end
     UpdateHubBadge()
 end
 

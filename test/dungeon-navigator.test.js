@@ -18,6 +18,11 @@ test('Dungeon Navigator is a strict Ascension 3.3.5 addon', async () => {
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
   for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `forbidden Retail API: ${api}`);
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
+  assert.doesNotMatch(lua, /\b(?:LootSlot|RollOnLoot|ConfirmLootRoll|ConfirmLootSlot|UseContainerItem)\s*\(/,
+    'the recorder must observe loot without taking items or choosing rolls');
+  assert.doesNotMatch(lua, /tonumber\s*\(\s*select\s*\(/,
+    'combat-log values must be truncated before tonumber to avoid treating the next value as its base');
+  assert.match(lua, /local rawAmount = nil[\s\S]+rawAmount = select\(9, \.\.\.\)[\s\S]+rawAmount = select\(12, \.\.\.\)[\s\S]+return tonumber\(rawAmount\) or 0/);
 });
 
 test('learning mode records routes without collecting player names or chat', async () => {
@@ -58,6 +63,16 @@ test('route annotations and privacy-safe export are usable in game', async () =>
   ]) assert.ok(lua.includes(required), `missing export/annotation feature: ${required}`);
   assert.match(lua, /table\.concat\(\{ EXPORT_FORMAT, "META"/);
   assert.match(lua, /table\.concat\(\{ "END"/);
+});
+
+test('learning mode records observed dungeon loot for the future character-aware catalogue', async () => {
+  const lua = await readFile('addons/CoADungeonNavigator/CoADungeonNavigator.lua', 'utf8');
+  for (const required of [
+    'LOOT_OPENED', 'CaptureLootWindow', 'GetNumLootItems()', 'LootSlotIsItem(slot)',
+    'GetLootSlotInfo(slot)', 'GetLootSlotLink(slot)', 'GetItemInfo(link or visibleName)',
+    'lastKilledEnemy', 'sourceBossCandidate', 'activeSession.loot', 'activeSession.lootSeen',
+    '"L", tostring(loot.t or 0)', 'objets vus'
+  ]) assert.ok(lua.includes(required), `missing loot-learning feature: ${required}`);
 });
 
 test('Dungeon Navigator integrates with the shared CoA hub and remains independently accessible', async () => {

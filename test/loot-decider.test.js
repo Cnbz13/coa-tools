@@ -50,7 +50,7 @@ test('CoA Loot Decider adapts all 70 profiles to live CoA talents, level and spe
   const profileTabs = profileSection.match(/^\s*\["[^"]+:[^"]+"\] = "[^"]+"/gm) ?? [];
   const weightRows = profiles.match(/^\s*\["[^"]+:[^"]+"\]\s*=\s*\{[^\n]+\},?$/gm) ?? [];
 
-  assert.match(toc, /^## Version: 1\.15\.0$/m);
+  assert.match(toc, /^## Version: 1\.15\.1$/m);
   assert.equal(nodeRows.length, 3618, 'the pinned live CoA dataset must remain complete');
   assert.equal(classRows.length, 21, 'every CoA class must have an adaptive talent dataset');
   assert.equal(profileTabs.length, 70, 'every shipped loot profile must resolve to a live talent tab');
@@ -240,7 +240,7 @@ test('CoA Loot Decider preserves the local 1.9 BagAware and fit-scoring behavior
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   const advisor = await readFile(advisorPath, 'utf8');
-  assert.match(toc, /^## Version: 1\.15\.0$/m,
+  assert.match(toc, /^## Version: 1\.15\.1$/m,
     'the published addon must be newer than the installed 1.9.0 custom build');
   for (const required of [
     'ScanBagItems', 'profile.bagItems = ScanBagItems()', 'OwnedBaselineFor',

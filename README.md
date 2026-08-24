@@ -67,11 +67,13 @@ La veille hebdomadaire lit le changelog et les actualités officiels Ascension. 
 
 ## CoA Dungeon Navigator
 
-La première étape du navigateur est un mode apprentissage utilisable immédiatement sur un DPS ou un soigneur pendant qu'un tank expérimenté mène le groupe. Il démarre automatiquement dans une instance de type donjon et s'arrête à la sortie. Il mémorise des points de parcours espacés, les changements de carte et d'étage disponibles, les pulls du groupe, les créatures rencontrées, les morts observées et les boss potentiels. Il ne relève jamais le chat ni le nom des autres joueurs.
+La première étape du navigateur est un mode apprentissage utilisable immédiatement sur un DPS ou un soigneur pendant qu'un tank expérimenté mène le groupe. Il démarre automatiquement dans une instance de type donjon et s'arrête à la sortie. Il mémorise des points de parcours espacés, les changements de carte et d'étage disponibles, les pulls du groupe, les créatures rencontrées, les morts observées, les boss potentiels et les objets réellement vus dans les fenêtres de butin. Il ne relève jamais le chat ni le nom des autres joueurs et ne prend jamais automatiquement un objet.
 
 La fenêtre **Centre CoA → Donjons** permet de poser en un clic un repère Raccourci, Porte, Escalier, Danger, Boss ou Pack évité. **Exporter** produit un bloc texte sélectionné automatiquement avec `Ctrl+C`, destiné à être comparé à d'autres passages avant de devenir une route guidée. Le petit témoin vert n'apparaît que pendant l'enregistrement et peut être déplacé.
 
 Commandes : `/cdn`, `/cdn start`, `/cdn stop`, `/cdn status`, `/cdn auto on|off`, `/cdn mark raccourci|porte|escalier|danger|boss|skip [note]` et `/cdn export`.
+
+La version guidée finale ajoutera un onglet **Butins intéressants ici**. Les tables de butin seront rattachées aux boss réellement présents dans la route puis évaluées par le profil actif de CoA Loot Decider : classe, spécialisation, niveau, talents, objets équipés et objets déjà possédés. L'objectif n'est pas d'afficher tout le catalogue du donjon, mais uniquement les améliorations plausibles avec le boss concerné et la raison de l'intérêt.
 
 ## CoA Loot Decider
 

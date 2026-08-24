@@ -1,6 +1,6 @@
 local addonName = ...
 
-local ADDON_VERSION = "1.15.0"
+local ADDON_VERSION = "1.15.1"
 local EXPORT_FORMAT = "COADN1"
 local DEFAULT_SAMPLE_INTERVAL = 0.75
 local DEFAULT_MIN_DISTANCE = 0.0015
@@ -24,6 +24,7 @@ local detailText = nil
 local historyText = nil
 local autoButton = nil
 local recordButton = nil
+local lastKilledEnemy = nil
 
 CoADungeonNavigatorAPI = CoADungeonNavigatorAPI or {}
 local API = CoADungeonNavigatorAPI
@@ -207,7 +208,7 @@ local function BeginSession(reason, manual)
         startedAt = Epoch(),
         startedClock = Now(),
         elapsedOffset = 0,
-        points = {}, pulls = {}, enemies = {}, markers = {}, targets = {},
+        points = {}, pulls = {}, enemies = {}, markers = {}, targets = {}, loot = {}, lootSeen = {},
         deaths = 0, coordinatesAvailable = false, truncated = false
     }
     CoADungeonNavigatorDB.activeSession = activeSession
@@ -338,9 +339,13 @@ local function CaptureTarget()
 end
 
 local function CombatAmount(subevent, ...)
-    if subevent == "SWING_DAMAGE" then return tonumber(select(9, ...)) or 0 end
-    if string.find(subevent or "", "_DAMAGE", 1, true) then return tonumber(select(12, ...)) or 0 end
-    return 0
+    local rawAmount = nil
+    -- select() renvoie toutes les valeurs restantes. L'affectation locale
+    -- tronque ce résultat avant tonumber, sinon la valeur suivante devient
+    -- par erreur son second argument (la base) sur Lua 5.1.
+    if subevent == "SWING_DAMAGE" then rawAmount = select(9, ...)
+    elseif string.find(subevent or "", "_DAMAGE", 1, true) then rawAmount = select(12, ...) end
+    return tonumber(rawAmount) or 0
 end
 
 local function HandleCombatLog(...)
@@ -376,6 +381,56 @@ local function HandleCombatLog(...)
         if activePull and activePull.enemies[destGUID] and not activePull.enemies[destGUID].killed then
             activePull.enemies[destGUID].killed = true
             activePull.kills = (activePull.kills or 0) + 1
+        end
+        lastKilledEnemy = {
+            guid = destGUID, name = enemy.name, t = Round(SessionElapsed(activeSession), 2),
+            bossCandidate = enemy.bossCandidate
+        }
+    end
+end
+
+local function CaptureLootWindow()
+    if not activeSession or not GetNumLootItems then return end
+    activeSession.loot = activeSession.loot or {}
+    activeSession.lootSeen = activeSession.lootSeen or {}
+    local elapsed = Round(SessionElapsed(activeSession), 2)
+    local source = lastKilledEnemy
+    if UnitExists("target") and UnitIsDead("target") and not UnitIsPlayer("target") then
+        local classification = UnitClassification and UnitClassification("target") or "normal"
+        source = {
+            guid = UnitGUID("target"), name = UnitName("target"), t = elapsed,
+            bossCandidate = classification == "worldboss" or classification == "rareelite" or classification == "elite"
+        }
+    end
+    if source and elapsed - (source.t or elapsed) > 45 then source = nil end
+    local position = AddRoutePoint(true, "loot-opened") or CurrentPosition()
+    for slot = 1, GetNumLootItems() do
+        local isItem = not LootSlotIsItem or LootSlotIsItem(slot)
+        if isItem then
+            local texture, visibleName, quantity, quality, locked = GetLootSlotInfo(slot)
+            local link = GetLootSlotLink and GetLootSlotLink(slot) or nil
+            local itemId = link and tonumber(string.match(link, "item:(%d+)")) or nil
+            if link or visibleName then
+                local name, canonicalLink, itemQuality, itemLevel, requiredLevel, itemClass, itemSubClass,
+                    maxStack, equipLoc, itemTexture = GetItemInfo(link or visibleName)
+                local key = tostring(source and source.guid or "unknown") .. ":" .. tostring(itemId or visibleName)
+                    .. ":" .. tostring(quantity or 1)
+                local previousAt = tonumber(activeSession.lootSeen[key]) or -100
+                if elapsed - previousAt > 5 then
+                    activeSession.lootSeen[key] = elapsed
+                    table.insert(activeSession.loot, {
+                        t = elapsed, itemId = itemId or 0, name = name or visibleName or "Objet inconnu",
+                        link = canonicalLink or link or "", quantity = tonumber(quantity) or 1,
+                        quality = tonumber(itemQuality) or tonumber(quality) or 0,
+                        itemLevel = tonumber(itemLevel) or 0, requiredLevel = tonumber(requiredLevel) or 0,
+                        itemClass = itemClass or "", itemSubClass = itemSubClass or "", equipLoc = equipLoc or "",
+                        texture = itemTexture or texture or "", locked = locked and true or false,
+                        sourceGuid = source and source.guid or "", sourceName = source and source.name or "Source inconnue",
+                        sourceBossCandidate = source and source.bossCandidate or false,
+                        x = position.x, y = position.y, floor = position.floor, mapId = position.mapId
+                    })
+                end
+            end
         end
     end
 end
@@ -457,8 +512,16 @@ local function BuildExport(session)
             tostring(marker.x or ""), tostring(marker.y or ""), tostring(marker.floor or 0),
             tostring(marker.mapId or 0), Escape(marker.zone), Escape(marker.subZone) }, "\t"))
     end
+    for _, loot in ipairs(session.loot or {}) do
+        table.insert(lines, table.concat({ "L", tostring(loot.t or 0), tostring(loot.itemId or 0), Escape(loot.name),
+            tostring(loot.quantity or 1), tostring(loot.quality or 0), tostring(loot.itemLevel or 0),
+            tostring(loot.requiredLevel or 0), Escape(loot.itemClass), Escape(loot.itemSubClass), Escape(loot.equipLoc),
+            Escape(loot.sourceGuid), Escape(loot.sourceName), loot.sourceBossCandidate and "1" or "0",
+            tostring(loot.x or ""), tostring(loot.y or ""), tostring(loot.floor or 0), tostring(loot.mapId or 0) }, "\t"))
+    end
     table.insert(lines, table.concat({ "END", tostring(#(session.points or {})), tostring(#(session.pulls or {})),
-        tostring(CountEnemies(session)), tostring(#(session.markers or {})), tostring(session.deaths or 0) }, "\t"))
+        tostring(CountEnemies(session)), tostring(#(session.markers or {})), tostring(session.deaths or 0),
+        tostring(#(session.loot or {})) }, "\t"))
     return table.concat(lines, "\n")
 end
 
@@ -493,7 +556,7 @@ local function RefreshDisplay()
         statusText:SetText("|cff65e57a● ENREGISTREMENT EN COURS|r  •  " .. tostring(activeSession.instance.name))
         detailText:SetText(FormatDuration(SessionElapsed(activeSession)) .. "  •  " .. #activeSession.points .. " points  •  "
             .. #activeSession.pulls .. " combats  •  " .. CountEnemies(activeSession) .. " créatures  •  "
-            .. #activeSession.markers .. " repères")
+            .. #activeSession.markers .. " repères  •  " .. #(activeSession.loot or {}) .. " objets vus")
         recordButton:SetText("Arrêter et sauvegarder")
         recorder.text:SetText("|cff65e57a●|r Apprentissage  " .. FormatDuration(SessionElapsed(activeSession))
             .. "  •  " .. #activeSession.points .. " pts")
@@ -502,7 +565,8 @@ local function RefreshDisplay()
         statusText:SetText("|cff94a3b8En attente d'un donjon|r")
         if session then
             detailText:SetText("Dernier : " .. tostring(session.instance.name) .. "  •  " .. FormatDuration(session.duration)
-                .. "  •  " .. #session.points .. " points  •  " .. #session.pulls .. " combats")
+                .. "  •  " .. #session.points .. " points  •  " .. #session.pulls .. " combats  •  "
+                .. #(session.loot or {}) .. " objets vus")
         else
             detailText:SetText("Aucun parcours enregistré pour le moment.")
         end
@@ -618,7 +682,7 @@ local privacy = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 privacy:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -250)
 privacy:SetWidth(474)
 privacy:SetJustifyH("LEFT")
-privacy:SetText("L'addon relève le trajet, les créatures, les combats et tes repères. Il n'enregistre jamais le chat ni le nom des autres joueurs.")
+privacy:SetText("L'addon relève le trajet, les créatures, les combats, les objets vus et tes repères. Il n'enregistre jamais le chat ni le nom des autres joueurs.")
 
 local historyTitle = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 historyTitle:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -292)
@@ -763,6 +827,7 @@ eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:RegisterEvent("PLAYER_DEAD")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+eventFrame:RegisterEvent("LOOT_OPENED")
 eventFrame:SetScript("OnEvent", function(_, event, ...)
     if event == "ADDON_LOADED" then
         local loaded = ...
@@ -770,6 +835,8 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         EnsureDatabase()
         activeSession = CoADungeonNavigatorDB.activeSession
         if activeSession and activeSession.status == "recording" then
+            activeSession.loot = activeSession.loot or {}
+            activeSession.lootSeen = activeSession.lootSeen or {}
             local savedAt = tonumber(activeSession.lastSavedAt) or Epoch()
             local savedElapsed = tonumber(activeSession.lastSavedElapsed) or tonumber(activeSession.elapsedOffset) or 0
             activeSession.elapsedOffset = savedElapsed
@@ -815,6 +882,8 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         end
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
         HandleCombatLog(...)
+    elseif event == "LOOT_OPENED" then
+        CaptureLootWindow()
     end
 end)
 

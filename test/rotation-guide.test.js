@@ -123,7 +123,7 @@ test('Rotation Guide filters the manager feed and warns once in game', async () 
 test('Rotation Guide release metadata targets Ascension 3.3.5', async () => {
   const toc = await readFile('addons/CoARotationGuide/CoARotationGuide.toc', 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 1\.15\.0$/m);
+  assert.match(toc, /^## Version: 1\.15\.1$/m);
   assert.match(toc, /^## SavedVariables: CoARotationGuideDB$/m);
   assert.match(toc, /^CoARotationUpdates\.lua\r?\nCoARotationData\.lua\r?\nCoARotationGuide\.lua$/m);
 });

@@ -279,11 +279,132 @@ local curated = {
                 ["Solar Invocation: Conquest"] = { why = "Elle remet 10 Solar Power et raccourcit le trou entre deux Dawn.", after = "Complete jusqu'a 20, reactive Dawn et repars en haut." }
             }
         }
+    },
+    ["Runemaster:Engravement"] = {
+        quality = "Guide PvE Runemaster actualise et recoupe avec le spellbook",
+        source = "https://coabuildhub.com/build/dca788b3-5300-440f-92e9-f0f6d118956a",
+        secondarySource = "https://coatavern.com/class/32",
+        teaching = {
+            identity = "Tu graves tes armes puis tu fais exploser les marques de Runic Brand avec Runeblade. La specialisation est simple a lire, mais elle punit vite une marque posee puis oubliee.",
+            resource = "Runic Brand pose les marques ; Runeblade les fait partir. Primordial Blast remet des charges de Runeblade et relance donc la boucle au lieu d'etre un sort jete au hasard.",
+            opening = "Choisis tes gravures avant le combat. Sur une cible, lance Primordial Blast tot, pose Runic Brand, puis fais partir la marque avec Runeblade. Garde Zenith pour une cible qui vivra assez longtemps.",
+            loop = "Repose Runic Brand des que tu peux l'exploiter, consomme avec Runeblade et utilise Primordial Blast des qu'il est rentable pour recuperer des charges. Fist of the Ancients bouche les vrais temps morts.",
+            goldenRule = "Une marque sans Runeblade derriere ne rapporte rien. Pense en duo : je marque, puis je declenche.",
+            mistake = "Marteler Fist of the Ancients alors qu'une marque ou Primordial Blast est disponible. C'est un remplissage, pas le coeur du build."
+        },
+        maintenance = { "Runic Tattoos: Water", "Weapon Engraving: Frost", "Weapon Engraving: Fire", "Weapon Engraving: Earth" },
+        st = { "Zenith", "Primordial Blast", "Runic Brand", "Runeblade", "Fist of the Ancients" },
+        aoe = { "Zenith", "Runic Brand", "Runeblade", "Primordial Blast", "Fist of the Ancients" },
+        situational = { "Ley Lock", "Guarding Rune", "Warpdagger" },
+        talentPromotions = {
+            ["Runelord"] = { "Zenith", "Runic Brand" },
+            ["Fists of Power"] = { "Fist of the Ancients" }
+        },
+        explanations = {
+            st = {
+                ["Zenith"] = { why = "C'est ta vraie fenetre de puissance. Utilise-la sur une cible solide, pas sur un ennemi qui va tomber avant la fin.", after = "Primordial Blast lance la boucle et commence a remettre Runeblade en place." },
+                ["Primordial Blast"] = { why = "Il frappe fort en monocible et redonne une charge de Runeblade : tu gagnes a la fois maintenant et pour la marque suivante.", after = "Pose Runic Brand, puisque tu as justement de quoi la faire exploser." },
+                ["Runic Brand"] = { why = "La marque prepare le vrai impact. Elle passe devant le remplissage tant que Runeblade pourra la consommer.", after = "Declenche-la avec Runeblade sans laisser la cible mourir avec la marque." },
+                ["Runeblade"] = { why = "C'est le detonateur de Runic Brand et ton filler principal. Ses charges ont plus de valeur quand elles font partir une marque.", after = "Reviens a Primordial Blast ou Runic Brand ; Fist ne sert que si les deux attendent." },
+                ["Fist of the Ancients"] = { why = "Il entretient les chances de gravure pendant un trou, mais ses degats seuls ne justifient pas de retarder le duo marque/detonation.", after = "Des que Primordial Blast ou Runic Brand revient, remonte immediatement dans la priorite." }
+            },
+            aoe = {
+                ["Zenith"] = { why = "Sur un pack durable, Zenith renforce toute la serie de marques et d'explosions.", after = "Marque une cible prioritaire avec Runic Brand." },
+                ["Runic Brand"] = { why = "La marque explose autour de la cible : choisis celle qui restera au milieu du pack.", after = "Runeblade fait partir la marque et transforme le monocible en cleave." },
+                ["Runeblade"] = { why = "Il declenche les marques et leurs explosions. Ne change pas de cible juste avant de les faire partir.", after = "Primordial Blast rend des charges pour recommencer." },
+                ["Primordial Blast"] = { why = "La remise de charge garde la chaine de Runeblade active quand le pack dure.", after = "Repose une marque ; utilise Fist uniquement pendant le prochain creux." },
+                ["Fist of the Ancients"] = { why = "C'est ton remplissage quand marques, charges et Primordial Blast ne sont pas disponibles.", after = "Repars en haut des qu'un element central revient." }
+            }
+        }
+    },
+    ["Runemaster:Glyphic"] = {
+        quality = "Guide Glyphic recoupe : donnees de sorts, retours PvE et changements officiels",
+        source = "https://coabuildhub.com/builds/runemaster",
+        secondarySource = "https://conquestofazeroth.online/fr/builds/conquest-of-azeroth-glyphic-guide",
+        teaching = {
+            identity = "Tu fabriques une suite de glyphes elementaires, puis tu la consommes. Ce n'est pas une liste de cooldowns : c'est une petite phrase qu'il faut terminer avant d'en recommencer une.",
+            resource = "Elemental Burst et Primordial Blast generent les glyphes. En ST, deux glyphes suffisent souvent ; sur un vrai pack, attends le troisieme pour profiter de la partie Arcane en zone.",
+            opening = "Sur un pull important, ouvre avec Zenith puis Primordial Pulse. Genere ensuite tes glyphes avec Elemental Burst et Primordial Blast, consomme-les avec Glyphic Ruin ou Thaumaturgy, puis marque une tres courte pause avant de regagner un glyphe.",
+            loop = "Genere, consomme, laisse le serveur enregistrer la consommation, puis recommence. En AOE, Primordial Pulse reste ton point de repere et Primordial Blast aide a le recuperer plus vite.",
+            goldenRule = "Ne relance pas un generateur dans la meme fraction de seconde que la consommation : une courte respiration evite de perdre un glyphe cote serveur.",
+            mistake = "Depenser un seul glyphe sur un pack ou attendre le troisieme sur une cible qui va mourir. Le bon nombre depend du combat."
+        },
+        maintenance = { "Runic Tattoos: Water", "Weapon Engraving: Arcane", "Weapon Engraving: Frost", "Weapon Engraving: Earth" },
+        st = { "Zenith", "Elemental Burst", "Primordial Blast", "Glyphic Ruin", "Thaumaturgy", "Primordial Pulse", "Runic Obliteration" },
+        aoe = { "Zenith", "Primordial Pulse", "Elemental Burst", "Primordial Blast", "Glyphic Ruin", "Thaumaturgy", "Runic Obliteration" },
+        situational = { "Ley Lock", "Glacial Rune", "Warpdagger", "Phase Out" },
+        talentPromotions = {
+            ["Archmage"] = { "Glyphic Ruin" },
+            ["Runestone Apprentice"] = { "Elemental Burst", "Primordial Blast" },
+            ["Glyph Master"] = { "Glyphic Ruin", "Thaumaturgy" }
+        },
+        explanations = {
+            st = {
+                ["Zenith"] = { why = "Utilise la fenetre sur un elite ou un boss ; sur une petite cible, garde-la pour le prochain combat.", after = "Commence a fabriquer tes glyphes avec Elemental Burst." },
+                ["Elemental Burst"] = { why = "C'est ton generateur stable et ton filler de degats. Il construit la sequence au lieu de simplement remplir un temps mort.", after = "Primordial Blast ajoute le glyphe suivant et accelere tes outils majeurs." },
+                ["Primordial Blast"] = { why = "Il fait avancer les glyphes tout en participant aux reductions de cooldown importantes du build.", after = "Avec deux glyphes en ST, consomme avec Glyphic Ruin ou Thaumaturgy." },
+                ["Glyphic Ruin"] = { why = "C'est la depense lourde de la sequence. En monocible, ne retarde pas tout le cycle juste pour chercher un troisieme glyphe peu rentable.", after = "Respire un instant, puis repars sur Elemental Burst." },
+                ["Thaumaturgy"] = { why = "C'est l'option de consommation plus rapide quand elle est disponible et que tes glyphes sont prets.", after = "Laisse la consommation etre enregistree avant le prochain generateur." },
+                ["Primordial Pulse"] = { why = "Sur une cible durable il vaut son cooldown, mais il passe derriere une consommation de glyphes deja prete.", after = "Reprends ta boucle de generation." },
+                ["Runic Obliteration"] = { why = "Garde ce reset pour une vraie fenetre : depense d'abord les glyphes presents et Primordial Pulse s'il est pret.", after = "Tu repars ensuite avec des outils frais, pas avec des charges gaspillees." }
+            },
+            aoe = {
+                ["Zenith"] = { why = "Le pack doit vivre assez longtemps pour rembourser la fenetre de burst.", after = "Primordial Pulse demarre le cooldown cle au plus tot." },
+                ["Primordial Pulse"] = { why = "C'est le moteur AOE : le lancer tot permet aussi de commencer tout de suite a reduire son prochain cooldown.", after = "Fabrique trois glyphes avec tes generateurs." },
+                ["Elemental Burst"] = { why = "Il construit la sequence et garde les degats concentres sur la cible prioritaire.", after = "Primordial Blast poursuit la chaine et aide a recuperer Pulse." },
+                ["Primordial Blast"] = { why = "Il genere un glyphe et rapproche Primordial Pulse. Sur un pack, cette double utilite le rend central.", after = "A trois glyphes, consomme avec Glyphic Ruin ou Thaumaturgy." },
+                ["Glyphic Ruin"] = { why = "Trois glyphes donnent la vraie valeur de zone. Choisis une cible au milieu du pack avant de consommer.", after = "Attends un battement, puis reconstruis les glyphes." },
+                ["Thaumaturgy"] = { why = "Elle consomme rapidement la sequence complete quand Glyphic Ruin n'est pas le meilleur choix disponible.", after = "Ne colle pas Primordial Blast instantanement derriere : laisse le serveur valider." },
+                ["Runic Obliteration"] = { why = "Depense les glyphes et Pulse avant le reset, sinon tu effaces toi-meme une partie de sa valeur.", after = "Relance Pulse et reconstruis une sequence complete." }
+            }
+        }
+    },
+    ["Runemaster:Riftblade"] = {
+        quality = "Parcours Riftblade PvE recoupe avec la base de sorts Runemaster",
+        source = "https://ascensionsidekick.com/runemaster/riftblade",
+        secondarySource = "https://coabuildhub.com/builds/runemaster",
+        teaching = {
+            identity = "Tu es un melee elementaire : Primordial Blast et tes frappes remettent des charges de Runeblade, puis Runeblade sert de fil rouge entre les cooldowns.",
+            resource = "Le mana part vite. Le troisieme Runeblade rend des ressources avec les bons talents ; garde donc la cadence au lieu de vider tous les sorts chers en meme temps.",
+            opening = "Ferme la distance avec Primordial Blast, pose Genesis assez tot sur une cible solide, puis alterne tes frappes elementaires et Runeblade. Zenith accompagne une vraie cible de burst.",
+            loop = "Smolder, Fracture et Hoarfrost passent quand ils sont utiles ; Runeblade remplit et profite de ses remises de charge. Hurricane demande une fenetre ou tu peux rester en place.",
+            goldenRule = "Runeblade n'est pas un bouton de secours : il relie toute la rotation et son troisieme passage aide ton mana.",
+            mistake = "Tout lancer des que ca s'allume et finir sans mana. Garde une cadence et reserve les outils de zone aux packs qui resteront groupes."
+        },
+        maintenance = { "Runic Tattoos: Water", "Weapon Engraving: Fire", "Weapon Engraving: Frost" },
+        st = { "Zenith", "Genesis", "Primordial Blast", "Smolder", "Fracture", "Hoarfrost", "Hurricane", "Runeblade" },
+        aoe = { "Zenith", "Turbulence", "Primordial Blast", "Hoarfrost", "Hurricane", "Smolder", "Runeblade" },
+        situational = { "Ley Lock", "Magebreaker", "Granite Resolve", "Warpdagger" },
+        talentPromotions = {
+            ["Riftblade"] = { "Primordial Blast", "Smolder", "Runeblade" },
+            ["Runic Omen"] = { "Runeblade" },
+            ["Surging Slash"] = { "Runeblade" }
+        },
+        explanations = {
+            st = {
+                ["Zenith"] = { why = "C'est ton burst : aligne-le avec une cible qui ne mourra pas pendant l'installation.", after = "Pose Genesis tot si la cible est assez solide." },
+                ["Genesis"] = { why = "La marque accumule une partie de tes degats avant d'exploser ; plus tu la poses tot sur un elite, plus elle travaille.", after = "Primordial Blast lance ensuite la cadence de frappes." },
+                ["Primordial Blast"] = { why = "Il frappe immediatement et remet une charge de Runeblade, donc il alimente directement le coeur melee.", after = "Passe sur Smolder puis tes autres frappes elementaires." },
+                ["Smolder"] = { why = "Cette frappe de Feu remet elle aussi Runeblade en mouvement avec Riftblade.", after = "Fracture et Hoarfrost prennent la suite selon la cible." },
+                ["Fracture"] = { why = "La frappe de Givre apporte ses degats et sa pression sur le mana quand la cible en possede.", after = "Hoarfrost ou Hurricane continuent si leurs conditions sont bonnes." },
+                ["Hoarfrost"] = { why = "Le cone vaut surtout si tu peux garder la cible dans son axe ; ne tourne pas le dos au placement pour le forcer.", after = "Hurricane est fort seulement si tu peux terminer la canalisation." },
+                ["Hurricane"] = { why = "La canalisation et sa fenetre de hate/crit valent un vrai temps d'arret, pas un combat ou tu dois bouger tout de suite.", after = "Runeblade remplit ensuite jusqu'au retour des frappes." },
+                ["Runeblade"] = { why = "C'est ton filler central, recharge par Primordial Blast et Smolder ; le troisieme passage aide aussi a tenir le mana.", after = "Repars au premier cooldown elementaire disponible." }
+            },
+            aoe = {
+                ["Zenith"] = { why = "Utilise-le quand le pack est stabilise et suffisamment durable.", after = "Turbulence pose ta vraie zone de travail." },
+                ["Turbulence"] = { why = "La zone gagne sa valeur si les ennemis restent dedans ; attends que le tank ait fini de les deplacer.", after = "Primordial Blast puis Hoarfrost gardent une cible prioritaire sous pression." },
+                ["Primordial Blast"] = { why = "Il conserve le focus principal tout en rechargeant Runeblade.", after = "Aligne Hoarfrost dans le pack." },
+                ["Hoarfrost"] = { why = "Son cone et son effet persistant en font un vrai outil de cleave si le pack est bien tourne.", after = "Hurricane suit quand tu peux canaliser sans bouger." },
+                ["Hurricane"] = { why = "Les frappes multiples prennent de la valeur en zone, mais uniquement si la canalisation peut aller au bout.", after = "Smolder et Runeblade entretiennent ensuite la cadence." },
+                ["Runeblade"] = { why = "Il remplit les creux, profite des charges rendues et evite de laisser mourir ton cycle de mana.", after = "Remonte vers Turbulence ou la premiere frappe revenue." }
+            }
+        }
     }
 }
 
 CoARotationGuideData = {
-    schema = 2,
+    schema = 3,
     sourceDate = "2026-08-24",
     talentPatch = "2026-08-19",
     officialPatchThrough = "2026-08-22",

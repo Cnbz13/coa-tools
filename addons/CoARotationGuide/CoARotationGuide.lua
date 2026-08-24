@@ -1,5 +1,6 @@
 local addonName = ...
 local DATA = CoARotationGuideData or { profiles = {}, aliases = {}, curated = {}, sources = {} }
+local PROGRESSION = CoAProgressionGuideData or { bands = {}, sources = {} }
 
 local guideFrame
 local minimapButton
@@ -17,6 +18,13 @@ local guidePage = 1
 local PAGE_SIZE = 5
 local MAX_ENTRIES = 15
 local scheduledScanAt = nil
+local scheduledScanReason = nil
+local scheduledScanPasses = 0
+local lastCharacterFingerprint = nil
+local monitorAt = 0
+local lastScanReason = "chargement"
+local adaptiveTalentCount = 0
+local activeTalentSource = "talents classiques"
 local scannerTooltip
 local updatePopup
 local sessionUpdatePrompted = false
@@ -80,6 +88,13 @@ local function EnsureDatabase()
     if type(CoARotationGuideDB.minimap.hidden) ~= "boolean" then CoARotationGuideDB.minimap.hidden = false end
     if type(CoARotationGuideDB.showPreparation) ~= "boolean" then CoARotationGuideDB.showPreparation = true end
     if type(CoARotationGuideDB.updateAcknowledged) ~= "table" then CoARotationGuideDB.updateAcknowledged = {} end
+    if type(CoARotationGuideDB.characters) ~= "table" then CoARotationGuideDB.characters = {} end
+end
+
+local function CharacterKey()
+    local realm = GetRealmName and GetRealmName() or "royaume"
+    local name = UnitName and UnitName("player") or "personnage"
+    return tostring(realm or "royaume") .. ":" .. tostring(name or "personnage")
 end
 
 local function SavePosition()
@@ -183,19 +198,42 @@ end
 local function ScanTalents()
     activeTalents = {}
     activeTalentList = {}
-    if not GetNumTalentTabs or not GetNumTalents or not GetTalentInfo then return end
-    local tab
-    for tab = 1, GetNumTalentTabs() do
-        local talentCount = tonumber(GetNumTalents(tab)) or 0
-        local index
-        for index = 1, talentCount do
-            local ok, name, icon, tier, column, rank = pcall(GetTalentInfo, tab, index)
-            rank = ok and tonumber(rank) or 0
-            if ok and name and rank and rank > 0 then
-                local talent = { name = name, icon = icon, tier = tier, column = column, rank = rank, tab = tab }
-                activeTalents[Lower(name)] = talent
-                table.insert(activeTalentList, talent)
+    adaptiveTalentCount = 0
+    activeTalentSource = "talents classiques"
+    if GetNumTalentTabs and GetNumTalents and GetTalentInfo then
+        local tab
+        for tab = 1, GetNumTalentTabs() do
+            local talentCount = tonumber(GetNumTalents(tab)) or 0
+            local index
+            for index = 1, talentCount do
+                local ok, name, icon, tier, column, rank = pcall(GetTalentInfo, tab, index)
+                rank = ok and tonumber(rank) or 0
+                if ok and name and rank and rank > 0 then
+                    local talent = { name = name, icon = icon, tier = tier, column = column, rank = rank, tab = tab, source = "classic" }
+                    activeTalents[Lower(name)] = talent
+                    table.insert(activeTalentList, talent)
+                end
             end
+        end
+    end
+
+    -- Les arbres CoA ne remontent pas toujours par GetTalentInfo sur le client
+    -- 3.3.5. Le Loot Decider interroge l'API C_CharacterAdvancement et expose
+    -- une photographie stable : on la reutilise sans creer de dependance dure.
+    if type(CoALootDeciderAPI) == "table" and type(CoALootDeciderAPI.GetAdaptiveBuild) == "function" then
+        local ok, adaptive = pcall(CoALootDeciderAPI.GetAdaptiveBuild)
+        if ok and type(adaptive) == "table" then
+            adaptiveTalentCount = tonumber(adaptive.selectedCount) or 0
+            local _, name
+            for _, name in ipairs(adaptive.selectedNames or {}) do
+                local key = Lower(name)
+                if key ~= "" and not activeTalents[key] then
+                    local talent = { name = name, rank = 1, source = "coa" }
+                    activeTalents[key] = talent
+                    table.insert(activeTalentList, talent)
+                end
+            end
+            if adaptiveTalentCount > 0 then activeTalentSource = "arbres CoA" end
         end
     end
 end
@@ -253,6 +291,7 @@ end
 local function ScanSpellbook()
     spellbook = {}
     spellOrder = {}
+    local orderKeys = {}
     local book = BOOKTYPE_SPELL or "spell"
     if not GetNumSpellTabs or not GetSpellTabInfo or not GetSpellName then return end
     local tab
@@ -285,10 +324,18 @@ local function ScanSpellbook()
                     tooltip = TooltipText(index, book)
                 }
                 ClassifySpell(spell)
-                spellbook[Lower(name)] = spell
-                table.insert(spellOrder, spell)
+                local key = Lower(name)
+                if not spellbook[key] then table.insert(orderKeys, key) end
+                -- Les rangs d'un meme sort peuvent tous apparaitre dans le
+                -- spellbook CoA. Le dernier index est le rang actuellement le
+                -- plus eleve ; il remplace l'ancien sans dupliquer la rotation.
+                if not spellbook[key] or index >= (spellbook[key].index or 0) then spellbook[key] = spell end
             end
         end
+    end
+    local _, key
+    for _, key in ipairs(orderKeys) do
+        if spellbook[key] then table.insert(spellOrder, spellbook[key]) end
     end
 end
 
@@ -549,7 +596,7 @@ local function BuildGuide()
         stage = stage,
         plan = profile and profile.style or "Lis la priorite de haut en bas et utilise seulement les sorts adaptes a la situation.",
         spellCount = #spellOrder,
-        talentCount = #activeTalentList
+        talentCount = math.max(#activeTalentList, adaptiveTalentCount)
     }
     return currentGuide
 end
@@ -614,6 +661,125 @@ local function NaturalList(values, emptyText)
     local ending = names[#names]
     table.remove(names, #names)
     return table.concat(names, ", ") .. " puis " .. ending
+end
+
+local function ProgressionBand(level)
+    local _, band
+    for _, band in ipairs(PROGRESSION.bands or {}) do
+        if (tonumber(level) or 0) <= (tonumber(band.maximum) or 999) then return band end
+    end
+    return {
+        title = "Continuer a faire progresser ton personnage",
+        goal = "Choisis un objectif atteignable, mesure le resultat, puis monte d'un cran.",
+        activity = "Le contenu termine regulierement vaut mieux qu'une difficulte trop haute abandonnee en route.",
+        checkpoint = "Actualise le guide apres un changement important de build."
+    }
+end
+
+local function LootProfileSummary()
+    if type(CoALootDeciderAPI) ~= "table" or type(CoALootDeciderAPI.GetProfile) ~= "function" then
+        return "Le Loot Decider n'est pas charge. Active-le pour obtenir ici les statistiques exactes de ce personnage.",
+            "L'addon de rotation ne devine pas la valeur des objets : il laisse cette comparaison au moteur de butin."
+    end
+    local ok, lootProfile = pcall(CoALootDeciderAPI.GetProfile)
+    if ok and type(lootProfile) == "table" and tonumber(lootProfile.level) ~= tonumber(currentCharacter.level)
+        and type(CoALootDeciderAPI.RefreshProfile) == "function"
+    then
+        pcall(CoALootDeciderAPI.RefreshProfile)
+        ok, lootProfile = pcall(CoALootDeciderAPI.GetProfile)
+    end
+    if not ok or type(lootProfile) ~= "table" or not lootProfile.valid then
+        return "Le profil de stuff n'est pas encore pret. Ouvre le Loot Decider ou clique sur ACTUALISER, puis reviens ici.",
+            "Aucun achat ne devrait etre conseille tant que la classe et la specialisation ne sont pas reconnues."
+    end
+    local display = {}
+    if type(CoALootDeciderAPI.GetDisplayStats) == "function" then
+        local displayOK, values = pcall(CoALootDeciderAPI.GetDisplayStats)
+        if displayOK and type(values) == "table" then display = values end
+    end
+    local ranked = {}
+    local stat, weight
+    for stat, weight in pairs(lootProfile.weights or {}) do
+        weight = tonumber(weight) or 0
+        if weight > 0 then table.insert(ranked, { name = display[stat] or stat, weight = weight }) end
+    end
+    table.sort(ranked, function(a, b) return a.weight > b.weight end)
+    local labels = {}
+    local index
+    for index = 1, math.min(4, #ranked) do table.insert(labels, ranked[index].name) end
+    local priority = #labels > 0 and table.concat(labels, " > ") or "profil reconnu, priorites en cours de calcul"
+    local weapon = ""
+    if lootProfile.weaponRule and lootProfile.weaponRule.preferTwoHand then weapon = " Arme : deux mains preferee."
+    elseif lootProfile.weaponRule and lootProfile.weaponRule.speed == "fast" then weapon = " Arme : vitesse rapide preferee."
+    elseif lootProfile.weaponRule and lootProfile.weaponRule.speed == "slow" then weapon = " Arme : vitesse lente preferee." end
+    local adaptive = lootProfile.adaptive or {}
+    local details = "Profil " .. tostring(lootProfile.className or "?") .. " - " .. tostring(lootProfile.specName or "?")
+        .. ", niveau " .. tostring(lootProfile.level or currentCharacter.level or "?") .. "."
+    if tonumber(adaptive.selectedCount) and tonumber(adaptive.selectedCount) > 0 then
+        details = details .. " " .. tostring(adaptive.selectedCount) .. " talent(s) CoA participent au calcul."
+    end
+    return "Priorite actuelle : " .. priority .. "." .. weapon, details
+end
+
+local function ProgressionCards(guide, preparation)
+    local band = ProgressionBand(currentCharacter.level)
+    local lootBody, lootWhy = LootProfileSummary()
+    local cards = {
+        {
+            icon = "Interface\\Icons\\INV_Misc_Map_01",
+            title = "1. Ton prochain objectif",
+            body = band.goal,
+            why = "Le guide vient de relire ton niveau et ton spellbook : ce conseil avance donc avec le personnage.",
+            badge = band.title,
+            color = { 0.48, 0.90, 0.55 }
+        },
+        {
+            icon = "Interface\\Icons\\INV_Misc_Book_09",
+            title = "2. Quoi faire maintenant",
+            body = band.activity,
+            why = currentCharacter.level >= 60
+                and "Commence par une difficulte que le groupe termine proprement ; les caches et les coins viennent des Mythiques acheves, pas des tentatives abandonnees."
+                or "Pendant le leveling, progresser regulierement et apprendre le kit rapporte plus qu'une optimisation couteuse tous les cinq niveaux.",
+            badge = currentCharacter.level >= 60 and "ENDGAME" or ("NIVEAU " .. tostring(currentCharacter.level)),
+            color = { 0.35, 0.78, 1.00 }
+        },
+        {
+            icon = "Interface\\Icons\\Spell_Holy_MagicalSentry",
+            title = "3. Avant de partir",
+            body = preparation,
+            why = "Ce sont uniquement les preparations connues dans ton spellbook. Si la liste change apres un niveau, l'actualisation automatique la remplacera.",
+            badge = "BUFFS / OUTILS",
+            color = { 0.86, 0.66, 0.25 }
+        },
+        {
+            icon = "Interface\\Icons\\INV_Chest_Chain_05",
+            title = "4. Quel stuff chercher",
+            body = lootBody,
+            why = lootWhy,
+            badge = "PROFIL LIVE",
+            color = { 0.72, 0.48, 1.00 }
+        }
+    }
+    if currentCharacter.level >= 60 then
+        table.insert(cards, {
+            icon = "Interface\\Icons\\INV_Misc_Coin_01",
+            title = "5. Mythiques, caches et Edrim Skysong",
+            body = "Forme un groupe, va a l'entree du donjon et active la keystone. Termine les objectifs de boss et de trash : la fin donne des caches et des Mythic Coins.",
+            why = "Edrim gere achats, ameliorations, keystone et recyclage. Compare chaque objet avant ; les couts affiches par le PNJ font foi.",
+            badge = "CONFIRME + JEU",
+            color = { 1.00, 0.62, 0.22 }
+        })
+    else
+        table.insert(cards, {
+            icon = "Interface\\Icons\\INV_Misc_Note_06",
+            title = "5. Le prochain palier",
+            body = band.checkpoint,
+            why = "Tu n'as rien a regler manuellement : gain de niveau, nouveau sort et talent declenchent plusieurs lectures espacees du personnage.",
+            badge = "AUTOMATIQUE",
+            color = { 1.00, 0.62, 0.22 }
+        })
+    end
+    return cards, band
 end
 
 local function SituationalNames(curated)
@@ -756,6 +922,7 @@ local function RefreshButtons()
     buttons.learn:SetText(viewMode == "LEARN" and "• COMPRENDRE •" or "COMPRENDRE")
     buttons.rotation:SetText(viewMode == "ROTATION" and "• ROTATION •" or "ROTATION")
     buttons.situations:SetText(viewMode == "SITUATIONS" and "• SITUATIONS •" or "SITUATIONS")
+    buttons.progression:SetText(viewMode == "PROGRESSION" and "• PROGRESSION •" or "PROGRESSION")
     local unread = UnreadUpdateCount(RelevantUpdates())
     local updateLabel = unread > 0 and ("ACTUS (" .. tostring(unread) .. ")") or "ACTUS"
     buttons.updates:SetText(viewMode == "UPDATES" and ("• " .. updateLabel .. " •") or updateLabel)
@@ -796,6 +963,9 @@ local function RefreshDisplay()
     local preparation = NaturalList(guide.preparation, "Rien de particulier avec les sorts actuellement appris")
     guideFrame.character:SetText(currentCharacter.className .. "  •  " .. currentCharacter.specName .. "  •  niveau " .. tostring(currentCharacter.level) .. "  •  " .. RoleLabel(currentCharacter.role))
     guideFrame.stage:SetText(chapter.title .. "  •  " .. guide.stage)
+    if guideFrame.sync then
+        guideFrame.sync:SetText("AUTO  •  " .. tostring(guide.spellCount) .. " sorts  •  " .. tostring(guide.talentCount) .. " talents")
+    end
     if guideFrame.planBox then guideFrame.planBox:SetBackdropBorderColor(roleColor[1], roleColor[2], roleColor[3], 0.95) end
     RefreshButtons()
     HideRows()
@@ -845,6 +1015,23 @@ local function RefreshDisplay()
             SetRow(rows[5], "Interface\\Icons\\INV_Misc_Note_06", "Regle de prudence", "Aucun guide exact assez fiable n'est embarque pour ce profil.", "L'addon explique alors une priorite deduite des tooltips et l'etiquette clairement comme adaptative.", "GARDE-FOU", { 1, 0.55, 0.25 })
         end
         guideFrame.source:SetText("Banque hors ligne : " .. tostring(DATA.sourceDate or "?") .. "  •  talents : " .. tostring(DATA.talentPatch or "?") .. "  •  changelog officiel lu jusqu'au : " .. tostring(DATA.officialPatchThrough or "?"))
+        RefreshPagination(guide)
+        return
+    end
+
+    if viewMode == "PROGRESSION" then
+        local cards, band = ProgressionCards(guide, preparation)
+        guideFrame.plan:SetText("Voila quoi faire maintenant, sans te noyer dans tout l'endgame.\nLe parcours suit automatiquement ton niveau ; le profil de stuff vient directement du Loot Decider quand il est actif.")
+        guideFrame.preparation:SetText(tostring(band.title) .. "  •  lecture automatique : " .. tostring(guide.spellCount) .. " sorts et " .. tostring(guide.talentCount) .. " talents.")
+        local index, card
+        for index, card in ipairs(cards) do
+            if rows[index] then SetRow(rows[index], card.icon, card.title, card.body, card.why, card.badge, card.color) end
+        end
+        if currentCharacter.level >= 60 then
+            guideFrame.source:SetText("Progression 60 : Ascension Mythic+ + Edrim Skysong + informations affichees par le PNJ  •  donnees " .. tostring(PROGRESSION.sourceDate or "?"))
+        else
+            guideFrame.source:SetText("Parcours de leveling hors ligne  •  prochain rescannage automatique au niveau, sort ou talent suivant")
+        end
         RefreshPagination(guide)
         return
     end
@@ -946,18 +1133,67 @@ local function PromptForRelevantUpdates()
     end
 end
 
-local function FullScan(silent)
+local function SpellbookSlotCount()
+    if not GetNumSpellTabs or not GetSpellTabInfo then return 0 end
+    local total, tab = 0, 0
+    for tab = 1, GetNumSpellTabs() do
+        local _, _, _, count = GetSpellTabInfo(tab)
+        total = total + (tonumber(count) or 0)
+    end
+    return total
+end
+
+local function CharacterFingerprint()
+    local className = UnitClass and UnitClass("player") or "?"
+    local level = UnitLevel and UnitLevel("player") or 0
+    local spec = "?"
+    if type(GetSpecialization) == "function" then
+        local ok, value = pcall(GetSpecialization)
+        if ok and value then spec = tostring(value) end
+    end
+    local adaptiveSignature = ""
+    if type(CoALootDeciderAPI) == "table" and type(CoALootDeciderAPI.GetAdaptiveBuild) == "function" then
+        local ok, adaptive = pcall(CoALootDeciderAPI.GetAdaptiveBuild)
+        if ok and type(adaptive) == "table" then
+            adaptiveSignature = tostring(adaptive.signature or adaptive.selectedCount or "")
+        end
+    end
+    return table.concat({ tostring(className), tostring(level), tostring(spec), tostring(SpellbookSlotCount()), adaptiveSignature }, "|")
+end
+
+local function SaveCharacterSnapshot(reason)
+    EnsureDatabase()
+    local guide = currentGuide or {}
+    CoARotationGuideDB.characters[CharacterKey()] = {
+        className = currentCharacter.className,
+        specName = currentCharacter.specName,
+        level = currentCharacter.level,
+        spellCount = guide.spellCount or #spellOrder,
+        talentCount = guide.talentCount or math.max(#activeTalentList, adaptiveTalentCount),
+        talentSource = activeTalentSource,
+        reason = reason or "scan",
+        scannedAt = type(time) == "function" and time() or (GetTime and GetTime() or 0)
+    }
+end
+
+local function FullScan(silent, reason)
+    lastScanReason = reason or lastScanReason or "scan"
     ScanTalents()
     ScanSpellbook()
     RefreshDisplay()
+    lastCharacterFingerprint = CharacterFingerprint()
+    SaveCharacterSnapshot(lastScanReason)
     PromptForRelevantUpdates()
     if not silent then
         Chat(tostring(#spellOrder) .. " sorts et " .. tostring(#activeTalentList) .. " talents lus pour " .. tostring(currentCharacter.className) .. " - " .. tostring(currentCharacter.specName) .. ".")
+        Chat("Guide actualise automatiquement au niveau " .. tostring(currentCharacter.level) .. " (" .. tostring(lastScanReason) .. ").")
     end
 end
 
-local function ScheduleScan(delay)
+local function ScheduleScan(delay, reason, passes)
     scheduledScanAt = (GetTime and GetTime() or 0) + (tonumber(delay) or 0.4)
+    scheduledScanReason = reason or scheduledScanReason or "changement detecte"
+    scheduledScanPasses = math.max(tonumber(passes) or 0, scheduledScanPasses or 0)
 end
 
 local function ToggleGuide()
@@ -967,7 +1203,7 @@ local function ToggleGuide()
         guideFrame:Hide()
     else
         viewMode = "LEARN"
-        FullScan(true)
+        FullScan(true, "ouverture du guide")
         guideFrame:Show()
     end
 end
@@ -1067,7 +1303,7 @@ local function BuildInterface()
 
     guideFrame = CreateFrame("Frame", "CoARotationGuideFrame", UIParent)
     guideFrame:SetWidth(680)
-    guideFrame:SetHeight(720)
+    guideFrame:SetHeight(748)
     guideFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     guideFrame:SetFrameStrata("DIALOG")
     guideFrame:SetMovable(true)
@@ -1088,60 +1324,78 @@ local function BuildInterface()
     local header = CreateFrame("Frame", nil, guideFrame)
     header:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 8, -8)
     header:SetWidth(664)
-    header:SetHeight(62)
+    header:SetHeight(64)
+    header:SetFrameLevel(guideFrame:GetFrameLevel() + 1)
     header:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border", edgeSize = 10 })
-    header:SetBackdropColor(0.11, 0.065, 0.025, 0.94)
-    header:SetBackdropBorderColor(0.82, 0.58, 0.20, 0.95)
+    header:SetBackdropColor(0.035, 0.075, 0.12, 0.98)
+    header:SetBackdropBorderColor(0.30, 0.70, 0.86, 0.95)
+    local headerAccent = header:CreateTexture(nil, "OVERLAY")
+    headerAccent:SetTexture("Interface\\Tooltips\\UI-Tooltip-Background")
+    headerAccent:SetPoint("BOTTOMLEFT", header, "BOTTOMLEFT", 5, 5)
+    headerAccent:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -5, 5)
+    headerAccent:SetHeight(2)
+    headerAccent:SetVertexColor(1.00, 0.66, 0.18, 0.95)
 
     local close = CreateFrame("Button", nil, guideFrame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", guideFrame, "TOPRIGHT", -4, -4)
+    close:SetFrameLevel(header:GetFrameLevel() + 1)
 
-    local title = guideFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -15)
-    title:SetText("CoA • Ton guide de specialisation")
-    title:SetTextColor(1, 0.82, 0.16)
+    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", header, "TOPLEFT", 12, -9)
+    title:SetText("CoA  •  Ton guide de specialisation")
+    title:SetTextColor(1.00, 0.82, 0.20)
 
-    guideFrame.character = guideFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    guideFrame.character:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -43)
-    guideFrame.character:SetWidth(640)
+    guideFrame.character = header:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    guideFrame.character:SetPoint("BOTTOMLEFT", header, "BOTTOMLEFT", 12, 13)
+    guideFrame.character:SetWidth(620)
     guideFrame.character:SetJustifyH("LEFT")
+    guideFrame.character:SetTextColor(0.92, 0.96, 1.00)
+
+    guideFrame.sync = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    guideFrame.sync:SetPoint("TOPRIGHT", header, "TOPRIGHT", -38, -13)
+    guideFrame.sync:SetWidth(250)
+    guideFrame.sync:SetJustifyH("RIGHT")
+    guideFrame.sync:SetTextColor(0.42, 0.95, 0.65)
 
     guideFrame.stage = guideFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    guideFrame.stage:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -64)
+    guideFrame.stage:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -77)
     guideFrame.stage:SetWidth(640)
     guideFrame.stage:SetJustifyH("LEFT")
+    guideFrame.stage:SetTextColor(0.68, 0.76, 0.86)
 
-    buttons.learn = MakeButton(nil, "COMPRENDRE", 126, 18, -80)
-    buttons.rotation = MakeButton(nil, "ROTATION", 105, 149, -80)
-    buttons.situations = MakeButton(nil, "SITUATIONS", 115, 259, -80)
-    buttons.updates = MakeButton(nil, "ACTUS", 100, 379, -80)
-    buttons.sources = MakeButton(nil, "SOURCES", 90, 484, -80)
-    buttons.refresh = MakeButton(nil, "ACTUAL.", 84, 579, -80)
+    buttons.learn = MakeButton(nil, "COMPRENDRE", 110, 18, -96)
+    buttons.rotation = MakeButton(nil, "ROTATION", 92, 132, -96)
+    buttons.situations = MakeButton(nil, "SITUATIONS", 105, 228, -96)
+    buttons.progression = MakeButton(nil, "PROGRESSION", 116, 337, -96)
+    buttons.updates = MakeButton(nil, "ACTUS", 91, 457, -96)
+    buttons.sources = MakeButton(nil, "SOURCES", 110, 552, -96)
 
-    buttons.solo = MakeButton(nil, "SOLO", 78, 18, -108)
-    buttons.group = MakeButton(nil, "GROUPE", 82, 100, -108)
-    buttons.st = MakeButton(nil, "ST", 68, 186, -108)
-    buttons.aoe = MakeButton(nil, "AOE", 72, 258, -108)
+    buttons.solo = MakeButton(nil, "SOLO", 78, 18, -124)
+    buttons.group = MakeButton(nil, "GROUPE", 82, 100, -124)
+    buttons.st = MakeButton(nil, "ST", 68, 186, -124)
+    buttons.aoe = MakeButton(nil, "AOE", 72, 258, -124)
+    buttons.refresh = MakeButton(nil, "ACTUALISER MAINTENANT", 157, 505, -124)
 
     buttons.learn:SetScript("OnClick", function() guidePage = 1; viewMode = "LEARN"; RefreshDisplay() end)
     buttons.rotation:SetScript("OnClick", function() guidePage = 1; viewMode = "ROTATION"; RefreshDisplay() end)
     buttons.situations:SetScript("OnClick", function() guidePage = 1; viewMode = "SITUATIONS"; RefreshDisplay() end)
+    buttons.progression:SetScript("OnClick", function() guidePage = 1; viewMode = "PROGRESSION"; FullScan(true, "ouverture progression") end)
     buttons.updates:SetScript("OnClick", OpenUpdatePage)
     buttons.sources:SetScript("OnClick", function() guidePage = 1; viewMode = "SOURCES"; RefreshDisplay() end)
     buttons.solo:SetScript("OnClick", function() CoARotationGuideDB.content = "SOLO"; guidePage = 1; RefreshDisplay() end)
     buttons.group:SetScript("OnClick", function() CoARotationGuideDB.content = "GROUP"; guidePage = 1; RefreshDisplay() end)
     buttons.st:SetScript("OnClick", function() CoARotationGuideDB.context = "ST"; guidePage = 1; RefreshDisplay() end)
     buttons.aoe:SetScript("OnClick", function() CoARotationGuideDB.context = "AOE"; guidePage = 1; RefreshDisplay() end)
-    buttons.refresh:SetScript("OnClick", function() guidePage = 1; FullScan(false) end)
+    buttons.refresh:SetScript("OnClick", function() guidePage = 1; FullScan(false, "bouton Actualiser") end)
 
     local contextHint = guideFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    contextHint:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 344, -114)
-    contextHint:SetWidth(318)
+    contextHint:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 344, -130)
+    contextHint:SetWidth(150)
     contextHint:SetJustifyH("RIGHT")
-    contextHint:SetText("Choisis ton contexte ; le guide s'adapte tout de suite.")
+    contextHint:SetText("Contexte du guide")
 
     local planBox = CreateFrame("Frame", nil, guideFrame)
-    planBox:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -140)
+    planBox:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -154)
     planBox:SetWidth(644)
     planBox:SetHeight(48)
     planBox:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border", edgeSize = 8 })
@@ -1154,7 +1408,7 @@ local function BuildInterface()
     guideFrame.plan:SetJustifyH("LEFT")
 
     local prepBox = CreateFrame("Frame", nil, guideFrame)
-    prepBox:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -194)
+    prepBox:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -208)
     prepBox:SetWidth(644)
     prepBox:SetHeight(38)
     prepBox:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border", edgeSize = 8 })
@@ -1168,7 +1422,7 @@ local function BuildInterface()
     local rowIndex
     for rowIndex = 1, PAGE_SIZE do
         local row = CreateFrame("Frame", nil, guideFrame)
-        row:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -240 - (rowIndex - 1) * 84)
+        row:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -254 - (rowIndex - 1) * 84)
         row:SetWidth(644)
         row:SetHeight(78)
         row:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border", edgeSize = 8 })
@@ -1293,7 +1547,7 @@ local function PrintStatus()
     BuildGuide()
     Chat(tostring(currentCharacter.className) .. " - " .. tostring(currentCharacter.specName)
         .. ", niveau " .. tostring(currentCharacter.level)
-        .. ", " .. tostring(#spellOrder) .. " sorts, " .. tostring(#activeTalentList) .. " talents.")
+        .. ", " .. tostring(#spellOrder) .. " sorts, " .. tostring(math.max(#activeTalentList, adaptiveTalentCount)) .. " talents (" .. tostring(activeTalentSource) .. ").")
     Chat("Contexte " .. tostring(CoARotationGuideDB.content) .. "/" .. tostring(CoARotationGuideDB.context)
         .. " ; profil " .. tostring(currentGuide and currentGuide.profileKey or "inconnu") .. ".")
 end
@@ -1304,7 +1558,7 @@ local function SlashHandler(message)
     if command == "" or command == "show" or command == "open" then
         ToggleGuide()
     elseif command == "scan" or command == "refresh" then
-        FullScan(false)
+        FullScan(false, "commande manuelle")
     elseif command == "st" then
         CoARotationGuideDB.context = "ST"; guidePage = 1; viewMode = "ROTATION"; RefreshDisplay(); guideFrame:Show()
     elseif command == "aoe" then
@@ -1319,6 +1573,8 @@ local function SlashHandler(message)
         guidePage = 1; viewMode = "LEARN"; RefreshDisplay(); guideFrame:Show()
     elseif command == "situation" or command == "situations" then
         guidePage = 1; viewMode = "SITUATIONS"; RefreshDisplay(); guideFrame:Show()
+    elseif command == "progression" or command == "progres" or command == "stuff" then
+        guidePage = 1; viewMode = "PROGRESSION"; FullScan(true, "commande progression"); guideFrame:Show()
     elseif command == "actus" or command == "updates" or command == "maj" then
         OpenUpdatePage()
     elseif command == "sources" or command == "method" or command == "methode" then
@@ -1332,20 +1588,20 @@ local function SlashHandler(message)
         CoARotationGuideDB.minimap.angle = 2.65
         RestorePosition(); PositionMinimapButton(); Chat("Positions reinitialisees.")
     else
-        Chat("/rotation | comprendre | pourquoi | situations | actus | scan | status | st | aoe | solo | groupe | sources | minimap | reset")
+        Chat("/rotation | comprendre | pourquoi | situations | progression | actus | scan | status | st | aoe | solo | groupe | sources | minimap | reset")
     end
 end
 
 CoARotationGuideAPI = CoARotationGuideAPI or {}
 function CoARotationGuideAPI:Toggle() ToggleGuide() end
 function CoARotationGuideAPI:Show()
-    if guideFrame and not guideFrame:IsShown() then FullScan(true); guideFrame:Show() end
+    if guideFrame and not guideFrame:IsShown() then FullScan(true, "ouverture API"); guideFrame:Show() end
 end
 function CoARotationGuideAPI:SetHubManaged(value)
     hubManaged = value and true or false
     UpdateMinimapVisibility()
 end
-function CoARotationGuideAPI:Refresh() FullScan(true) end
+function CoARotationGuideAPI:Refresh() FullScan(true, "actualisation API") end
 
 SLASH_COAROTATIONGUIDE1 = "/rotation"
 SLASH_COAROTATIONGUIDE2 = "/crg"
@@ -1356,32 +1612,67 @@ BuildInterface()
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_LEVEL_UP")
 eventFrame:RegisterEvent("SPELLS_CHANGED")
 eventFrame:RegisterEvent("LEARNED_SPELL_IN_TAB")
 eventFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
 eventFrame:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
 eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+if eventFrame.RegisterEvent then
+    pcall(eventFrame.RegisterEvent, eventFrame, "CHARACTER_POINTS_CHANGED")
+    pcall(eventFrame.RegisterEvent, eventFrame, "CHARACTER_ADVANCEMENT_UPDATE_ENTRIES_RESULT")
+    pcall(eventFrame.RegisterEvent, eventFrame, "ASCENSION_CA_SPECIALIZATION_ACTIVE_ID_CHANGED")
+end
 eventFrame:SetScript("OnEvent", function(_, event, loadedAddon)
     if event == "ADDON_LOADED" and loadedAddon == addonName then
         EnsureDatabase()
         RestorePosition()
         BuildMinimapButton()
-        ScheduleScan(0.6)
+        ScheduleScan(0.6, "chargement de l'addon", 1)
     elseif event == "ADDON_LOADED" then
         if CoAUIManagerPanel then hubManaged = true; UpdateMinimapVisibility() end
     elseif event == "PLAYER_LOGIN" then
         if CoAUIManagerPanel then hubManaged = true end
         PositionMinimapButton()
         UpdateMinimapVisibility()
-        ScheduleScan(0.8)
+        ScheduleScan(0.8, "connexion du personnage", 2)
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        ScheduleScan(0.7, "entree dans le monde", 1)
+    elseif event == "PLAYER_LEVEL_UP" then
+        ScheduleScan(0.35, "gain de niveau", 2)
+    elseif event == "SPELLS_CHANGED" or event == "LEARNED_SPELL_IN_TAB" then
+        ScheduleScan(0.35, "spellbook modifie", 2)
+    elseif event == "PLAYER_TALENT_UPDATE" or event == "ACTIVE_TALENT_GROUP_CHANGED"
+        or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "CHARACTER_POINTS_CHANGED"
+        or event == "CHARACTER_ADVANCEMENT_UPDATE_ENTRIES_RESULT"
+        or event == "ASCENSION_CA_SPECIALIZATION_ACTIVE_ID_CHANGED"
+    then
+        ScheduleScan(0.35, "talents ou specialisation modifies", 2)
     else
-        ScheduleScan(0.35)
+        ScheduleScan(0.45, tostring(event), 1)
     end
 end)
 eventFrame:SetScript("OnUpdate", function()
-    if scheduledScanAt and GetTime() >= scheduledScanAt then
+    local now = GetTime and GetTime() or 0
+    if scheduledScanAt and now >= scheduledScanAt then
+        local reason = scheduledScanReason or "changement detecte"
+        local remainingPasses = scheduledScanPasses or 0
         scheduledScanAt = nil
-        FullScan(true)
+        scheduledScanReason = nil
+        scheduledScanPasses = 0
+        FullScan(true, reason)
+        if remainingPasses > 0 then
+            local delay = remainingPasses > 1 and 1.25 or 2.5
+            ScheduleScan(delay, reason .. " - verification", remainingPasses - 1)
+        end
+    elseif now >= monitorAt then
+        monitorAt = now + 4
+        local fingerprint = CharacterFingerprint()
+        if lastCharacterFingerprint and fingerprint ~= lastCharacterFingerprint then
+            ScheduleScan(0.15, "evolution detectee automatiquement", 1)
+        elseif not lastCharacterFingerprint then
+            lastCharacterFingerprint = fingerprint
+        end
     end
 end)

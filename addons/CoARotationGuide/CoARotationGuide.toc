@@ -2,9 +2,10 @@
 ## Title: CoA Rotation Guide
 ## Notes: Guide de rotations hors ligne adapte au niveau, a la specialisation et aux talents CoA.
 ## Author: Cnbz13
-## Version: 1.15.1
+## Version: 1.16.0
 ## SavedVariables: CoARotationGuideDB
 
 CoARotationUpdates.lua
 CoARotationData.lua
+CoAProgressionData.lua
 CoARotationGuide.lua

@@ -115,6 +115,8 @@ local curated = {
         teaching = {
             identity = "Tu es un combattant de premiere ligne : tu installes ta banniere, tu construis la Glory, puis tu la transformes en gros impacts.",
             resource = "La Glory donne le rythme. Quand elle monte, prepare ton depensier ; quand elle est vide, repars sur Ram et Centurion Strike.",
+            opening = "Entre au contact avec Battle Rush, pose Standard of Supremacy, puis installe Glorious Arena. À ce moment-là seulement, tes gros coups ont une vraie scène pour frapper.",
+            loop = "Ram et Centurion Strike remettent la machine en route. Quand la Glory est prête, dépense-la ; si Reprisal s'allume, prends-le sans arrêter tout le reste pour l'attendre.",
             goldenRule = "Ne lance pas les gros coups avant d'avoir place la cible et la banniere. Ton burst commence par la preparation.",
             mistake = "Attendre un proc comme Reprisal en ne faisant rien. S'il n'est pas actif, descends simplement dans la priorite."
         },
@@ -151,6 +153,8 @@ local curated = {
         teaching = {
             identity = "Tu joues un chef d'armee : tes morts-vivants travaillent en continu pendant que tu geres maladies, procs et Runic Power.",
             resource = "Tes generateurs remplissent la Runic Power ; Command: Undead la depense en ST et March of the Dead prend le relais sur les gros packs.",
+            opening = "Prépare d'abord l'armée et les maladies, puis lance Unholy Frenzy quand tes invocations sont déjà là pour en profiter. Tu commandes ensuite un groupe installé, pas un champ de bataille vide.",
+            loop = "Glacial Tap, Runic Harvest et Crypt Swarm reconstruisent la Runic Power. Command: Undead la dépense en ST ; sur un vrai pack, March of the Dead prend davantage de valeur.",
             goldenRule = "Installe les invocations avant Unholy Frenzy, puis ne laisse jamais la Runic Power deborder.",
             mistake = "Ecraser Blight trop tot. Son dernier tick est important : sur proc, laisse l'effet aller au bout avant de le remettre."
         },
@@ -195,6 +199,8 @@ local curated = {
         teaching = {
             identity = "Tu es un soigneur de melee : tu poses ton lien, tu frappes pour produire de la valeur de soin, puis tu reagis aux urgences sans casser tout ton rythme.",
             resource = "La Sanity et le mana doivent rester stables. Hammer of Twilight sert le ST ; Entropic Slam devient interessant sur trois cibles ou plus.",
+            opening = "Pose Malevolence, entre au contact avec Blade of the Empire, puis choisis Hammer of Twilight en ST ou Entropic Slam sur un pack. Tes soins directs restent disponibles, mais ils ne remplacent cette boucle que lorsqu'une barre de vie le réclame vraiment.",
+            loop = "Tant que le groupe tient, continue ta pression de mêlée et surveille la Sanity. Si quelqu'un chute, soigne-le, puis reviens simplement à Malevolence et à ta première attaque disponible.",
             goldenRule = "Malevolence vient avant les degats. Les soins directs, eux, ne font pas partie d'une boucle fixe : tu les utilises seulement quand quelqu'un en a besoin.",
             mistake = "Lancer Eldritch Mending ou un defensif juste parce qu'il est disponible. En l'absence de danger, continue ta pression melee."
         },
@@ -233,6 +239,8 @@ local curated = {
         teaching = {
             identity = "Tu es un DPS melee a fenetres : tu construis la Solar Power, tu actives Dawn, puis tu concentres tes meilleurs cooldowns avant de reconstruire.",
             resource = "Monte a 20 Solar Power pour Dawn. Vers 7 a 10 stacks restants, Radiant Conversion puis Solar Invocation: Conquest relancent la boucle.",
+            opening = "Monte à 20 Solar Power, ouvre Dawn, puis empile Paragon, Dawnfall, Champion of the Sun et Radiance avant les gros impacts. Toute la spécialisation tourne autour de cette fenêtre.",
+            loop = "Dépense les stacks de Dawn sans aller jusqu'à l'épuisement. Vers 7 à 10 stacks, Radiant Conversion et Solar Invocation: Conquest reconstruisent la ressource pour repartir sur une nouvelle Dawn.",
             goldenRule = "Dawn reste prioritaire. Un gros sort lance hors de cette fenetre perd une bonne partie de sa valeur.",
             mistake = "Vider tous les stacks de Dawn avec Sunslam sans garder de quoi convertir et reconstruire la Solar Power."
         },

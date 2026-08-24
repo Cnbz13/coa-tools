@@ -52,6 +52,18 @@ const IMPACT_RULES = [
     suggestion: 'Réexaminer les priorités, ressources, portées et conditions de la recommandation.'
   },
   {
+    component: 'rotation-guide', name: 'CoA Rotation Guide',
+    keywords: [
+      'barbarian', 'witch doctor', 'felsworn', 'witch hunter', 'stormbringer',
+      'knight of xoroth', 'guardian', 'templar', 'bloodmage', 'ranger',
+      'chronomancer', 'necromancer', 'pyromancer', 'cultist', 'starcaller',
+      'sun cleric', 'tinker', 'venomancer', 'reaper', 'primalist', 'runemaster',
+      'specialization', 'talent', 'spell', 'ability', 'rotation', 'cooldown',
+      'mana', 'energy', 'runic power', 'solar power', 'static', 'insanity', 'glory'
+    ],
+    suggestion: 'Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.'
+  },
+  {
     component: 'event-alert', name: 'EventAlertCoA',
     keywords: ['buff', 'debuff', 'aura', 'proc', 'trigger', 'stack', 'charges', 'duration'],
     suggestion: 'Vérifier la détection des procs, effets, charges et durées concernées.'
@@ -67,6 +79,96 @@ const IMPACT_RULES = [
     suggestion: 'Auditer les frames ou API 3.3.5 affectées avant toute modification.'
   }
 ];
+
+const UPDATE_TAG_NOISE = new Set(['pending restart', 'live now', 'new', 'change']);
+
+const trimNotice = (value, limit) => {
+  const text = decodeHtml(value);
+  if (text.length <= limit) return text;
+  return `${text.slice(0, Math.max(0, limit - 1)).trim()}…`;
+};
+
+function updateTags(summary) {
+  const tags = [];
+  for (const match of String(summary || '').matchAll(/\[([^\]]+)\]/g)) {
+    const tag = decodeHtml(match[1]);
+    if (tag && !UPDATE_TAG_NOISE.has(tag.toLocaleLowerCase('en')) && !tags.includes(tag)) tags.push(tag);
+  }
+  return tags.slice(0, 3);
+}
+
+function updateKind(summary) {
+  const text = String(summary || '').toLocaleLowerCase('en');
+  if (/reworked|replaced|no longer|removed/.test(text)) return 'Mécanique revue';
+  if (/new spell|new talent|\[new\]/.test(text)) return 'Nouvelle mécanique';
+  if (/fixed|corrected|bug/.test(text)) return 'Correctif';
+  if (/reduced|decreased|nerf/.test(text)) return 'Équilibrage à la baisse';
+  if (/increased|now also|buffed/.test(text)) return 'Équilibrage à la hausse';
+  return 'Ajustement de gameplay';
+}
+
+function friendlyUpdate(item, tags) {
+  const subject = tags.length ? tags.join(' / ') : 'plusieurs mécaniques de jeu';
+  const kind = updateKind(item.summary);
+  if (kind === 'Mécanique revue') return `Les développeurs ont revu ${subject}. L’ordre habituel peut avoir changé : mieux vaut vérifier avant de reprendre les mêmes réflexes.`;
+  if (kind === 'Nouvelle mécanique') return `${subject} reçoit une nouveauté. Le guide la signale tout de suite, mais attend une vérification avant de modifier ta rotation.`;
+  if (kind === 'Correctif') return `Un correctif touche ${subject}. Il peut changer ce qui fonctionne réellement en combat, même si les boutons sont restés les mêmes.`;
+  if (kind === 'Équilibrage à la baisse') return `${subject} a été revu à la baisse. Ce n’est pas forcément inutilisable, mais sa place dans la priorité mérite d’être contrôlée.`;
+  if (kind === 'Équilibrage à la hausse') return `${subject} a été renforcé. Le sort ou le talent concerné peut désormais passer plus tôt dans la priorité.`;
+  return `Les développeurs ont ajusté ${subject}. Le guide te prévient afin que tu ne joues pas plusieurs jours avec un conseil devenu douteux.`;
+}
+
+export function createRotationUpdateFeed(report) {
+  const items = (Array.isArray(report?.items) ? report.items : [])
+    .filter(item => item.impacts?.some(impact => impact.component === 'rotation-guide'))
+    .slice(0, 100)
+    .map(item => {
+      const tags = updateTags(item.summary);
+      return {
+        id: `${item.sourceId}:${item.id}`,
+        updatedAt: item.updatedAt || item.publishedAt || report.generatedAt,
+        kind: updateKind(item.summary),
+        title: trimNotice(item.title, 90),
+        friendly: friendlyUpdate(item, tags),
+        officialNote: trimNotice(item.summary, 260),
+        tags,
+        significant: Boolean(item.significant),
+        sourceUrl: item.url || COA_WATCH_SOURCES.changelog.page
+      };
+    });
+  return {
+    schemaVersion: 1,
+    generatedAt: report?.generatedAt || null,
+    sourceUrl: COA_WATCH_SOURCES.changelog.page,
+    items
+  };
+}
+
+const luaString = value => JSON.stringify(String(value ?? ''));
+
+export function serializeRotationUpdateFeed(report) {
+  const feed = createRotationUpdateFeed(report);
+  const lines = [
+    '-- Généré par CoA Addon Manager depuis les sources Ascension vérifiées.',
+    '-- Ce fichier informe le jeu ; il ne lance aucun sort et ne réécrit pas une rotation automatiquement.',
+    'CoARotationUpdateFeed = {',
+    `    schemaVersion = ${feed.schemaVersion},`,
+    `    generatedAt = ${luaString(feed.generatedAt || '')},`,
+    `    sourceUrl = ${luaString(feed.sourceUrl)},`,
+    '    items = {'
+  ];
+  for (const item of feed.items) {
+    lines.push('        {');
+    for (const key of ['id', 'updatedAt', 'kind', 'title', 'friendly', 'officialNote', 'sourceUrl']) {
+      lines.push(`            ${key} = ${luaString(item[key])},`);
+    }
+    lines.push(`            significant = ${item.significant ? 'true' : 'false'},`);
+    lines.push(`            tags = { ${item.tags.map(luaString).join(', ')} },`);
+    lines.push('        },');
+  }
+  lines.push('    }', '}', '');
+  return lines.join('\n');
+}
 
 const decodeHtml = value => String(value || '')
   .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
@@ -317,26 +419,43 @@ export async function runCoaWatch({
 }
 
 export class CoaWatchService {
-  constructor({ dataDir, reportUrl = 'https://raw.githubusercontent.com/Cnbz13/coa-tools/main/watch/report.json', fetchImpl = fetch }) {
+  constructor({
+    dataDir,
+    reportUrl = 'https://raw.githubusercontent.com/Cnbz13/coa-tools/main/watch/report.json',
+    fetchImpl = fetch,
+    gameFeedWriter = null
+  }) {
     this.fetchImpl = fetchImpl;
     this.reportUrl = reportUrl;
+    this.gameFeedWriter = gameFeedWriter;
     this.statePath = path.join(dataDir, 'coa-watch-state.json');
     this.reportPath = path.join(dataDir, 'coa-watch-report.json');
+  }
+
+  async withGameFeed(report) {
+    if (!this.gameFeedWriter) return { ...report, gameFeed: { written: false, reason: 'writer-unavailable' } };
+    try {
+      const gameFeed = await this.gameFeedWriter(serializeRotationUpdateFeed(report), createRotationUpdateFeed(report));
+      return { ...report, gameFeed };
+    } catch (error) {
+      return { ...report, gameFeed: { written: false, reason: 'write-failed', error: error.message } };
+    }
   }
 
   async report() {
     try {
       const remote = await fetchJson(this.fetchImpl, this.reportUrl);
       await writeJsonAtomic(this.reportPath, remote);
-      return { ...remote, remote: true, cached: false };
+      return this.withGameFeed({ ...remote, remote: true, cached: false });
     } catch (error) {
       const cached = await readJson(this.reportPath, null);
-      if (cached) return { ...cached, remote: false, cached: true, remoteError: error.message };
+      if (cached) return this.withGameFeed({ ...cached, remote: false, cached: true, remoteError: error.message });
       return { schemaVersion: 1, generatedAt: null, newCount: 0, significantCount: 0, sources: [], items: [], remote: false, cached: false, remoteError: error.message };
     }
   }
 
   async check() {
-    return { ...(await runCoaWatch({ statePath: this.statePath, reportPath: this.reportPath, fetchImpl: this.fetchImpl })), remote: false, cached: false };
+    const report = await runCoaWatch({ statePath: this.statePath, reportPath: this.reportPath, fetchImpl: this.fetchImpl });
+    return this.withGameFeed({ ...report, remote: false, cached: false });
   }
 }

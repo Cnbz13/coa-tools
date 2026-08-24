@@ -108,6 +108,25 @@ export class AddonManager {
     return this.inventory();
   }
 
+  async writeRotationUpdateFeed(luaContents, feed = {}) {
+    const text = String(luaContents || '');
+    if (!text.startsWith('-- Généré par CoA Addon Manager') || !text.includes('CoARotationUpdateFeed = {')) {
+      throw new Error('Flux de mises à jour CoA invalide');
+    }
+    const detection = await this.detectDirectory();
+    if (!detection.exists) return { written: false, reason: 'addons-directory-missing', count: 0 };
+    const addonFolder = path.join(detection.directory, 'CoARotationGuide');
+    if (!(await isDirectory(addonFolder))) return { written: false, reason: 'rotation-guide-not-installed', count: 0 };
+    const destination = path.join(addonFolder, 'CoARotationUpdates.lua');
+    await writeFile(destination, text, 'utf8');
+    return {
+      written: true,
+      path: destination,
+      count: Array.isArray(feed.items) ? feed.items.length : 0,
+      generatedAt: feed.generatedAt || null
+    };
+  }
+
   async getSettings() {
     const settings = await readJson(this.settingsFile, {});
     return {
@@ -363,6 +382,13 @@ export class AddonManager {
       throw new Error('Grid doit être installé avant sa compatibilité CoA');
     }
     const local = (await this.scan(detection.directory)).find(item => item.folder.toLowerCase() === artifact.targetFolder.toLowerCase());
+    let preservedRotationFeed = null;
+    if (component === 'rotation-guide' && local) {
+      try {
+        const candidate = await readFile(path.join(local.path, 'CoARotationUpdates.lua'), 'utf8');
+        if (candidate.includes('CoARotationUpdateFeed = {')) preservedRotationFeed = candidate;
+      } catch { /* Une ancienne version du guide peut ne pas encore avoir de flux. */ }
+    }
     const transaction = path.join(this.transactionsRoot, randomUUID());
     const archive = path.join(transaction, path.basename(artifact.file));
     const extracted = path.join(transaction, 'extracted');
@@ -389,6 +415,9 @@ export class AddonManager {
         report({ step: 'restore', message: 'Échec détecté, restauration automatique du backup…', phasePercent: 84 });
         if (backup) await this.replaceFolder(detection.directory, artifact.targetFolder, backup.folder);
         throw error;
+      }
+      if (component === 'rotation-guide' && preservedRotationFeed) {
+        await writeFile(path.join(destination, 'CoARotationUpdates.lua'), preservedRotationFeed, 'utf8');
       }
       report({ step: 'enable', message: 'Activation dans les profils Ascension…', phasePercent: 91 });
       let enabledProfiles = await this.enableAddonForProfiles(detection.directory, artifact.targetFolder);

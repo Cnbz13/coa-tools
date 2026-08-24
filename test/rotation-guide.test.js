@@ -47,13 +47,13 @@ test('Rotation Guide filters sourced priorities through the learned spellbook', 
 test('Rotation Guide keeps preparation separate and never automates gameplay', async () => {
   const lua = await luaPromise;
   for (const required of [
-    'Preparation separee', 'Avant le pull :', 'CoARotationGuideFrame',
+    'Avant le combat :', 'Avant le pull :', 'CoARotationGuideFrame',
     'CoARotationGuideMinimapButton', 'CoARotationGuideAPI:SetHubManaged',
     'SLASH_COAROTATIONGUIDE1 = "/rotation"', 'buttons.sources',
-    'viewMode == "SOURCES"', 'Banque hors ligne', 'Pourquoi ici ?',
-    'Lis de haut en bas', 'la liste est une priorite, pas une macro figee',
+    'viewMode == "SOURCES"', 'Banque hors ligne', 'Pourquoi ça marche',
+    'série de questions', 'on suit une priorité, pas une macro apprise par cœur',
     'local PAGE_SIZE = 5', 'local MAX_ENTRIES = 15', 'buttons.previous', 'buttons.next',
-    'buttons.learn', 'buttons.rotation', 'buttons.situations'
+    'buttons.learn', 'buttons.rotation', 'buttons.situations', 'buttons.updates'
   ]) assert.ok(lua.includes(required), `UI is missing ${required}`);
   assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
   assert.doesNotMatch(lua, /BackdropTemplate|SetShown|SetSize|C_Timer|CombatLogGetCurrentEventInfo|RegisterUnitEvent|AuraUtil|Enum\./);
@@ -63,10 +63,10 @@ test('Rotation Guide keeps preparation separate and never automates gameplay', a
 test('Rotation Guide teaches each specialization from fundamentals to situational play', async () => {
   const [lua, data] = await Promise.all([luaPromise, dataPromise]);
   for (const required of [
-    'LevelChapter', 'Les fondations', 'Tu decouvres la specialisation',
-    'La boucle complete arrive', 'Tu consolides', 'Tu optimises',
-    'Ta specialisation, en une phrase', 'Le moteur de ton gameplay',
-    'Ta boucle avec les sorts appris', 'Ton objectif au niveau', 'La regle d\'or',
+    'LevelChapter', 'On pose les bases', 'Tu découvres vraiment la spécialisation',
+    'La boucle complète est presque là', 'Tu rends le jeu plus propre', 'Tu peux maintenant affiner',
+    'Voilà ce que tu joues vraiment', 'Le moteur de ton gameplay',
+    'À quoi ressemble un combat', 'Ce que tu peux travailler maintenant', 'Le conseil que je te donnerais',
     'Quand ta ressource change', 'Une cible ou plusieurs ?', 'Quand il faut casser la rotation',
     'viewMode == "LEARN"', 'viewMode == "SITUATIONS"', 'viewMode ~= "ROTATION"'
   ]) assert.ok(lua.includes(required), `learning journey is missing ${required}`);
@@ -81,9 +81,9 @@ test('Rotation Guide teaches each specialization from fundamentals to situationa
 test('Rotation Guide uses a warmer navigable card layout', async () => {
   const lua = await luaPromise;
   for (const required of [
-    'Ton guide de specialisation', 'Bienvenue dans ta specialisation',
+    'Ton guide de specialisation', 'On va prendre le temps de comprendre ton personnage',
     'RoleColor', 'guideFrame.planBox:SetBackdropBorderColor',
-    'row.accent:SetVertexColor', 'COMPRENDRE', 'ROTATION', 'SITUATIONS', 'SOURCES',
+    'row.accent:SetVertexColor', 'COMPRENDRE', 'ROTATION', 'SITUATIONS', 'ACTUS', 'SOURCES',
     'Choisis ton contexte ; le guide s\'adapte tout de suite.',
     'guideFrame:SetHeight(720)', 'GameTooltip.SetSpellBookItem'
   ]) assert.ok(lua.includes(required), `visual redesign is missing ${required}`);
@@ -100,15 +100,30 @@ test('Rotation Guide explains sourced transitions in familiar and explicit langu
   ]) assert.ok(data.includes(phrase), `missing explicit sourced explanation: ${phrase}`);
   for (const required of [
     'CuratedExplanation', 'GenericWhy', 'GenericAfter', 'ExplainEntry',
-    'entry.explanation = "Pourquoi ici ?', 'a.curatedRank < b.curatedRank',
-    'A faire :', 'DEDUIT DU TOOLTIP', 'guide.plan'
+    'entry.explanation = "Pourquoi ça marche', 'a.curatedRank < b.curatedRank',
+    'Et juste après :', 'REPÈRE PRUDENT', 'guide.plan'
   ]) assert.ok(lua.includes(required), `explanation engine is missing ${required}`);
+});
+
+test('Rotation Guide filters the manager feed and warns once in game', async () => {
+  const [lua, updates, toc] = await Promise.all([
+    luaPromise,
+    readFile('addons/CoARotationGuide/CoARotationUpdates.lua', 'utf8'),
+    readFile('addons/CoARotationGuide/CoARotationGuide.toc', 'utf8')
+  ]);
+  for (const required of [
+    'RelevantUpdates', 'UpdateMatchesCharacter', 'UpdateAcknowledgements',
+    'PromptForRelevantUpdates', 'CoARotationGuideUpdatePopup', 'Le jeu a changé depuis ton dernier passage',
+    'CoAMessageCenter:AddMessage', 'viewMode == "UPDATES"', '/rotation actus'
+  ]) assert.ok(lua.includes(required), `in-game update alert is missing ${required}`);
+  assert.match(updates, /CoARotationUpdateFeed = \{/);
+  assert.match(toc, /^CoARotationUpdates\.lua\r?\nCoARotationData\.lua\r?\nCoARotationGuide\.lua$/m);
 });
 
 test('Rotation Guide release metadata targets Ascension 3.3.5', async () => {
   const toc = await readFile('addons/CoARotationGuide/CoARotationGuide.toc', 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 1\.13\.0$/m);
+  assert.match(toc, /^## Version: 1\.14\.0$/m);
   assert.match(toc, /^## SavedVariables: CoARotationGuideDB$/m);
-  assert.match(toc, /^CoARotationData\.lua\r?\nCoARotationGuide\.lua$/m);
+  assert.match(toc, /^CoARotationUpdates\.lua\r?\nCoARotationData\.lua\r?\nCoARotationGuide\.lua$/m);
 });

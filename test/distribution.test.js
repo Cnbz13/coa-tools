@@ -113,10 +113,15 @@ test('manager checks hourly, alerts Windows and can update addons automatically'
 
 test('addon manager exposes sourced CoA watch recommendations without automatic addon edits', async () => {
   const server = await readFile('src/server.js', 'utf8');
+  const addons = await readFile('src/core/addons.js', 'utf8');
   const app = await readFile('public/app.js', 'utf8');
   const html = await readFile('public/index.html', 'utf8');
   assert.match(server, /pathname === '\/api\/watch'/);
   assert.match(server, /pathname === '\/api\/watch\/check'/);
+  assert.match(server, /gameFeedWriter: \(luaContents, feed\) => addons\.writeRotationUpdateFeed/);
+  assert.match(addons, /async writeRotationUpdateFeed\(luaContents, feed = \{\}\)/);
+  assert.match(addons, /component === 'rotation-guide' && preservedRotationFeed/);
+  assert.match(app, /ont aussi été transmis au Guide de Rotation en jeu/);
   assert.match(app, /loadCoaWatch/);
   assert.match(app, /Les recommandations restent soumises à validation/);
   assert.match(html, /id="checkCoaWatch"/);

@@ -22,7 +22,11 @@ await ensureDir(dataDir);
 const combat = new CombatAssistant();
 const addons = new AddonManager({ dataDir, manifestUrl, environmentPath: process.env.COA_ADDONS_DIR });
 const addonOperations = new AddonOperationRegistry(addons);
-const coaWatch = new CoaWatchService({ dataDir, reportUrl: process.env.COA_WATCH_REPORT });
+const coaWatch = new CoaWatchService({
+  dataDir,
+  reportUrl: process.env.COA_WATCH_REPORT,
+  gameFeedWriter: (luaContents, feed) => addons.writeRotationUpdateFeed(luaContents, feed)
+});
 const ui = new UiManager(dataDir);
 const updater = new Updater({ currentVersion: pkg.version, manifestUrl, stagingDir: path.join(root, '.updates') });
 const updateMonitor = new UpdateMonitor({ updater, ui, dataDir });

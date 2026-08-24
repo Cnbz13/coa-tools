@@ -18,6 +18,8 @@ local PAGE_SIZE = 5
 local MAX_ENTRIES = 15
 local scheduledScanAt = nil
 local scannerTooltip
+local updatePopup
+local sessionUpdatePrompted = false
 
 local function Chat(message)
     if DEFAULT_CHAT_FRAME then
@@ -31,6 +33,13 @@ end
 
 local function Trim(value)
     return string.gsub(string.gsub(tostring(value or ""), "^%s+", ""), "%s+$", "")
+end
+
+local function Shorten(value, limit)
+    local text = Trim(value)
+    limit = tonumber(limit) or 160
+    if string.len(text) <= limit then return text end
+    return string.sub(text, 1, math.max(1, limit - 3)) .. "..."
 end
 
 local function Contains(text, fragment)
@@ -70,6 +79,7 @@ local function EnsureDatabase()
     if type(CoARotationGuideDB.minimap.angle) ~= "number" then CoARotationGuideDB.minimap.angle = 2.65 end
     if type(CoARotationGuideDB.minimap.hidden) ~= "boolean" then CoARotationGuideDB.minimap.hidden = false end
     if type(CoARotationGuideDB.showPreparation) ~= "boolean" then CoARotationGuideDB.showPreparation = true end
+    if type(CoARotationGuideDB.updateAcknowledged) ~= "table" then CoARotationGuideDB.updateAcknowledged = {} end
 end
 
 local function SavePosition()
@@ -356,23 +366,23 @@ end
 local function InstructionFor(entry, position, role, context)
     local spell = entry.spell
     local c = spell.categories
-    if c.execute then return "A faire : garde " .. spell.name .. " pour une cible vraiment affaiblie." end
-    if c.builder and not c.spender then return "A faire : utilise " .. spell.name .. " pour remonter ta ressource sans la faire deborder." end
-    if c.spender then return "A faire : depense avec " .. spell.name .. " seulement quand la ressource est prete." end
-    if role == "HEALER" and c.absorb then return "A faire : pose " .. spell.name .. " juste avant les degats previsibles." end
-    if role == "HEALER" and c.hot then return "A faire : entretiens " .. spell.name .. " sur la cible qui va continuer a prendre des degats." end
-    if role == "HEALER" and c.heal then return "A faire : lance " .. spell.name .. " sur la cible qui en a besoin, pas juste parce qu'il est disponible." end
-    if role == "TANK" and c.mitigation then return "A faire : garde " .. spell.name .. " pour le prochain vrai choc." end
-    if c.dot then return "A faire : pose " .. spell.name .. " assez tot et laisse-le aller au bout." end
-    if c.summon then return "A faire : installe " .. spell.name .. " assez tot pour qu'il travaille vraiment." end
-    if c.buff then return "A faire : active " .. spell.name .. " avant les sorts qui doivent profiter de sa fenetre." end
-    if context == "AOE" and c.aoe then return "A faire : lance " .. spell.name .. " quand le pack est bien regroupe." end
+    if c.execute then return "Garde " .. spell.name .. " pour la fin, quand la cible est vraiment affaiblie." end
+    if c.builder and not c.spender then return "Reviens sur " .. spell.name .. " quand ta ressource baisse ; évite simplement de le lancer si tu es déjà au maximum." end
+    if c.spender then return "Quand la ressource est prête, transforme-la avec " .. spell.name .. ". À vide, passe ton chemin pour l'instant." end
+    if role == "HEALER" and c.absorb then return "Pose " .. spell.name .. " juste avant les dégâts annoncés : après l'impact, le bouclier arrive trop tard." end
+    if role == "HEALER" and c.hot then return "Entretiens " .. spell.name .. " sur la personne qui va continuer à prendre des dégâts, pas au hasard sur tout le groupe." end
+    if role == "HEALER" and c.heal then return "Sors " .. spell.name .. " pour réparer une vraie perte de vie. Si tout le monde va bien, garde ton mana." end
+    if role == "TANK" and c.mitigation then return "Garde " .. spell.name .. " pour le prochain coup dangereux ; ce n'est pas un bouton à vider dès qu'il s'allume." end
+    if c.dot then return "Pose " .. spell.name .. " assez tôt pour qu'il ait le temps de travailler, puis laisse-le respirer au lieu de l'écraser tout de suite." end
+    if c.summon then return "Fais entrer " .. spell.name .. " assez tôt : plus l'invocation reste active, plus elle rembourse son lancement." end
+    if c.buff then return "Ouvre ta fenêtre avec " .. spell.name .. ", avant les sorts qui doivent réellement en profiter." end
+    if context == "AOE" and c.aoe then return "Attends que les ennemis soient bien regroupés, puis lance " .. spell.name .. " au cœur du pack." end
     if c.direct then
-        if position == 1 then return "A faire : commence par " .. spell.name .. " si la cible est valide et a portee." end
-        return "A faire : prends " .. spell.name .. " des que les etapes au-dessus ne sont pas disponibles."
+        if position == 1 then return "Si la cible est à portée, commence par " .. spell.name .. "." end
+        return "Si les choix placés au-dessus ne sont pas prêts, " .. spell.name .. " est ton prochain bouton propre."
     end
-    if entry.curated then return "A faire : utilise " .. spell.name .. " ici ; s'il n'est pas disponible, passe a la suite." end
-    return "A faire : utilise " .. spell.name .. " quand son effet correspond a la situation."
+    if entry.curated then return spell.name .. " a sa place ici. S'il n'est pas prêt, ne reste pas à l'attendre : descends d'une ligne." end
+    return "Garde " .. spell.name .. " sous la main quand son effet correspond vraiment à ce qui se passe."
 end
 
 local function CuratedExplanation(curated, context, spellName)
@@ -385,60 +395,61 @@ local function GenericWhy(entry, previousEntry, nextEntry, role, context)
     local spell = entry.spell
     local c = spell.categories
     if entry.talentName then
-        return "Ton talent " .. entry.talentName .. " renforce directement ce choix, donc il remonte dans la priorite."
+        return "Avec " .. entry.talentName .. " dans tes talents, ce sort vaut davantage pour ton personnage qu'il ne vaudrait dans une liste générique."
     end
-    if c.execute then return "Sa valeur depend d'une cible basse en vie ; avant ca, un sort regulier fait mieux le travail." end
+    if c.execute then return "Il devient vraiment rentable sur une cible basse en vie. Avant ça, tes attaques habituelles font mieux le travail." end
     if c.builder and not c.spender then
         if nextEntry and nextEntry.spell.categories.spender then
-            return "Il fabrique la ressource que " .. nextEntry.spell.name .. " depensera juste apres."
+            return "Il remet assez de carburant pour préparer " .. nextEntry.spell.name .. ". Les deux sorts forment le petit aller-retour de ta rotation."
         end
-        return "Il remet du carburant dans le cycle ; l'utiliser barre pleine serait du gaspillage."
+        return "C'est ton moyen de remettre du carburant dans le cycle. Barre pleine, tu ne gagnerais rien à insister dessus."
     end
     if c.spender then
         if previousEntry and previousEntry.spell.categories.builder then
-            return previousEntry.spell.name .. " a prepare la ressource ; c'est maintenant le bon moment de la convertir en effet utile."
+            return previousEntry.spell.name .. " vient de préparer la ressource : " .. spell.name .. " est la façon naturelle de la convertir maintenant."
         end
-        return "C'est une depense, donc elle vient apres la preparation de la ressource et non au debut a vide."
+        return "C'est une dépense, pas un générateur. Elle a donc du sens après la préparation, jamais au début avec une barre vide."
     end
-    if c.dot then return "Le poser tot lui laisse assez de temps pour faire tous ses ticks ; le rafraichir trop vite jette une partie de sa valeur." end
-    if c.debuff then return "Il prepare ou affaiblit la cible, ce qui donne plus de sens aux attaques placees derriere." end
-    if c.buff then return "Le bonus doit etre actif avant tes gros sorts. Le lancer apres eux reviendrait a rater ta propre fenetre."
+    if c.dot then return "Plus il est posé tôt, plus il a le temps de faire son travail. Le rafraîchir trop vite revient à jeter la fin de l'effet précédent." end
+    if c.debuff then return "Il prépare la cible. Tes attaques suivantes arrivent ainsi sur un ennemi déjà affaibli, et non dans le vide."
     end
-    if c.summon then return "Une invocation posee tot continue d'agir pendant que tu utilises les autres sorts : autant la faire travailler tout de suite." end
-    if role == "HEALER" and c.absorb then return "Un bouclier evite les degats ; apres le choc, il arrive forcement trop tard pour cette partie."
+    if c.buff then return "Le bonus doit couvrir tes gros sorts. Le lancer après eux, ce serait ouvrir le parapluie une fois l'averse terminée."
     end
-    if role == "HEALER" and c.hot then return "Le soin agit dans le temps, donc il vaut mieux l'installer avant que la cible tombe trop bas."
+    if c.summon then return "Une invocation lancée tôt continue d'agir pendant que tu joues le reste. Chaque seconde gagnée lui donne un peu plus de valeur." end
+    if role == "HEALER" and c.absorb then return "Un bouclier empêche des dégâts ; après le choc, il ne peut plus rendre les points de vie déjà perdus."
     end
-    if role == "HEALER" and c.heal then return "Il sert a repondre a un vrai manque de vie ; sans blessure, garde plutot ton mana."
+    if role == "HEALER" and c.hot then return "Le soin agit petit à petit. Installe-le pendant que la situation est encore stable, pas quand la cible est déjà au bord du sol."
     end
-    if role == "TANK" and c.mitigation then return "La mitigation gagne sa valeur sur un coup dangereux. La lancer sans menace reelle gaspille sa duree."
+    if role == "HEALER" and c.heal then return "C'est ta réponse à une vraie blessure. Sans vie à rendre, le meilleur choix reste souvent de ne rien dépenser."
     end
-    if context == "AOE" and c.aoe then return "Plusieurs ennemis sont concernes, donc son rendement depasse celui d'une attaque purement monocible."
+    if role == "TANK" and c.mitigation then return "La mitigation vaut surtout au moment du gros coup. La lancer pendant une accalmie gaspille une partie de sa durée."
     end
-    if c.direct then return "C'est un bouton de pression immediate : il remplit le trou quand les effets plus importants au-dessus ne sont pas disponibles."
+    if context == "AOE" and c.aoe then return "Sur plusieurs ennemis regroupés, chaque lancement touche assez de cibles pour dépasser une attaque purement monocible."
     end
-    return "Son tooltip correspond au role et au contexte choisis, mais l'addon le garde en choix adaptatif prudent."
+    if c.direct then return "C'est ton choix sans détour : des dégâts tout de suite, pendant que les effets plus importants placés au-dessus reviennent."
+    end
+    return "Son effet colle à ton rôle et au contexte choisi. Je le garde toutefois comme conseil prudent, faute de source assez précise pour être catégorique."
 end
 
 local function GenericAfter(entry, nextEntry)
-    if not nextEntry then return "Puis repars tout en haut : la liste est une priorite, pas une macro figee." end
+    if not nextEntry then return "Après ça, jette de nouveau un œil en haut de la liste : on suit une priorité, pas une macro apprise par cœur." end
     local current = entry.spell.categories
     local nextCategories = nextEntry.spell.categories
     local nextName = nextEntry.spell.name
-    if current.builder and nextCategories.spender then return "Puis passe a " .. nextName .. " quand la ressource suffit." end
-    if (current.dot or current.debuff) and (nextCategories.direct or nextCategories.spender) then return "Puis enchaine avec " .. nextName .. " pendant que la cible est preparee." end
-    if current.buff then return "Puis lance " .. nextName .. " avant que la fenetre ne tombe." end
-    if current.summon then return "Puis passe a " .. nextName .. " pendant que l'invocation travaille en parallele." end
-    if current.execute then return "Si la condition d'execution n'est pas remplie, saute cette ligne et prends " .. nextName .. "." end
-    return "Puis regarde " .. nextName .. " ; s'il n'est pas disponible, continue simplement vers le bas."
+    if current.builder and nextCategories.spender then return "Dès que la ressource suffit, regarde " .. nextName .. " : c'est généralement là que la préparation paie." end
+    if (current.dot or current.debuff) and (nextCategories.direct or nextCategories.spender) then return "La cible est maintenant préparée ; enchaîne avec " .. nextName .. " pendant que l'effet est encore utile." end
+    if current.buff then return "Profite de la fenêtre avec " .. nextName .. " avant que le bonus ne disparaisse." end
+    if current.summon then return "Laisse l'invocation travailler et poursuis avec " .. nextName .. "." end
+    if current.execute then return "Si la cible n'est pas encore assez basse, saute cette ligne et reviens sur " .. nextName .. "." end
+    return "Ensuite, regarde " .. nextName .. ". S'il n'est pas prêt non plus, continue sans attendre vers le bas."
 end
 
 local function ExplainEntry(entry, previousEntry, nextEntry, curated, context)
     local exact = CuratedExplanation(curated, context, entry.spell.name)
     local why = exact and exact.why or GenericWhy(entry, previousEntry, nextEntry, currentCharacter.role, context)
     local after = exact and exact.after or GenericAfter(entry, nextEntry)
-    entry.explanation = "Pourquoi ici ? " .. why .. "  " .. after
-    entry.explanationKind = exact and "EXPLIQUE" or "DEDUIT DU TOOLTIP"
+    entry.explanation = "Pourquoi ça marche : " .. why .. "  Et juste après : " .. after
+    entry.explanationKind = exact and "GUIDE VÉRIFIÉ" or "REPÈRE PRUDENT"
 end
 
 local function BuildPreparation(curated)
@@ -559,17 +570,17 @@ end
 
 local function LevelChapter(level)
     if level < 10 then
-        return { title = "Les fondations", text = "Pour l'instant, fais simple : une action principale, une reponse defensive et aucune ressource gaspillee.", exercise = "Apprends a reconnaitre ton premier bouton fiable et a rester bien place. La specialisation complete viendra ensuite." }
+        return { title = "On pose les bases", text = "À ce niveau, ton personnage n'a encore qu'une partie de ses outils. Cherche surtout un bouton fiable, une façon de te protéger et une position confortable.", exercise = "Sur les prochains combats, essaie simplement de reconnaître ton attaque principale sans regarder toutes tes barres. Le reste arrivera progressivement." }
     elseif level < 20 then
-        return { title = "Tu decouvres la specialisation", text = "Ton objectif n'est pas de memoriser quinze sorts. Comprends d'abord l'ouverture et la ressource principale.", exercise = "Travaille seulement les trois premieres priorites apprises jusqu'a pouvoir les expliquer sans regarder la liste." }
+        return { title = "Tu découvres vraiment la spécialisation", text = "Le style commence à apparaître, mais inutile d'apprendre quinze boutons d'un coup. Comprends d'abord comment tu entres dans le combat et ce qui fait monter ou descendre ta ressource.", exercise = "Joue quelques combats avec les trois premières priorités seulement. Quand leur enchaînement devient naturel, ajoute la suivante." }
     elseif level < 30 then
-        return { title = "Ton kit prend forme", text = "Ajoute maintenant les effets a entretenir et la premiere vraie boucle generateur vers depensier.", exercise = "Sur quelques combats, surveille surtout ta ressource : ni vide au mauvais moment, ni bloquee au maximum." }
+        return { title = "Ton kit commence à tenir debout", text = "Tu as désormais assez de sorts pour voir une vraie boucle : tu prépares, tu construis, puis tu dépenses. Les effets à entretenir viennent se glisser autour de ce noyau.", exercise = "Pendant quelques combats, surveille surtout ta ressource. Essaie de ne pas arriver à vide au mauvais moment, ni de rester bloqué au maximum." }
     elseif level < 40 then
-        return { title = "La boucle complete arrive", text = "Entre les niveaux 30 et 39, ton jeu devient coherent : preparation, ouverture, boucle, puis adaptation ST ou AOE.", exercise = "Repete une ouverture propre, puis reviens en haut de la priorite apres chaque depense. C'est le bon moment pour prendre de bonnes habitudes." }
+        return { title = "La boucle complète est presque là", text = "Entre les niveaux 30 et 39, le jeu prend sa forme normale : une préparation courte, une ouverture propre, puis une boucle qui change selon le nombre d'ennemis.", exercise = "Répète la même ouverture sur quelques monstres, puis reviens en haut de la priorité après chaque grosse dépense. C'est là que les bons réflexes se créent." }
     elseif level < 50 then
-        return { title = "Tu consolides", text = "Le coeur du gameplay est la. Tu dois maintenant aligner tes cooldowns et savoir quand interrompre la boucle pour aider le groupe.", exercise = "Cherche la regularite : meme ressource bien geree, memes effets maintenus, moins de boutons presses par reflexe." }
+        return { title = "Tu rends le jeu plus propre", text = "Le cœur de la spécialisation est là. Le progrès vient maintenant du bon timing : aligner les vrais cooldowns et savoir interrompre la boucle quand le groupe a besoin de toi.", exercise = "Cherche surtout la régularité : moins de boutons pressés par réflexe, une ressource plus stable et des effets importants entretenus sans panique." }
     end
-    return { title = "Tu optimises", text = "Ton kit est avance. La difference se fait sur le timing, la duree de vie des cibles et l'alignement des vraies fenetres fortes.", exercise = "Compare ST et AOE, apprends les exceptions du combat et garde tes gros cooldowns pour une fenetre qui durera assez longtemps." }
+    return { title = "Tu peux maintenant affiner", text = "Ton kit est avancé. La différence se joue sur le timing, la durée de vie des cibles et le choix d'une vraie fenêtre pour tes gros cooldowns.", exercise = "Compare tes choix en ST et en AOE, puis repère les combats où il vaut mieux garder une rafale quelques secondes plutôt que la lancer par habitude." }
 end
 
 local function EntryByCategory(guide, category)
@@ -580,13 +591,29 @@ local function EntryByCategory(guide, category)
     return nil
 end
 
-local function EntryNames(guide, first, count)
+local function SequenceSentence(guide, first, count)
     local names = {}
     local index
     for index = first or 1, math.min(#guide.entries, (first or 1) + (count or 3) - 1) do
         table.insert(names, guide.entries[index].spell.name)
     end
-    return #names > 0 and table.concat(names, "  ->  ") or "Aucun enchainement fiable detecte pour le moment"
+    if #names == 0 then return "Je n'ai pas encore assez de sorts fiables pour raconter un enchaînement propre." end
+    if #names == 1 then return "Pour l'instant, ton point de repère est " .. names[1] .. "." end
+    if #names == 2 then return "Commence par " .. names[1] .. ", puis passe sur " .. names[2] .. "." end
+    local ending = names[#names]
+    table.remove(names, #names)
+    return "Commence par " .. table.concat(names, ", enchaîne avec ") .. ", puis termine ce passage avec " .. ending .. "."
+end
+
+local function NaturalList(values, emptyText)
+    local names = {}
+    local _, value
+    for _, value in ipairs(values or {}) do table.insert(names, tostring(value)) end
+    if #names == 0 then return emptyText or "Rien de particulier avec les sorts appris pour l'instant" end
+    if #names == 1 then return names[1] end
+    local ending = names[#names]
+    table.remove(names, #names)
+    return table.concat(names, ", ") .. " puis " .. ending
 end
 
 local function SituationalNames(curated)
@@ -604,30 +631,100 @@ local function GenericTeaching(guide)
     local role = currentCharacter.role
     local resource
     if builder and spender then
-        resource = builder.spell.name .. " construit ta ressource ; " .. spender.spell.name .. " la depense. Le jeu consiste surtout a passer de l'un a l'autre sans gaspiller."
+        resource = builder.spell.name .. " remplit ta ressource, tandis que " .. spender.spell.name .. " la transforme en résultat concret. Ton rythme vient de cet aller-retour."
     elseif role == "HEALER" then
-        resource = "Ton mana appartient au combat entier. Un soin sans degats a reparer est une depense inutile ; anticipe, puis reagis."
+        resource = "Ton mana doit tenir tout le combat. Prépare les dégâts prévisibles, puis soigne ce qui a réellement été perdu au lieu de remplir les barres par nervosité."
     elseif role == "TANK" then
-        resource = "Ta vraie ressource, c'est aussi le temps : garde la mitigation pour le choc qui compte et maintiens les ennemis sous controle entre deux dangers."
+        resource = "Ta vraie ressource, c'est aussi le temps. Garde la mitigation pour le choc qui compte et stabilise les ennemis pendant les moments plus calmes."
     else
-        resource = "Utilise les outils du haut pour preparer la cible, puis tes impacts directs pour convertir cette preparation en degats."
+        resource = "Prépare d'abord la cible ou ta propre fenêtre, puis transforme cette préparation en dégâts. Appuyer plus vite ne remplace pas le bon ordre."
     end
     local golden
-    if role == "HEALER" then golden = "Soigne une situation, pas un ordre de boutons : protections avant le choc, soins directs apres une vraie perte de vie."
-    elseif role == "TANK" then golden = "Survis d'abord, stabilise le pack ensuite, puis cherche les degats. Un tank mort ne termine aucune rotation."
-    elseif role == "SUPPORT" then golden = "Place l'utilitaire avant la fenetre du groupe, puis continue ta pression sans sacrifier la prochaine aide importante."
-    else golden = "La premiere ligne disponible gagne. Si sa condition n'est pas remplie, descends ; ne reste jamais bloque a attendre un seul bouton."
+    if role == "HEALER" then golden = "Tu ne soignes pas une liste de boutons, tu soignes une situation : protège avant le choc et rends la vie seulement quand elle manque."
+    elseif role == "TANK" then golden = "Reste en vie, stabilise le pack, puis cherche les dégâts. Dans cet ordre-là, les combats deviennent beaucoup plus simples."
+    elseif role == "SUPPORT" then golden = "Place ton utilitaire juste avant que le groupe en profite, puis continue ta pression sans sacrifier la prochaine aide importante."
+    else golden = "Prends le premier choix dont les conditions sont remplies. Si ce n'est pas le cas, descends d'une ligne au lieu d'attendre en regardant le bouton."
     end
     return {
         identity = guide.profile and guide.profile.style or "Ton spellbook determine ce que tu peux vraiment jouer aujourd'hui.",
         resource = resource,
+        opening = SequenceSentence(guide, 1, 3),
+        loop = "Une fois ce passage terminé, reviens au début et reprends le premier sort réellement disponible. La cible et la ressource peuvent changer l'ordre à chaque tour.",
         goldenRule = golden,
-        mistake = "Reciter la liste comme une macro. La cible, la ressource et les cooldowns ont toujours le dernier mot."
+        mistake = "Réciter la liste comme une macro. La cible, la ressource et les cooldowns ont toujours le dernier mot."
     }
 end
 
 local function TeachingFor(guide)
-    return guide.curated and guide.curated.teaching or GenericTeaching(guide)
+    local fallback = GenericTeaching(guide)
+    local exact = guide.curated and guide.curated.teaching or nil
+    if not exact then return fallback end
+    return {
+        identity = exact.identity or fallback.identity,
+        resource = exact.resource or fallback.resource,
+        opening = exact.opening or fallback.opening,
+        loop = exact.loop or fallback.loop,
+        goldenRule = exact.goldenRule or fallback.goldenRule,
+        mistake = exact.mistake or fallback.mistake
+    }
+end
+
+local function UpdateIdentity(item, index)
+    return tostring(item and item.id or (item and item.updatedAt) or index or "update")
+end
+
+local function UpdateSearchText(item)
+    local parts = { item.title, item.friendly, item.officialNote }
+    local _, tag
+    for _, tag in ipairs(item.tags or {}) do table.insert(parts, tag) end
+    return Lower(table.concat(parts, " "))
+end
+
+local function UpdateMatchesCharacter(item)
+    if type(item) ~= "table" then return false end
+    local searchable = UpdateSearchText(item)
+    if searchable == "" then return false end
+    if Contains(searchable, Lower(currentCharacter.className)) or Contains(searchable, Lower(currentCharacter.specName)) then return true end
+    local _, spell
+    for _, spell in ipairs(spellOrder) do
+        local name = Lower(spell.name)
+        if string.len(name) >= 5 and Contains(searchable, name) then return true end
+    end
+    return ContainsAny(searchable, { "all classes", "toutes les classes", "global class", "specialization system" })
+end
+
+local function RelevantUpdates()
+    local relevant = {}
+    local feed = CoARotationUpdateFeed
+    local _, item
+    for _, item in ipairs(type(feed) == "table" and type(feed.items) == "table" and feed.items or {}) do
+        if UpdateMatchesCharacter(item) then table.insert(relevant, item) end
+    end
+    return relevant
+end
+
+local function UpdateAcknowledgements()
+    EnsureDatabase()
+    local profileKey = tostring(currentCharacter.profileKey or currentCharacter.className or "GLOBAL")
+    if type(CoARotationGuideDB.updateAcknowledged[profileKey]) ~= "table" then
+        CoARotationGuideDB.updateAcknowledged[profileKey] = {}
+    end
+    return CoARotationGuideDB.updateAcknowledged[profileKey]
+end
+
+local function UnreadUpdateCount(items)
+    local seen = UpdateAcknowledgements()
+    local count, index = 0, 0
+    for index = 1, #(items or {}) do
+        if not seen[UpdateIdentity(items[index], index)] then count = count + 1 end
+    end
+    return count
+end
+
+local function AcknowledgeUpdates(items)
+    local seen = UpdateAcknowledgements()
+    local index
+    for index = 1, #(items or {}) do seen[UpdateIdentity(items[index], index)] = true end
 end
 
 local function SetRow(row, icon, title, body, explanation, badge, badgeColor, spell)
@@ -637,6 +734,7 @@ local function SetRow(row, icon, title, body, explanation, badge, badgeColor, sp
     row.why:SetText(explanation or "")
     row.badge:SetText(badge or "")
     row.spell = spell
+    row.update = nil
     local color = badgeColor or { 0.45, 0.82, 1 }
     row.badge:SetTextColor(color[1], color[2], color[3])
     row.title:SetTextColor(color[1], color[2], color[3])
@@ -646,7 +744,7 @@ end
 
 local function HideRows()
     local _, row
-    for _, row in ipairs(rows) do row.spell = nil; row:Hide() end
+    for _, row in ipairs(rows) do row.spell = nil; row.update = nil; row:Hide() end
 end
 
 local function RefreshButtons()
@@ -658,12 +756,15 @@ local function RefreshButtons()
     buttons.learn:SetText(viewMode == "LEARN" and "• COMPRENDRE •" or "COMPRENDRE")
     buttons.rotation:SetText(viewMode == "ROTATION" and "• ROTATION •" or "ROTATION")
     buttons.situations:SetText(viewMode == "SITUATIONS" and "• SITUATIONS •" or "SITUATIONS")
+    local unread = UnreadUpdateCount(RelevantUpdates())
+    local updateLabel = unread > 0 and ("ACTUS (" .. tostring(unread) .. ")") or "ACTUS"
+    buttons.updates:SetText(viewMode == "UPDATES" and ("• " .. updateLabel .. " •") or updateLabel)
     buttons.sources:SetText(viewMode == "SOURCES" and "• SOURCES •" or "SOURCES")
 end
 
-local function RefreshPagination(guide)
+local function RefreshPagination(guide, updateCount)
     if not buttons.previous or not buttons.next or not guideFrame.page then return end
-    if viewMode ~= "ROTATION" then
+    if viewMode ~= "ROTATION" and viewMode ~= "UPDATES" then
         buttons.previous:Hide()
         buttons.next:Hide()
         guideFrame.page:Hide()
@@ -672,12 +773,14 @@ local function RefreshPagination(guide)
     buttons.previous:Show()
     buttons.next:Show()
     guideFrame.page:Show()
-    local totalPages = math.max(1, math.ceil(#guide.entries / PAGE_SIZE))
+    local totalItems = viewMode == "UPDATES" and (tonumber(updateCount) or 0) or #guide.entries
+    local totalPages = math.max(1, math.ceil(totalItems / PAGE_SIZE))
     guidePage = Clamp(guidePage, 1, totalPages)
-    if #guide.entries == 0 then
-        guideFrame.page:SetText("Aucune etape fiable")
+    if totalItems == 0 then
+        guideFrame.page:SetText(viewMode == "UPDATES" and "Aucune actualité pertinente" or "Aucune étape fiable")
     else
-        guideFrame.page:SetText("Etapes " .. tostring((guidePage - 1) * PAGE_SIZE + 1) .. "-" .. tostring(math.min(guidePage * PAGE_SIZE, #guide.entries)) .. " / " .. tostring(#guide.entries))
+        local label = viewMode == "UPDATES" and "Actualités " or "Étapes "
+        guideFrame.page:SetText(label .. tostring((guidePage - 1) * PAGE_SIZE + 1) .. "-" .. tostring(math.min(guidePage * PAGE_SIZE, totalItems)) .. " / " .. tostring(totalItems))
     end
     if guidePage <= 1 then buttons.previous:Disable() else buttons.previous:Enable() end
     if guidePage >= totalPages then buttons.next:Disable() else buttons.next:Enable() end
@@ -690,16 +793,43 @@ local function RefreshDisplay()
     local roleColor = RoleColor(currentCharacter.role)
     local chapter = LevelChapter(currentCharacter.level)
     local teaching = TeachingFor(guide)
-    local preparation = #guide.preparation > 0 and table.concat(guide.preparation, "  ->  ") or "Rien de particulier avec les sorts actuellement appris"
+    local preparation = NaturalList(guide.preparation, "Rien de particulier avec les sorts actuellement appris")
     guideFrame.character:SetText(currentCharacter.className .. "  •  " .. currentCharacter.specName .. "  •  niveau " .. tostring(currentCharacter.level) .. "  •  " .. RoleLabel(currentCharacter.role))
     guideFrame.stage:SetText(chapter.title .. "  •  " .. guide.stage)
     if guideFrame.planBox then guideFrame.planBox:SetBackdropBorderColor(roleColor[1], roleColor[2], roleColor[3], 0.95) end
     RefreshButtons()
     HideRows()
 
+    if viewMode == "UPDATES" then
+        local relevant = RelevantUpdates()
+        AcknowledgeUpdates(relevant)
+        RefreshButtons()
+        RefreshPagination(guide, #relevant)
+        guideFrame.plan:SetText("Ce qui a changé pour ton personnage\nLe manager lit les sources Ascension, puis le guide ne garde ici que ce qui ressemble à ta classe, ta spécialisation ou un sort appris.")
+        guideFrame.preparation:SetText(#relevant > 0 and "Je te préviens d'abord ; je ne change jamais ta rotation en silence avant une vérification." or "Aucune note récente ne semble concerner ce personnage.")
+        if #relevant == 0 then
+            SetRow(rows[1], "Interface\\Icons\\INV_Misc_Note_06", "Rien à signaler pour l'instant", "La veille fonctionne, mais aucun changement récent ne correspond à ton personnage actuel.",
+                "Ouvre le manager de temps en temps : World of Warcraft 3.3.5 ne peut pas consulter Internet tout seul.", "À JOUR", { 0.48, 0.90, 0.55 })
+        else
+            local firstUpdate = (guidePage - 1) * PAGE_SIZE + 1
+            local rowIndex
+            for rowIndex = 1, PAGE_SIZE do
+                local item = relevant[firstUpdate + rowIndex - 1]
+                if item and rows[rowIndex] then
+                    SetRow(rows[rowIndex], "Interface\\Icons\\INV_Misc_Note_05", tostring(item.kind or "Mise à jour") .. "  •  " .. string.sub(tostring(item.updatedAt or ""), 1, 10),
+                        Shorten(item.friendly, 175), "Note officielle : " .. Shorten(item.officialNote, 145), "ASCENSION", { 1.00, 0.62, 0.22 })
+                    rows[rowIndex].update = item
+                end
+            end
+        end
+        local feed = CoARotationUpdateFeed or {}
+        guideFrame.source:SetText("Veille synchronisée : " .. tostring(feed.generatedAt or "jamais") .. "  •  source : " .. tostring(feed.sourceUrl or "https://ascension.gg/en/changelog/4"))
+        return
+    end
+
     if viewMode == "SOURCES" then
-        guideFrame.plan:SetText("D'ou viennent les conseils ?\nJe recoupe les guides, le changelog officiel et surtout ton vrai spellbook. Une approximation reste toujours etiquetee comme telle.")
-        guideFrame.preparation:SetText("Methode : le spellbook du personnage reste la source de verite ; les guides ne servent qu'a ordonner ce qui est vraiment appris.")
+        guideFrame.plan:SetText("D'où viennent les conseils ?\nJe recoupe les guides, le changelog officiel et surtout ton vrai spellbook. Quand une partie reste incertaine, je te le dis au lieu de la présenter comme une vérité.")
+        guideFrame.preparation:SetText("La règle reste simple : ton personnage passe avant la théorie. Un sort absent de ton spellbook ne doit jamais apparaître dans ton parcours.")
         local index, source
         for index, source in ipairs(DATA.sources or {}) do
             if rows[index] then
@@ -720,18 +850,18 @@ local function RefreshDisplay()
     end
 
     if viewMode == "LEARN" then
-        guideFrame.plan:SetText("Bienvenue dans ta specialisation.\nIci, on commence par comprendre le plan de jeu ; la liste de boutons vient seulement apres.")
-        guideFrame.preparation:SetText("Ton cap actuel : " .. chapter.title .. ". Avance bloc par bloc, sans essayer de tout retenir en une fois.")
-        SetRow(rows[1], "Interface\\Icons\\INV_Misc_Book_09", "1. Ta specialisation, en une phrase", teaching.identity,
-            "En clair : " .. tostring(guide.plan), "TON IDENTITE", roleColor)
+        guideFrame.plan:SetText("On va prendre le temps de comprendre ton personnage.\nPas de pavé théorique : d'abord l'idée générale, ensuite le déroulé d'un combat, puis les détails quand tu en as besoin.")
+        guideFrame.preparation:SetText("À ton niveau : " .. chapter.title .. ". Lis un bloc, essaie-le en jeu, puis reviens quand le geste devient naturel.")
+        SetRow(rows[1], "Interface\\Icons\\INV_Misc_Book_09", "1. Voilà ce que tu joues vraiment", teaching.identity,
+            "Si tu ne gardes qu'une image en tête : " .. tostring(guide.plan), "L'IDÉE GÉNÉRALE", roleColor)
         SetRow(rows[2], "Interface\\Icons\\INV_Misc_Rune_06", "2. Le moteur de ton gameplay", teaching.resource,
-            "C'est ce mecanisme que tu dois regarder pendant le combat, bien avant de chercher a reciter tous les sorts.", "RESSOURCE / RYTHME", { 0.35, 0.78, 1.00 })
-        SetRow(rows[3], guide.entries[1] and guide.entries[1].spell.icon, "3. Ta boucle avec les sorts appris", EntryNames(guide, 1, 4),
-            "Commence par comprendre ce petit chemin. Si un sort n'est pas disponible, descends dans la priorite puis repars au debut.", "TA BOUCLE ACTUELLE", { 1.00, 0.72, 0.22 }, guide.entries[1] and guide.entries[1].spell)
-        SetRow(rows[4], "Interface\\Icons\\INV_Misc_Map_01", "4. Ton objectif au niveau " .. tostring(currentCharacter.level), chapter.text,
-            "Petit exercice : " .. chapter.exercise, "PROGRESSION", { 0.48, 0.90, 0.55 })
-        SetRow(rows[5], "Interface\\Icons\\INV_Misc_Note_06", "5. La regle d'or", teaching.goldenRule,
-            "Le piege classique : " .. teaching.mistake, "A RETENIR", { 1.00, 0.48, 0.30 })
+            "C'est ce mouvement-là qu'il faut sentir en combat. Les noms de sorts viendront beaucoup plus facilement une fois le rythme compris.", "TON RYTHME", { 0.35, 0.78, 1.00 })
+        SetRow(rows[3], guide.entries[1] and guide.entries[1].spell.icon, "3. À quoi ressemble un combat", teaching.opening,
+            "Une fois lancé : " .. teaching.loop, "LE DÉROULÉ", { 1.00, 0.72, 0.22 }, guide.entries[1] and guide.entries[1].spell)
+        SetRow(rows[4], "Interface\\Icons\\INV_Misc_Map_01", "4. Ce que tu peux travailler maintenant", chapter.text,
+            "Essaie ça : " .. chapter.exercise, "NIVEAU " .. tostring(currentCharacter.level), { 0.48, 0.90, 0.55 })
+        SetRow(rows[5], "Interface\\Icons\\INV_Misc_Note_06", "5. Le conseil que je te donnerais avant de partir", teaching.goldenRule,
+            "Le piège le plus courant : " .. teaching.mistake, "À RETENIR", { 1.00, 0.48, 0.30 })
         guideFrame.source:SetText("Parcours personnalise • " .. tostring(guide.spellCount) .. " sorts appris • " .. tostring(guide.talentCount) .. " talents actifs • passe ensuite dans ROTATION")
         RefreshPagination(guide)
         return
@@ -746,29 +876,29 @@ local function RefreshDisplay()
         local emergency = #situational > 0 and table.concat(situational, "  /  ") or execute and execute.spell.name or "Ton soin, defensif ou controle appris le plus adapte"
         local resourceBody
         if builder and spender then
-            resourceBody = "Ressource basse : " .. builder.spell.name .. ".  Ressource prete : " .. spender.spell.name .. "."
+            resourceBody = "Quand la ressource baisse, reviens sur " .. builder.spell.name .. ". Quand elle est prête, " .. spender.spell.name .. " te permet de la convertir."
         else
             resourceBody = teaching.resource
         end
-        guideFrame.plan:SetText("Un bon joueur ne suit pas la meme ligne dans toutes les situations.\nCette page t'apprend quand sortir de la boucle, puis comment y revenir proprement.")
+        guideFrame.plan:SetText("Aucun combat ne se déroule exactement comme sur une fiche.\nCette page t'aide à reconnaître les moments où tu dois sortir de la boucle, régler le problème, puis reprendre sans paniquer.")
         guideFrame.preparation:SetText("Avant le pull : " .. preparation)
         SetRow(rows[1], "Interface\\Icons\\INV_Misc_Food_64", "Avant le combat", preparation,
             "Fais cette preparation avant le pull. Une fois le combat lance, ne remets pas un buff deja actif au milieu de ta pression.", "PREPARATION", { 0.86, 0.66, 0.25 })
-        SetRow(rows[2], guide.entries[1] and guide.entries[1].spell.icon, "Ton ouverture avec ce que tu connais", EntryNames(guide, 1, 3),
-            "L'ouverture installe le combat. Apres ces premieres actions, ne continue pas comme une macro : repasse sur la priorite normale.", "OUVERTURE", roleColor, guide.entries[1] and guide.entries[1].spell)
+        SetRow(rows[2], guide.entries[1] and guide.entries[1].spell.icon, "Les premières secondes du combat", teaching.opening,
+            "Après cette mise en place, arrête de réciter : " .. teaching.loop, "OUVERTURE", roleColor, guide.entries[1] and guide.entries[1].spell)
         SetRow(rows[3], builder and builder.spell.icon or spender and spender.spell.icon, "Quand ta ressource change", resourceBody,
-            "Le but est simple : reconstruire sans deborder, depenser sans tomber a vide au mauvais moment.", "RESSOURCE", { 0.35, 0.78, 1.00 }, builder and builder.spell or spender and spender.spell)
+            "Cherche un rythme souple : reconstruire avant la panne, puis dépenser avant de rester bloqué au maximum.", "RESSOURCE", { 0.35, 0.78, 1.00 }, builder and builder.spell or spender and spender.spell)
         SetRow(rows[4], aoe and aoe.spell.icon, "Une cible ou plusieurs ?", aoe and ("Sur un pack stable, regarde " .. aoe.spell.name .. ". En monocible, reste sur les priorites ST.") or "Aucun sort de zone fiable n'est encore appris.",
-            "A partir de trois ennemis regroupes, le mode AOE devient generalement interessant. S'ils sont disperses ou vont mourir tout de suite, reste simple.", "ST / AOE", { 0.72, 0.48, 1.00 }, aoe and aoe.spell)
+            "À partir de trois ennemis vraiment regroupés, l'AOE devient généralement intéressante. S'ils sont dispersés ou presque morts, reste sur un choix simple.", "ST / AOE", { 0.72, 0.48, 1.00 }, aoe and aoe.spell)
         SetRow(rows[5], "Interface\\Icons\\Spell_Holy_FlashHeal", "Quand il faut casser la rotation", emergency,
-            "Soin, defensif, interruption ou execution : utilise-les parce que la situation le demande. Une fois le probleme regle, repars en haut de la priorite.", "REACTION", { 1.00, 0.48, 0.30 })
+            "Soin, défensif, interruption ou exécution : tu les sors parce que le combat le demande. Une fois le problème réglé, reviens tranquillement au début de la priorité.", "RÉACTION", { 1.00, 0.48, 0.30 })
         guideFrame.source:SetText("Situations adaptees a ton niveau et a ton spellbook • la page ROTATION reste ton fil conducteur")
         RefreshPagination(guide)
         return
     end
 
-    guideFrame.plan:SetText("Ta rotation, tranquillement.\nLis de haut en bas : prends le premier sort disponible dont la condition est remplie, puis repars en haut.")
-    guideFrame.preparation:SetText("Preparation separee : " .. preparation .. ". Les soins et defensifs reactifs sont ranges dans SITUATIONS.")
+    guideFrame.plan:SetText("Voici ta priorité du moment.\nLis-la comme une série de questions : le premier choix est-il prêt et utile maintenant ? Sinon, passe au suivant sans rester bloqué.")
+    guideFrame.preparation:SetText("Avant le combat : " .. preparation .. ". Les soins et défensifs de réaction restent volontairement dans SITUATIONS.")
     RefreshPagination(guide)
     local first = (guidePage - 1) * PAGE_SIZE + 1
     local rowIndex
@@ -776,10 +906,10 @@ local function RefreshDisplay()
         local index = first + rowIndex - 1
         local entry = guide.entries[index]
         if entry then
-            local badge = entry.curated and "SOURCE" or "ADAPTATIF"
+            local badge = entry.curated and "GUIDE VÉRIFIÉ" or "SELON TES SORTS"
             local color = entry.curated and { 0.35, 1, 0.45 } or { 0.40, 0.78, 1 }
-            if entry.talentName then badge = "TALENT : " .. string.upper(entry.talentName) end
-            if not entry.curated and not entry.talentName then badge = "ADAPTATIF • TOOLTIP" end
+            if entry.talentName then badge = "AVEC " .. string.upper(entry.talentName) end
+            if not entry.curated and not entry.talentName then badge = "REPÈRE PRUDENT" end
             SetRow(rows[rowIndex], entry.spell.icon, tostring(index) .. ".  " .. entry.spell.name, entry.instruction, entry.explanation, badge, color, entry.spell)
         end
     end
@@ -790,10 +920,37 @@ local function RefreshDisplay()
     guideFrame.source:SetText(quality .. "  •  " .. tostring(guide.spellCount) .. " sorts  •  " .. tostring(guide.talentCount) .. " talents  •  " .. tostring(guide.talentRules) .. " priorite(s) talent")
 end
 
+local function OpenUpdatePage()
+    guidePage = 1
+    viewMode = "UPDATES"
+    RefreshDisplay()
+    if guideFrame then guideFrame:Show() end
+    if updatePopup then updatePopup:Hide() end
+end
+
+local function PromptForRelevantUpdates()
+    if sessionUpdatePrompted or not updatePopup then return end
+    local relevant = RelevantUpdates()
+    local unread = UnreadUpdateCount(relevant)
+    if unread <= 0 then return end
+    sessionUpdatePrompted = true
+    local first = relevant[1]
+    updatePopup.message:SetText(tostring(unread) .. " changement(s) Ascension peuvent concerner "
+        .. tostring(currentCharacter.className) .. " - " .. tostring(currentCharacter.specName) .. ".\n\n"
+        .. Shorten(first and first.friendly or "Le guide a reçu de nouvelles notes officielles.", 210))
+    updatePopup:Show()
+    Chat(tostring(unread) .. " mise(s) à jour Ascension semblent concerner ton personnage. Ouvre /rotation actus pour les lire.")
+    if CoAMessageCenter and type(CoAMessageCenter.AddMessage) == "function" then
+        CoAMessageCenter:AddMessage("CoA Rotation Guide", tostring(unread) .. " changement(s) Ascension à vérifier pour "
+            .. tostring(currentCharacter.className) .. " - " .. tostring(currentCharacter.specName) .. ".", "warning")
+    end
+end
+
 local function FullScan(silent)
     ScanTalents()
     ScanSpellbook()
     RefreshDisplay()
+    PromptForRelevantUpdates()
     if not silent then
         Chat(tostring(#spellOrder) .. " sorts et " .. tostring(#activeTalentList) .. " talents lus pour " .. tostring(currentCharacter.className) .. " - " .. tostring(currentCharacter.specName) .. ".")
     end
@@ -954,11 +1111,12 @@ local function BuildInterface()
     guideFrame.stage:SetWidth(640)
     guideFrame.stage:SetJustifyH("LEFT")
 
-    buttons.learn = MakeButton(nil, "COMPRENDRE", 145, 18, -80)
-    buttons.rotation = MakeButton(nil, "ROTATION", 125, 168, -80)
-    buttons.situations = MakeButton(nil, "SITUATIONS", 135, 298, -80)
-    buttons.sources = MakeButton(nil, "SOURCES", 105, 438, -80)
-    buttons.refresh = MakeButton(nil, "ACTUALISER", 114, 548, -80)
+    buttons.learn = MakeButton(nil, "COMPRENDRE", 126, 18, -80)
+    buttons.rotation = MakeButton(nil, "ROTATION", 105, 149, -80)
+    buttons.situations = MakeButton(nil, "SITUATIONS", 115, 259, -80)
+    buttons.updates = MakeButton(nil, "ACTUS", 100, 379, -80)
+    buttons.sources = MakeButton(nil, "SOURCES", 90, 484, -80)
+    buttons.refresh = MakeButton(nil, "ACTUAL.", 84, 579, -80)
 
     buttons.solo = MakeButton(nil, "SOLO", 78, 18, -108)
     buttons.group = MakeButton(nil, "GROUPE", 82, 100, -108)
@@ -968,6 +1126,7 @@ local function BuildInterface()
     buttons.learn:SetScript("OnClick", function() guidePage = 1; viewMode = "LEARN"; RefreshDisplay() end)
     buttons.rotation:SetScript("OnClick", function() guidePage = 1; viewMode = "ROTATION"; RefreshDisplay() end)
     buttons.situations:SetScript("OnClick", function() guidePage = 1; viewMode = "SITUATIONS"; RefreshDisplay() end)
+    buttons.updates:SetScript("OnClick", OpenUpdatePage)
     buttons.sources:SetScript("OnClick", function() guidePage = 1; viewMode = "SOURCES"; RefreshDisplay() end)
     buttons.solo:SetScript("OnClick", function() CoARotationGuideDB.content = "SOLO"; guidePage = 1; RefreshDisplay() end)
     buttons.group:SetScript("OnClick", function() CoARotationGuideDB.content = "GROUP"; guidePage = 1; RefreshDisplay() end)
@@ -1043,13 +1202,21 @@ local function BuildInterface()
         row.badge:SetJustifyH("RIGHT")
         row:EnableMouse(true)
         row:SetScript("OnEnter", function(self)
-            if not self.spell then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            if GameTooltip.SetSpellBookItem then
+            if self.update then
+                GameTooltip:AddLine(tostring(self.update.kind or "Mise à jour Ascension"), 1, 0.75, 0.2)
+                GameTooltip:AddLine(tostring(self.update.friendly or ""), 1, 1, 1, true)
+                GameTooltip:AddLine(" ", 1, 1, 1)
+                GameTooltip:AddLine("Note officielle", 0.45, 0.82, 1)
+                GameTooltip:AddLine(tostring(self.update.officialNote or ""), 0.85, 0.88, 0.92, true)
+                GameTooltip:AddLine(tostring(self.update.sourceUrl or ""), 0.55, 0.65, 0.75, true)
+            elseif self.spell and GameTooltip.SetSpellBookItem then
                 pcall(GameTooltip.SetSpellBookItem, GameTooltip, self.spell.index, BOOKTYPE_SPELL or "spell")
-            else
+            elseif self.spell then
                 GameTooltip:AddLine(self.spell.name, 1, 0.82, 0)
                 GameTooltip:AddLine(self.spell.tooltip or "", 1, 1, 1, true)
+            else
+                return
             end
             GameTooltip:Show()
         end)
@@ -1081,6 +1248,42 @@ local function BuildInterface()
     guideFrame.source:SetPoint("BOTTOMLEFT", guideFrame, "BOTTOMLEFT", 18, 14)
     guideFrame.source:SetWidth(644)
     guideFrame.source:SetJustifyH("LEFT")
+
+    updatePopup = CreateFrame("Frame", "CoARotationGuideUpdatePopup", UIParent)
+    updatePopup:SetWidth(470)
+    updatePopup:SetHeight(178)
+    updatePopup:SetPoint("TOP", UIParent, "TOP", 0, -120)
+    updatePopup:SetFrameStrata("DIALOG")
+    updatePopup:SetClampedToScreen(true)
+    updatePopup:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true, tileSize = 32, edgeSize = 24,
+        insets = { left = 8, right = 8, top = 8, bottom = 8 }
+    })
+    updatePopup:SetBackdropColor(0.055, 0.035, 0.015, 0.98)
+    updatePopup:SetBackdropBorderColor(1.00, 0.62, 0.18, 1.00)
+    local updateTitle = updatePopup:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    updateTitle:SetPoint("TOP", updatePopup, "TOP", 0, -18)
+    updateTitle:SetText("Le jeu a changé depuis ton dernier passage")
+    updateTitle:SetTextColor(1.00, 0.78, 0.22)
+    updatePopup.message = updatePopup:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    updatePopup.message:SetPoint("TOPLEFT", updatePopup, "TOPLEFT", 24, -48)
+    updatePopup.message:SetWidth(422)
+    updatePopup.message:SetJustifyH("LEFT")
+    local readUpdates = CreateFrame("Button", nil, updatePopup, "UIPanelButtonTemplate")
+    readUpdates:SetWidth(170)
+    readUpdates:SetHeight(24)
+    readUpdates:SetPoint("BOTTOMLEFT", updatePopup, "BOTTOMLEFT", 45, 18)
+    readUpdates:SetText("VOIR CE QUI A CHANGÉ")
+    readUpdates:SetScript("OnClick", OpenUpdatePage)
+    local later = CreateFrame("Button", nil, updatePopup, "UIPanelButtonTemplate")
+    later:SetWidth(150)
+    later:SetHeight(24)
+    later:SetPoint("BOTTOMRIGHT", updatePopup, "BOTTOMRIGHT", -45, 18)
+    later:SetText("PLUS TARD")
+    later:SetScript("OnClick", function() updatePopup:Hide() end)
+    updatePopup:Hide()
 
     if UISpecialFrames then table.insert(UISpecialFrames, "CoARotationGuideFrame") end
     RestorePosition()
@@ -1116,6 +1319,8 @@ local function SlashHandler(message)
         guidePage = 1; viewMode = "LEARN"; RefreshDisplay(); guideFrame:Show()
     elseif command == "situation" or command == "situations" then
         guidePage = 1; viewMode = "SITUATIONS"; RefreshDisplay(); guideFrame:Show()
+    elseif command == "actus" or command == "updates" or command == "maj" then
+        OpenUpdatePage()
     elseif command == "sources" or command == "method" or command == "methode" then
         viewMode = "SOURCES"; RefreshDisplay(); guideFrame:Show()
     elseif command == "status" then
@@ -1127,7 +1332,7 @@ local function SlashHandler(message)
         CoARotationGuideDB.minimap.angle = 2.65
         RestorePosition(); PositionMinimapButton(); Chat("Positions reinitialisees.")
     else
-        Chat("/rotation | comprendre | pourquoi | situations | scan | status | st | aoe | solo | groupe | sources | minimap | reset")
+        Chat("/rotation | comprendre | pourquoi | situations | actus | scan | status | st | aoe | solo | groupe | sources | minimap | reset")
     end
 end
 

@@ -276,9 +276,15 @@ function renderCoaWatch() {
   $('#watchHeadline').textContent = failed
     ? 'Le rapport de veille n’est pas encore accessible.'
     : `${coaWatch?.newCount || 0} nouveauté(s), ${coaWatch?.significantCount || 0} changement(s) significatif(s)`;
+  const gameFeed = coaWatch?.gameFeed;
+  const gameFeedText = gameFeed?.written
+    ? ` ${gameFeed.count || 0} changement(s) pertinent(s) ont aussi été transmis au Guide de Rotation en jeu.`
+    : gameFeed?.reason === 'rotation-guide-not-installed'
+      ? ' Installez le Guide de Rotation pour recevoir ces alertes directement en jeu.'
+      : '';
   $('#watchDescription').textContent = failed
     ? coaWatch.remoteError
-    : `Dernière vérification : ${generated}. Les recommandations restent soumises à validation avant modification des addons.`;
+    : `Dernière vérification : ${generated}. Les recommandations restent soumises à validation avant modification des addons.${gameFeedText}`;
   $('#watchSources').innerHTML = (coaWatch?.sources || []).map(source => `
     <a href="${escapeAttribute(safeExternalUrl(source.url))}" target="_blank" rel="noreferrer" class="watch-source ${source.status}">
       <span>${source.status === 'ok' ? '✓' : '!'}</span><b>${escapeHtml(source.name)}</b><small>${source.status === 'ok' ? `${source.checked} élément(s) lus` : escapeHtml(source.error)}</small>

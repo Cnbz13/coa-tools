@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { classifyImpact, flattenChangelog, groupRecommendations, normalizeNews, runCoaWatch } from '../src/core/coa-watch.js';
+import luaparse from 'luaparse';
+import { AddonManager } from '../src/core/addons.js';
+import {
+  classifyImpact, createRotationUpdateFeed, flattenChangelog, groupRecommendations,
+  normalizeNews, runCoaWatch, serializeRotationUpdateFeed
+} from '../src/core/coa-watch.js';
 
 const changelogPayload = {
   current_page: 1, last_page: 1,
@@ -58,9 +63,38 @@ test('impact rules map spell, proc, dispel and interface changes to the affected
   });
   assert.equal(result.significant, true);
   assert.deepEqual(result.impacts.map(item => item.component), [
-    'combat-assistant', 'event-alert', 'grid-compat', 'ui-manager'
+    'combat-assistant', 'rotation-guide', 'event-alert', 'grid-compat', 'ui-manager'
   ]);
   assert.equal(result.confidence, 'élevée');
+});
+
+test('rotation watch creates a natural Lua 5.1 feed and writes it into the installed guide', async () => {
+  const item = classifyImpact({
+    id: '900', sourceId: 'ascension-coa-changelog', sourceType: 'official',
+    title: 'Changement CoA du 2026/08/24',
+    summary: '[Chronomancer] Chaos Infusion has been reworked and now changes Melt Reality.',
+    publishedAt: '2026-08-24T01:00:00Z', updatedAt: '2026-08-24T01:00:00Z',
+    url: 'https://ascension.gg/en/changelog/4'
+  });
+  const report = { generatedAt: '2026-08-24T02:00:00Z', items: [item] };
+  const feed = createRotationUpdateFeed(report);
+  assert.equal(feed.items.length, 1);
+  assert.deepEqual(feed.items[0].tags, ['Chronomancer']);
+  assert.match(feed.items[0].friendly, /développeurs ont revu Chronomancer/);
+
+  const lua = serializeRotationUpdateFeed(report);
+  assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1' }));
+  assert.match(lua, /CoARotationUpdateFeed = \{/);
+
+  const root = await mkdtemp(path.join(os.tmpdir(), 'coa-game-feed-'));
+  const addonsDir = path.join(root, 'Interface', 'AddOns');
+  const guideDir = path.join(addonsDir, 'CoARotationGuide');
+  await mkdir(guideDir, { recursive: true });
+  const manager = new AddonManager({ dataDir: path.join(root, 'data'), canonicalPath: addonsDir, environmentPath: null });
+  const result = await manager.writeRotationUpdateFeed(lua, feed);
+  assert.equal(result.written, true);
+  assert.equal(result.count, 1);
+  assert.equal(await readFile(path.join(guideDir, 'CoARotationUpdates.lua'), 'utf8'), lua);
 });
 
 test('rank-by-rank changelog entries are grouped into one readable recommendation', () => {

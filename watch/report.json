@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-17T08:01:15.722Z",
-  "previousCheckAt": "2026-08-10T10:02:54.486Z",
-  "newCount": 54,
-  "rawNewCount": 54,
-  "significantCount": 45,
+  "generatedAt": "2026-08-24T08:06:58.314Z",
+  "previousCheckAt": "2026-08-17T08:01:15.722Z",
+  "newCount": 56,
+  "rawNewCount": 62,
+  "significantCount": 50,
   "sources": [
     {
       "id": "ascension-coa-changelog",
@@ -21,9 +21,1428 @@
       "status": "ok",
       "checked": 40,
       "primary": true
+    },
+    {
+      "id": "coa-talent-dataset",
+      "name": "Données publiques des 21 arbres CoA",
+      "url": "https://github.com/srhinos/coa-datamine/tree/master/data/talents/coa",
+      "status": "ok",
+      "checked": 1,
+      "primary": false
     }
   ],
   "items": [
+    {
+      "id": "71714",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/22",
+      "summary": "[Chronomancer] Chaos Infusion has been reworked - it now increases the duration of Incarnation of Chaos by 3 sec and removes the cooldown of Melt Reality while active",
+      "publishedAt": "2026-08-22T19:51:03",
+      "updatedAt": "2026-08-22T19:51:22",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71714"
+      ]
+    },
+    {
+      "id": "71711",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/22",
+      "summary": "[Primalist] Stone Skin and Earthbreaker now both also work with Geodes (such as those triggered from Terrasmash)",
+      "publishedAt": "2026-08-22T19:51:01",
+      "updatedAt": "2026-08-22T19:51:22",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71711"
+      ]
+    },
+    {
+      "id": "71710",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/22",
+      "summary": "[Primalist] King of the Mountain now also grants you 30% of your Stamina as attack power",
+      "publishedAt": "2026-08-22T19:51:00",
+      "updatedAt": "2026-08-22T19:51:22",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": false,
+      "confidence": "moyenne",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71710"
+      ]
+    },
+    {
+      "id": "71708",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/22",
+      "summary": "[Primalist] Resources of the Earth now also gives 4% critical strike chance",
+      "publishedAt": "2026-08-22T19:50:59",
+      "updatedAt": "2026-08-22T19:51:22",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": false,
+      "confidence": "moyenne",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71708"
+      ]
+    },
+    {
+      "id": "71707",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/22",
+      "summary": "[Primalist] Mountain Mover now also gives 5% more Wildclaw damage per stack",
+      "publishedAt": "2026-08-22T19:50:57",
+      "updatedAt": "2026-08-22T19:51:22",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71707"
+      ]
+    },
+    {
+      "id": "71706",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/22",
+      "summary": "[Primalist] Terrasmash now has a 60% chance to proc up from 30%",
+      "publishedAt": "2026-08-22T19:50:56",
+      "updatedAt": "2026-08-22T19:51:22",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71706"
+      ]
+    },
+    {
+      "id": "71705",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/22",
+      "summary": "[Primalist] Earth's Rage now gives 3% Haste up from 2%",
+      "publishedAt": "2026-08-22T19:50:55",
+      "updatedAt": "2026-08-22T19:51:22",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71705"
+      ]
+    },
+    {
+      "id": "71704",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/22",
+      "summary": "[Primalist] Bash now deals 100% weapon damage up from 50%.",
+      "publishedAt": "2026-08-22T19:50:54",
+      "updatedAt": "2026-08-22T19:51:22",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71704"
+      ]
+    },
+    {
+      "id": "71698",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Barbarian] Ancestor's Fury now also increases your Frost critical strike chance",
+      "publishedAt": "2026-08-21T22:35:02",
+      "updatedAt": "2026-08-21T22:35:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": false,
+      "confidence": "moyenne",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71698"
+      ]
+    },
+    {
+      "id": "71691",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Barbarian] Increased Keg Smash attack power scaling from 15% to 18.3%.",
+      "publishedAt": "2026-08-21T22:34:57",
+      "updatedAt": "2026-08-21T22:34:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71691"
+      ]
+    },
+    {
+      "id": "71690",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Barbarian] Increased Breath of the North attack power scaling from 20% to 27%.",
+      "publishedAt": "2026-08-21T22:34:56",
+      "updatedAt": "2026-08-21T22:34:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71690"
+      ]
+    },
+    {
+      "id": "71673",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Pending Restart] - Timerend's damage now additionally scales with Haste Rating.",
+      "publishedAt": "2026-08-21T21:23:28",
+      "updatedAt": "2026-08-21T21:23:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71673"
+      ]
+    },
+    {
+      "id": "71672",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Pending Restart] - Melt Reality's damage now additionally scales with Haste Rating.",
+      "publishedAt": "2026-08-21T21:23:16",
+      "updatedAt": "2026-08-21T21:23:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71672"
+      ]
+    },
+    {
+      "id": "71671",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Pending Restart] - Unmake's damage now additionally scales with Haste Rating.",
+      "publishedAt": "2026-08-21T21:23:07",
+      "updatedAt": "2026-08-21T21:23:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71671"
+      ]
+    },
+    {
+      "id": "71670",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Pending Restart] - Decomposition's damage now additionally scales with Haste Rating.",
+      "publishedAt": "2026-08-21T21:22:52",
+      "updatedAt": "2026-08-21T21:22:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71670"
+      ]
+    },
+    {
+      "id": "71668",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Templar] Increased Scarlet Hammer weapon damage from 155% to 190%.",
+      "publishedAt": "2026-08-21T21:19:04",
+      "updatedAt": "2026-08-21T21:19:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71668"
+      ]
+    },
+    {
+      "id": "71667",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Templar] Increased Argent Blade spell power scaling from 100% to 135%.",
+      "publishedAt": "2026-08-21T21:19:03",
+      "updatedAt": "2026-08-21T21:19:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71667"
+      ]
+    },
+    {
+      "id": "71666",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Templar] Increased Argent Blade attack power scaling from 35% to 47.25%.",
+      "publishedAt": "2026-08-21T21:19:03",
+      "updatedAt": "2026-08-21T21:19:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71666"
+      ]
+    },
+    {
+      "id": "71665",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Templar] Increased Argent Blade weapon damage from 160% to 215%.",
+      "publishedAt": "2026-08-21T21:19:01",
+      "updatedAt": "2026-08-21T21:19:57",
+      "url": "https://ascension.gg/en/changelog/4",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71665"
+      ]
+    },
+    {
+      "id": "71545",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Stormbringer] Fixed a bug where Arm of Thorim was receiving less spell power scaling than stated in the tooltip. It now correctly scales with 120% of your spell power.",
+      "publishedAt": "2026-08-21T21:15:38",
+      "updatedAt": "2026-08-21T21:15:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71545"
+      ]
+    },
+    {
+      "id": "71544",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Stormbringer] Aurat Scripts now has an additional effect with Gale synergy.",
+      "publishedAt": "2026-08-21T21:15:37",
+      "updatedAt": "2026-08-21T21:15:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": false,
+      "confidence": "moyenne",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71544"
+      ]
+    },
+    {
+      "id": "71543",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Stormbringer] Wind Gate: Evacuate now has 2 charges",
+      "publishedAt": "2026-08-21T21:15:36",
+      "updatedAt": "2026-08-21T21:15:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": false,
+      "confidence": "moyenne",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71543"
+      ]
+    },
+    {
+      "id": "71541",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Stormbringer] Comforting Winds has been increased to 2% per stack up from 1%.",
+      "publishedAt": "2026-08-21T21:15:32",
+      "updatedAt": "2026-08-21T21:15:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71541"
+      ]
+    },
+    {
+      "id": "71538",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Knight of Xoroth] Fixed a bug where the Render talent wasn't correctly updating your attack speed.",
+      "publishedAt": "2026-08-21T21:13:09",
+      "updatedAt": "2026-08-21T21:13:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71538"
+      ]
+    },
+    {
+      "id": "71534",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Knight of Xoroth] Consuming Blade now gives 30/60% critical strike chance to Gore up from 25/50",
+      "publishedAt": "2026-08-21T21:13:06",
+      "updatedAt": "2026-08-21T21:13:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71534"
+      ]
+    },
+    {
+      "id": "71532",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Felsworn] Increased the base duration of Bane of Chaos to 21 sec up from 18 sec",
+      "publishedAt": "2026-08-21T21:11:55",
+      "updatedAt": "2026-08-21T21:11:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71532"
+      ]
+    },
+    {
+      "id": "71531",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Felsworn] Increased Bane of Chaos periodic spell power scaling from 16.15% to 25.84%.",
+      "publishedAt": "2026-08-21T21:11:54",
+      "updatedAt": "2026-08-21T21:11:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71531"
+      ]
+    },
+    {
+      "id": "71524",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Felsworn] Increased the damage of Chaos (the Inner Demon trigger effect from Bane of Chaos) by 200 base damage (scaling with level) and it now has 58% SP scaling up from 30%.",
+      "publishedAt": "2026-08-21T21:11:49",
+      "updatedAt": "2026-08-21T21:11:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71524"
+      ]
+    },
+    {
+      "id": "71523",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Felsworn] Increased Azzinoth's Assault attack power scaling from 30% to 40%.",
+      "publishedAt": "2026-08-21T21:11:48",
+      "updatedAt": "2026-08-21T21:11:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71523"
+      ]
+    },
+    {
+      "id": "group-fc467a364dc24aac",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "7 changements CoA regroupés",
+      "summary": "7 rangs ou variantes du même changement ont été regroupés. Exemple : [Felsworn] Increased Annihilan Strike Rank 7 weapon damage from 180% to 260% against monsters.",
+      "publishedAt": "2026-08-21T21:11:41",
+      "updatedAt": "2026-08-21T21:11:57",
+      "url": "https://ascension.gg/en/changelog/4?page=2",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71515",
+        "71514",
+        "71513",
+        "71512",
+        "71511",
+        "71510",
+        "71509"
+      ]
+    },
+    {
+      "id": "71491",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Felsworn] Increased the duration of Oblivion to 8 sec from 4 sec",
+      "publishedAt": "2026-08-21T21:11:16",
+      "updatedAt": "2026-08-21T21:11:57",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71491"
+      ]
+    },
+    {
+      "id": "71490",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Felsworn] Pitlord’s Rage now grants 25% increased Physical Damage up from 15% and 15% increased critical strike chance up from 6%.",
+      "publishedAt": "2026-08-21T21:11:16",
+      "updatedAt": "2026-08-21T21:11:57",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71490"
+      ]
+    },
+    {
+      "id": "71487",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/21",
+      "summary": "[Felsworn] Unbound now once again grants 15% of your Agility as critical strike rating.",
+      "publishedAt": "2026-08-21T21:11:13",
+      "updatedAt": "2026-08-21T21:11:57",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": false,
+      "confidence": "moyenne",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71487"
+      ]
+    },
+    {
+      "id": "71486",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Ranger - Bushcraft] Bushcraft Gliders now have no duration, and instead only break on landing, or damage taken.",
+      "publishedAt": "2026-08-20T22:36:34",
+      "updatedAt": "2026-08-20T22:37:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71486"
+      ]
+    },
+    {
+      "id": "71485",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Death] - Plague Science has been buffed to 125% from 100% to really bring death upon your foes.",
+      "publishedAt": "2026-08-20T22:03:06",
+      "updatedAt": "2026-08-20T22:04:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71485"
+      ]
+    },
+    {
+      "id": "71483",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart][Sun Cleric] Valkyr's Grip offhand weapon damage increase up to 30/60% from 20/40%.",
+      "publishedAt": "2026-08-20T20:52:21",
+      "updatedAt": "2026-08-20T20:53:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71483"
+      ]
+    },
+    {
+      "id": "71469",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart][Templar] Blade Sermon chance to proc Zealotry reduced from 10/20% to 5/10%.",
+      "publishedAt": "2026-08-20T20:45:43",
+      "updatedAt": "2026-08-20T20:46:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71469"
+      ]
+    },
+    {
+      "id": "71468",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart][Tinker] Freeze Bomb Launcher slow value reduced from 15% per stack to 10%. Duration reduced from 10 sec to 8 sec.",
+      "publishedAt": "2026-08-20T20:45:42",
+      "updatedAt": "2026-08-20T20:46:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71468"
+      ]
+    },
+    {
+      "id": "71466",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart][Tinker] Scrapshielding now has a 10 second internal cooldown.",
+      "publishedAt": "2026-08-20T20:45:40",
+      "updatedAt": "2026-08-20T20:46:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71466"
+      ]
+    },
+    {
+      "id": "71464",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart][Necromancer] Undead minions now take additional damage in PVP.",
+      "publishedAt": "2026-08-20T20:45:39",
+      "updatedAt": "2026-08-20T20:46:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "combat-assistant",
+          "name": "CoA Combat Assistant",
+          "suggestion": "Réexaminer les priorités, ressources, portées et conditions de la recommandation."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
+      "new": true,
+      "rawIds": [
+        "71464"
+      ]
+    },
+    {
+      "id": "71463",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart][Necromancer] Mass Grave cooldown increased from 30 sec to 40 sec.",
+      "publishedAt": "2026-08-20T20:45:38",
+      "updatedAt": "2026-08-20T20:46:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "combat-assistant",
+          "name": "CoA Combat Assistant",
+          "suggestion": "Réexaminer les priorités, ressources, portées et conditions de la recommandation."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
+      "new": true,
+      "rawIds": [
+        "71463"
+      ]
+    },
+    {
+      "id": "71462",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart][Necromancer] Life For Power fixed to only apply below 50% health (Was previously mistakenly applying at any health value)",
+      "publishedAt": "2026-08-20T20:45:37",
+      "updatedAt": "2026-08-20T20:46:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "combat-assistant",
+          "name": "CoA Combat Assistant",
+          "suggestion": "Réexaminer les priorités, ressources, portées et conditions de la recommandation."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
+      "new": true,
+      "rawIds": [
+        "71462"
+      ]
+    },
+    {
+      "id": "71461",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart][Necromancer] Undead minions now move at a more standard pace across them. (100% to 120% from 100% to 200% ranges)",
+      "publishedAt": "2026-08-20T20:45:36",
+      "updatedAt": "2026-08-20T20:46:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "combat-assistant",
+          "name": "CoA Combat Assistant",
+          "suggestion": "Réexaminer les priorités, ressources, portées et conditions de la recommandation."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
+      "new": true,
+      "rawIds": [
+        "71461"
+      ]
+    },
+    {
+      "id": "71460",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart][Necromancer] Undead: Assault speed value reduced from 50% to 30%.",
+      "publishedAt": "2026-08-20T20:45:35",
+      "updatedAt": "2026-08-20T20:46:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "combat-assistant",
+          "name": "CoA Combat Assistant",
+          "suggestion": "Réexaminer les priorités, ressources, portées et conditions de la recommandation."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
+      "new": true,
+      "rawIds": [
+        "71460"
+      ]
+    },
+    {
+      "id": "71459",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart][Necromancer] Raise: Ghoul healing done reduced by 30%.",
+      "publishedAt": "2026-08-20T20:45:34",
+      "updatedAt": "2026-08-20T20:46:03",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "combat-assistant",
+          "name": "CoA Combat Assistant",
+          "suggestion": "Réexaminer les priorités, ressources, portées et conditions de la recommandation."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
+      "new": true,
+      "rawIds": [
+        "71459"
+      ]
+    },
+    {
+      "id": "71448",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "Recasting Champion of the Sun now maintains one stack, refreshes its full duration, and can no longer temporarily double its damage or prematurely remove the renewed effect.",
+      "publishedAt": "2026-08-20T18:28:14",
+      "updatedAt": "2026-08-20T18:28:59",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71448"
+      ]
+    },
+    {
+      "id": "71446",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "Overhauled backend proc classification and propagation for Sun Cleric abilities. Glorious Execution, Vow of the Valkyr, Justice, Radiance, and Dawnfall can now properly trigger talents, tier-set bonuses, items and other proc effects.",
+      "publishedAt": "2026-08-20T18:27:59",
+      "updatedAt": "2026-08-20T18:28:00",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        },
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71446"
+      ]
+    },
+    {
+      "id": "71341",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart] - Fixed a bug where Onyxia Tier Worldforged held in offhands did not have a proper spell power.",
+      "publishedAt": "2026-08-20T06:20:40",
+      "updatedAt": "2026-08-20T06:20:59",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71341"
+      ]
+    },
+    {
+      "id": "71338",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/20",
+      "summary": "[Pending Restart] - Fixed a bug where certain held in offhands had very low spell power and did not properly scale in the Mythic+ system.",
+      "publishedAt": "2026-08-20T06:17:45",
+      "updatedAt": "2026-08-20T06:17:59",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71338"
+      ]
+    },
+    {
+      "id": "71335",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/19",
+      "summary": "Resilience on gear is now 25% more powerful in how much damage reduction it provides you.",
+      "publishedAt": "2026-08-19T23:21:07",
+      "updatedAt": "2026-08-19T23:21:59",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71335"
+      ]
+    },
+    {
+      "id": "71334",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/19",
+      "summary": "[Pending Restart] - Item Level 74 PvP Gear has been released and tailored towards the stat needs of Conquest of Azeroth Classes. Regular PvP gear will remain available under \"Legacy\" tab of gear and has also been upgraded to 74 item level.",
+      "publishedAt": "2026-08-19T22:09:51",
+      "updatedAt": "2026-08-19T22:09:59",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71334"
+      ]
+    },
+    {
+      "id": "71331",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/19",
+      "summary": "[Pending Restart] - Faction Leader's Immersive RPG Drops have been increased to 72 item level and are guaranteed to drop 3 pieces.",
+      "publishedAt": "2026-08-19T21:20:05",
+      "updatedAt": "2026-08-19T21:20:59",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71331"
+      ]
+    },
+    {
+      "id": "71266",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/18",
+      "summary": "[Ranger] Highlander now removes cost of your next Falconstrike instead of increasing its damage. Duration of buff window increased from 10 sec to 15 sec.",
+      "publishedAt": "2026-08-18T20:12:41",
+      "updatedAt": "2026-08-18T20:12:59",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71266"
+      ]
+    },
+    {
+      "id": "71263",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/18",
+      "summary": "[Ranger] Duration of Gutpiercer increased from 15 sec to 30 sec.",
+      "publishedAt": "2026-08-18T20:12:38",
+      "updatedAt": "2026-08-18T20:12:59",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "event-alert",
+          "name": "EventAlertCoA",
+          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "new": true,
+      "rawIds": [
+        "71263"
+      ]
+    },
+    {
+      "id": "71186",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/18",
+      "summary": "Worldforged item upgrade costs are now capped at the Onyxia tier rate. Upgrading these items beyond Onyxia will no longer require additional Runes of Ascension.",
+      "publishedAt": "2026-08-18T05:12:42",
+      "updatedAt": "2026-08-18T05:12:59",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71186"
+      ]
+    },
+    {
+      "id": "71182",
+      "sourceId": "ascension-coa-changelog",
+      "sourceName": "Changelog officiel Conquest of Azeroth",
+      "sourceType": "official",
+      "title": "Changement CoA du 2026/08/17",
+      "summary": "[Pending Restart] - Slightly reduced how much benefit the Weapon Engravings from Runemaster get from their updated behavior with the creature RPG overhaul.",
+      "publishedAt": "2026-08-17T16:50:48",
+      "updatedAt": "2026-08-17T16:50:59",
+      "url": "https://ascension.gg/en/changelog/4?page=3",
+      "impacts": [
+        {
+          "component": "loot-decider",
+          "name": "CoA Loot Decider",
+          "suggestion": "Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes."
+        }
+      ],
+      "significant": true,
+      "confidence": "élevée",
+      "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes.",
+      "new": true,
+      "rawIds": [
+        "71182"
+      ]
+    },
     {
       "id": "71134",
       "sourceId": "ascension-coa-changelog",
@@ -44,7 +1463,7 @@
       "significant": false,
       "confidence": "moyenne",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71134"
       ]
@@ -69,7 +1488,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71132"
       ]
@@ -94,7 +1513,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71127"
       ]
@@ -119,7 +1538,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71096"
       ]
@@ -144,7 +1563,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71094"
       ]
@@ -169,7 +1588,7 @@
       "significant": false,
       "confidence": "moyenne",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71086"
       ]
@@ -194,7 +1613,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71079"
       ]
@@ -219,7 +1638,7 @@
       "significant": false,
       "confidence": "moyenne",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71074"
       ]
@@ -244,7 +1663,7 @@
       "significant": false,
       "confidence": "moyenne",
       "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71065"
       ]
@@ -269,7 +1688,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71062"
       ]
@@ -294,7 +1713,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71055"
       ]
@@ -319,7 +1738,7 @@
       "significant": false,
       "confidence": "moyenne",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71050"
       ]
@@ -344,7 +1763,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71049"
       ]
@@ -369,7 +1788,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71024"
       ]
@@ -394,7 +1813,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "71013"
       ]
@@ -419,7 +1838,7 @@
       "significant": false,
       "confidence": "moyenne",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70981"
       ]
@@ -444,7 +1863,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70977"
       ]
@@ -469,7 +1888,7 @@
       "significant": false,
       "confidence": "moyenne",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70974"
       ]
@@ -494,7 +1913,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70969"
       ]
@@ -519,7 +1938,7 @@
       "significant": false,
       "confidence": "moyenne",
       "reason": "GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70966"
       ]
@@ -544,7 +1963,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70961"
       ]
@@ -569,7 +1988,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70960"
       ]
@@ -594,7 +2013,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70858"
       ]
@@ -619,7 +2038,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70821"
       ]
@@ -644,7 +2063,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70820"
       ]
@@ -669,7 +2088,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70818"
       ]
@@ -694,7 +2113,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70817"
       ]
@@ -719,7 +2138,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70808"
       ]
@@ -744,7 +2163,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70805"
       ]
@@ -769,7 +2188,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70791"
       ]
@@ -794,7 +2213,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70790"
       ]
@@ -819,7 +2238,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70789"
       ]
@@ -844,7 +2263,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70788"
       ]
@@ -869,7 +2288,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70787"
       ]
@@ -894,7 +2313,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70775"
       ]
@@ -919,7 +2338,7 @@
       "significant": false,
       "confidence": "moyenne",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70770"
       ]
@@ -949,7 +2368,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées. GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70752"
       ]
@@ -979,7 +2398,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées. GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70751"
       ]
@@ -1009,7 +2428,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées. GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70750"
       ]
@@ -1034,7 +2453,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70746"
       ]
@@ -1059,7 +2478,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70743"
       ]
@@ -1084,7 +2503,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70739"
       ]
@@ -1109,7 +2528,7 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70690"
       ]
@@ -1134,1119 +2553,9 @@
       "significant": true,
       "confidence": "élevée",
       "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
+      "new": false,
       "rawIds": [
         "70689"
-      ]
-    },
-    {
-      "id": "70688",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/12",
-      "summary": "[Primalist] - Heavy Earth duration increased to 10 sec from 8 sec.",
-      "publishedAt": "2026-08-12T00:14:10",
-      "updatedAt": "2026-08-12T00:14:59",
-      "url": "https://ascension.gg/en/changelog/4?page=4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
-      "rawIds": [
-        "70688"
-      ]
-    },
-    {
-      "id": "70685",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/12",
-      "summary": "[Primalist] - Geomolding now stacks 10 times down from 20, but now gives 10% increased Terrasurge damage per stack up from 3% and increases its rage cost by 3 per stack up from 2.",
-      "publishedAt": "2026-08-12T00:14:06",
-      "updatedAt": "2026-08-12T00:14:59",
-      "url": "https://ascension.gg/en/changelog/4?page=4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
-      "rawIds": [
-        "70685"
-      ]
-    },
-    {
-      "id": "70680",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/12",
-      "summary": "[Primalist] - Everlasting Rage now adds 6 sec to the duration of Seismic Tremor up from 5 sec.",
-      "publishedAt": "2026-08-12T00:14:01",
-      "updatedAt": "2026-08-12T00:14:59",
-      "url": "https://ascension.gg/en/changelog/4?page=4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
-      "rawIds": [
-        "70680"
-      ]
-    },
-    {
-      "id": "70676",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/11",
-      "summary": "[Pending Restart] - Mojo Beam now heals for 30% less, but now heals every 0.7 seconds from 1s. This means with the new mechanic, you can hit more targets faster. This is a net buff if you have 3 targets to heal.",
-      "publishedAt": "2026-08-11T23:48:43",
-      "updatedAt": "2026-08-11T23:48:59",
-      "url": "https://ascension.gg/en/changelog/4?page=4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
-      "rawIds": [
-        "70676"
-      ]
-    },
-    {
-      "id": "70674",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/11",
-      "summary": "[Witch Doctor] - [Brewing] - The level 20 passive has been BUFFED to increase your spell power by 40% of your spirit, up from 25%. However, no longer provides critical strike rating and instead increases your mana regeneration by 100% of your spirit.",
-      "publishedAt": "2026-08-11T23:47:31",
-      "updatedAt": "2026-08-11T23:47:59",
-      "url": "https://ascension.gg/en/changelog/4?page=4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
-      "rawIds": [
-        "70674"
-      ]
-    },
-    {
-      "id": "70522",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/11",
-      "summary": "[Witch Hunter] Pending Restart - Brushin' Off The Dusk now also procs Replenishment.",
-      "publishedAt": "2026-08-11T16:59:34",
-      "updatedAt": "2026-08-11T16:59:59",
-      "url": "https://ascension.gg/en/changelog/4?page=4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
-      "rawIds": [
-        "70522"
-      ]
-    },
-    {
-      "id": "70518",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/11",
-      "summary": "[Pyromancer] Aspect of Time value inherited from intial hit increased from 40% to 45%. (This affects each trigger in a proc chain)",
-      "publishedAt": "2026-08-11T16:27:23",
-      "updatedAt": "2026-08-11T16:27:59",
-      "url": "https://ascension.gg/en/changelog/4?page=4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
-      "rawIds": [
-        "70518"
-      ]
-    },
-    {
-      "id": "70517",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/11",
-      "summary": "[Pyromancer] Fire and Brimstone value increased from 1% per stack to 2% per stack.",
-      "publishedAt": "2026-08-11T16:23:47",
-      "updatedAt": "2026-08-11T16:23:59",
-      "url": "https://ascension.gg/en/changelog/4?page=4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
-      "rawIds": [
-        "70517"
-      ]
-    },
-    {
-      "id": "70515",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/11",
-      "summary": "[Starcaller] Duration of Lunar Swiftness increased from 8 sec to 15 sec.",
-      "publishedAt": "2026-08-11T16:19:12",
-      "updatedAt": "2026-08-11T16:19:59",
-      "url": "https://ascension.gg/en/changelog/4?page=4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
-      "rawIds": [
-        "70515"
-      ]
-    },
-    {
-      "id": "70514",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/11",
-      "summary": "[Starcaller] Duration of Elune's Grace increased from 10 sec to 15 sec.",
-      "publishedAt": "2026-08-11T16:16:57",
-      "updatedAt": "2026-08-11T16:16:59",
-      "url": "https://ascension.gg/en/changelog/4?page=4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": true,
-      "rawIds": [
-        "70514"
-      ]
-    },
-    {
-      "id": "70392",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/09",
-      "summary": "[Pending Restart] - Manafeed now ticks 50% harder, heals for 50% harder but now triggers every 2 seconds up from every 0.5 seconds, lasts for 6 seconds up from 5 and can be interrupted and is now correctly susceptible to spell pushback.",
-      "publishedAt": "2026-08-09T22:32:08",
-      "updatedAt": "2026-08-09T22:32:55",
-      "url": "https://ascension.gg/en/changelog/4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70392"
-      ]
-    },
-    {
-      "id": "70382",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/09",
-      "summary": "[Pending Restart] - Chromatic Damage will no longer be resistable or benefit from creature vulnerabilities.",
-      "publishedAt": "2026-08-09T15:19:09",
-      "updatedAt": "2026-08-09T15:19:55",
-      "url": "https://ascension.gg/en/changelog/4",
-      "impacts": [
-        {
-          "component": "combat-assistant",
-          "name": "CoA Combat Assistant",
-          "suggestion": "Réexaminer les priorités, ressources, portées et conditions de la recommandation."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": false,
-      "rawIds": [
-        "70382"
-      ]
-    },
-    {
-      "id": "70375",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/08",
-      "summary": "[Pending Restart][Witch Hunter] Fixed an issue which caused Rampaging Hounds to sometimes not cleave and not affect Lesser Shadow Hounds, while making it hit the primary target. Note: New implementation allows Lesser Shadow Hounds to cleave and the cleave to trigger Shadow Rage damage but no longer double hits the main target.",
-      "publishedAt": "2026-08-08T12:13:39",
-      "updatedAt": "2026-08-08T12:13:55",
-      "url": "https://ascension.gg/en/changelog/4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70375"
-      ]
-    },
-    {
-      "id": "70372",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/07",
-      "summary": "Fixed a bug where Necromancer MInions were dealing more damage than intended in PvP and bypassing resilience on gear.",
-      "publishedAt": "2026-08-07T22:55:24",
-      "updatedAt": "2026-08-07T22:55:55",
-      "url": "https://ascension.gg/en/changelog/4",
-      "impacts": [
-        {
-          "component": "combat-assistant",
-          "name": "CoA Combat Assistant",
-          "suggestion": "Réexaminer les priorités, ressources, portées et conditions de la recommandation."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": false,
-      "rawIds": [
-        "70372"
-      ]
-    },
-    {
-      "id": "70357",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/07",
-      "summary": "[Felsworn] Doomstride has been reworked. It no longer can provide Felsworn with more dashes, it now has an anti-curse and magic effect synergy instead of providing a refresh to Chaos Rush charges. While you are at 100% health, you have 100% chance to resist the next curse or magic effect cast on you. This got truncated on the last changelog post and is reposted.",
-      "publishedAt": "2026-08-07T22:35:30",
-      "updatedAt": "2026-08-07T22:35:55",
-      "url": "https://ascension.gg/en/changelog/4",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        },
-        {
-          "component": "grid-compat",
-          "name": "GridCoA",
-          "suggestion": "Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées. GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": false,
-      "rawIds": [
-        "70357"
-      ]
-    },
-    {
-      "id": "70276",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/07",
-      "summary": "[Felsworn] Doomstride has been reworked. It no longer can provide Felsworn with more dashes, it now has an anti-curse and magic effect synergy instead of providing a refresh to Chaos Rush charges. While you are at 100% health, you have 100% chance to",
-      "publishedAt": "2026-08-07T22:33:41",
-      "updatedAt": "2026-08-07T22:33:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        },
-        {
-          "component": "grid-compat",
-          "name": "GridCoA",
-          "suggestion": "Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées. GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": false,
-      "rawIds": [
-        "70276"
-      ]
-    },
-    {
-      "id": "70275",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/07",
-      "summary": "[Barbarian] Whirling Advance now has 2 charges. This effect has a 6 second recharge now. We are going to continue to monitor their barbarian's mobility in PvP.",
-      "publishedAt": "2026-08-07T22:33:40",
-      "updatedAt": "2026-08-07T22:33:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70275"
-      ]
-    },
-    {
-      "id": "70274",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/07",
-      "summary": "[Pending Restart] [Pyromancer - Draconic] Draconic Tempest can now also trigger from Lava Shard.",
-      "publishedAt": "2026-08-07T22:33:39",
-      "updatedAt": "2026-08-07T22:33:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70274"
-      ]
-    },
-    {
-      "id": "70269",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/07",
-      "summary": "[Pending Restart] [Pyromancer - Draconic] Damage of Aspect of Time is now calculated from first cast on all subsequent triggers, rather than a percentage of each-recast. This is approximately over a 60%+ buff for this spell at maximum recast count.",
-      "publishedAt": "2026-08-07T22:14:42",
-      "updatedAt": "2026-08-07T22:14:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70269"
-      ]
-    },
-    {
-      "id": "70257",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/07",
-      "summary": "Fixed a bug with Outrage and Bloodthirsty - where you could refresh it often enough to NOT get any benefit to the extension increase. Now, you can only add to its duration when the addition will get full value.",
-      "publishedAt": "2026-08-07T17:20:37",
-      "updatedAt": "2026-08-07T17:20:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70257"
-      ]
-    },
-    {
-      "id": "70256",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/07",
-      "summary": "[Necromancer] Note: Previous update of Corpse Explosion spell incorrectly noted an increase to its cooldown from 10 seconds to 30 seconds, The actual intended and applied value is 60 seconds.",
-      "publishedAt": "2026-08-07T16:37:23",
-      "updatedAt": "2026-08-07T16:37:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "combat-assistant",
-          "name": "CoA Combat Assistant",
-          "suggestion": "Réexaminer les priorités, ressources, portées et conditions de la recommandation."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": false,
-      "rawIds": [
-        "70256"
-      ]
-    },
-    {
-      "id": "70254",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "[Templar] Increased the per stack increase from Zealotry to Upheaval to 10% from 5%",
-      "publishedAt": "2026-08-06T23:34:10",
-      "updatedAt": "2026-08-06T23:34:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70254"
-      ]
-    },
-    {
-      "id": "70248",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "[Templar] Blessing of Aggramar has been reworked to now refresh the duration of an active Blade of Faith on all nearby enemies when you use an Oath Breaker with at least 10 stacks of Oath Chain",
-      "publishedAt": "2026-08-06T23:33:57",
-      "updatedAt": "2026-08-06T23:34:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70248"
-      ]
-    },
-    {
-      "id": "70242",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "[Templar] Oath Chain now increases the duration of your Oath Chain by 20% instead of a flat 5 sec.",
-      "publishedAt": "2026-08-06T23:33:47",
-      "updatedAt": "2026-08-06T23:33:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70242"
-      ]
-    },
-    {
-      "id": "70232",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "[Templar] Blade Sermon now also gives a 10/20% chance for Zealotry to trigger twice.",
-      "publishedAt": "2026-08-06T23:33:32",
-      "updatedAt": "2026-08-06T23:33:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70232"
-      ]
-    },
-    {
-      "id": "70193",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "[Templar] Base duration of Oath Chain increased to 15 sec from 10 sec",
-      "publishedAt": "2026-08-06T23:32:59",
-      "updatedAt": "2026-08-06T23:33:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70193"
-      ]
-    },
-    {
-      "id": "70192",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "[Templar] Warrior of Tyr now has a 100% chance to proc up from 20%",
-      "publishedAt": "2026-08-06T23:32:58",
-      "updatedAt": "2026-08-06T23:33:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70192"
-      ]
-    },
-    {
-      "id": "70191",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "[Templar] Increased the duration of Blade of Faith to 30 sec from 21",
-      "publishedAt": "2026-08-06T23:32:57",
-      "updatedAt": "2026-08-06T23:33:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70191"
-      ]
-    },
-    {
-      "id": "70190",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "[Templar] Increased the duration of Condemn to 21 sec from 15",
-      "publishedAt": "2026-08-06T23:32:56",
-      "updatedAt": "2026-08-06T23:33:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70190"
-      ]
-    },
-    {
-      "id": "70187",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "[Templar] Argent Blade no longer extends the duration of your Oath Chain, and now instead triggers Scourgebane.",
-      "publishedAt": "2026-08-06T23:32:53",
-      "updatedAt": "2026-08-06T23:32:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70187"
-      ]
-    },
-    {
-      "id": "70186",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "[Templar] Reduced the maximum stacks of Oath buffs to 10 (was 20). Once you reach 10 you can no longer stack Oaths.",
-      "publishedAt": "2026-08-06T23:32:53",
-      "updatedAt": "2026-08-06T23:32:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70186"
-      ]
-    },
-    {
-      "id": "70185",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/06",
-      "summary": "Crypt Plague can now be applied via multiple necromancers.",
-      "publishedAt": "2026-08-06T20:00:52",
-      "updatedAt": "2026-08-06T20:00:55",
-      "url": "https://ascension.gg/en/changelog/4?page=2",
-      "impacts": [
-        {
-          "component": "combat-assistant",
-          "name": "CoA Combat Assistant",
-          "suggestion": "Réexaminer les priorités, ressources, portées et conditions de la recommandation."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "CoA Combat Assistant : Réexaminer les priorités, ressources, portées et conditions de la recommandation.",
-      "new": false,
-      "rawIds": [
-        "70185"
-      ]
-    },
-    {
-      "id": "70176",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/05",
-      "summary": "Chrysalis now has a 1 second icd between triggering so you can't instantly dispense all 12 charges within seconds.",
-      "publishedAt": "2026-08-05T21:00:28",
-      "updatedAt": "2026-08-05T21:00:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": false,
-      "confidence": "moyenne",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70176"
-      ]
-    },
-    {
-      "id": "70173",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/05",
-      "summary": "[Pending Restart] [Cultist] Devourer reworked. No longer causes Devour Magic to dispel multiple magic effects, but instead causes it to affect up to 2 additional nearby allies. Additionally, added a switch node with Devourer, Rapid Hunger, which removes the cast time of Devour Magic, allowing you to choose to dispel multiple allies per cast, or dispel only one target instantly.",
-      "publishedAt": "2026-08-05T17:27:08",
-      "updatedAt": "2026-08-05T17:27:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "grid-compat",
-          "name": "GridCoA",
-          "suggestion": "Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "GridCoA : Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.",
-      "new": false,
-      "rawIds": [
-        "70173"
-      ]
-    },
-    {
-      "id": "70169",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/05",
-      "summary": "Judge's Gavel is temporarily disabled in PvP while we address an issue with its proc rate.",
-      "publishedAt": "2026-08-05T13:46:36",
-      "updatedAt": "2026-08-05T13:46:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70169"
-      ]
-    },
-    {
-      "id": "70167",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/05",
-      "summary": "[Pending Restart] [Bloodmage] Dark Essence now ticks every 1.5 seconds, up from 1 second (1 total tick lost over the duration).",
-      "publishedAt": "2026-08-05T13:30:36",
-      "updatedAt": "2026-08-05T13:30:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70167"
-      ]
-    },
-    {
-      "id": "70086",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/05",
-      "summary": "[Pending Restart] - [Venomancer] Ophidian Renewal has been reworked to give Alkahest the ability to cause your next Emerald Veil to be instant cast and Ophidian Renewal has been renamed to Viridian renewal and its previous effect to increase the duration of Mending Mist, Shadra's Balm and Shadra's Prayer has been baked in baseline, increasing the duration of each by 3 sec.",
-      "publishedAt": "2026-08-05T02:34:12",
-      "updatedAt": "2026-08-05T02:34:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70086"
-      ]
-    },
-    {
-      "id": "70081",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/05",
-      "summary": "[Pending Restart] - [Sun Cleric] - Holy Form has been reworked: It now reads - While at or above 30% mana, you sacrifice additional mana with each heal, healing your ally affected by your Bless. Developers note: This heal is based on your amont of mana and can critically strike and trigger effects like the Redeemer. The more mana you have, the more you sacrifice, the more you heal: 2,000 heal, 100% mana, it heals my blessed target for 1,000 I sacrifice 250 mana.",
-      "publishedAt": "2026-08-05T02:28:45",
-      "updatedAt": "2026-08-05T02:28:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70081"
-      ]
-    },
-    {
-      "id": "70063",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/04",
-      "summary": "[Pending Restart][Witch Hunter] Witch Hunter now has a 100% chance to proc up from 30%.",
-      "publishedAt": "2026-08-04T17:22:41",
-      "updatedAt": "2026-08-04T17:22:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70063"
-      ]
-    },
-    {
-      "id": "70027",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/04",
-      "summary": "[Pending Restart] [Chronomancer] Epic Recovery reworked slightly. Now triggers the max known rank of Epoch at 50% efficiency, up from rank 1, but only affects 2 additional targets, down from 5. Additionally, the additional Epochs triggered by Epic Recovery can now trigger all Aeons. Developers Note: The goal here is that by allowing it to trigger at max rank as well as trigger aeons, this gives an easier time keeping up those bonuses, as well as allowing for an easier time spreading Accelerated Recovery. In line with the goal above of reducing blanket coverage at the push of a single button, target count has gone down and it triggers with reduced efficiency. The reduced efficiency trigger will still be a larger heal than the rank 1 version would be, as it gains proper SP coefficients.",
-      "publishedAt": "2026-08-04T14:31:09",
-      "updatedAt": "2026-08-04T14:31:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "70027"
-      ]
-    },
-    {
-      "id": "69954",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/03",
-      "summary": "[Runemaster] Mind Wrath - has been buffed as a switch node with Battle Engravings. It now affects 2 targets up from 1.",
-      "publishedAt": "2026-08-03T19:04:09",
-      "updatedAt": "2026-08-03T19:04:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "69954"
-      ]
-    },
-    {
-      "id": "69949",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/03",
-      "summary": "[Pending Restart] - Aeon of Protection now stacks when you heal the same target, but is capped to the target's max health * 20%.",
-      "publishedAt": "2026-08-03T17:26:20",
-      "updatedAt": "2026-08-03T17:26:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "69949"
-      ]
-    },
-    {
-      "id": "69948",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/03",
-      "summary": "[Pending Restart] - Aeon of Protection now stacks when you heal the same target, but is capped to the target's health * 20%.",
-      "publishedAt": "2026-08-03T17:24:22",
-      "updatedAt": "2026-08-03T17:24:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "69948"
-      ]
-    },
-    {
-      "id": "69931",
-      "sourceId": "ascension-coa-changelog",
-      "sourceName": "Changelog officiel Conquest of Azeroth",
-      "sourceType": "official",
-      "title": "Changement CoA du 2026/08/03",
-      "summary": "[Pending Restart] - Weaver Form in Rot Venomancer now has a 15% chance to trigger its mana restoration effect up from 5%.",
-      "publishedAt": "2026-08-03T15:00:59",
-      "updatedAt": "2026-08-03T15:01:55",
-      "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
-      "new": false,
-      "rawIds": [
-        "69931"
       ]
     }
   ]

@@ -229,7 +229,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     if CoALootDeciderDB.needLockedChests == nil then CoALootDeciderDB.needLockedChests = true end
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.16.0-rotation-progression"
+    CoALootDeciderDB.version = "1.16.1-standalone-minimap"
 end
 
 local function ReadItemStats(itemLink)
@@ -1585,6 +1585,7 @@ local function PrintHelp()
     Chat("/cld threshold auto - revient au seuil de classe/global")
     Chat("/cld weight <stat> <valeur|auto> - surcharge un poids")
     Chat("/cld history - ouvre l'historique visuel ; /cld history clear l'efface")
+    Chat("/cld minimap show|hide|reset - affiche, masque ou replace le bouton dédié")
     Chat("/cld heretic - rappelle les priorites Heretic CAC")
     Chat("/cld sanguine - rappelle les priorites Bloodmage Sanguine")
 end
@@ -1625,6 +1626,18 @@ SlashCmdList.COALOOTDECIDER = function(message)
         PrintAdaptiveDetails()
     elseif command == "gear" then
         if CoALootAdvisor_Toggle then CoALootAdvisor_Toggle() else Chat("interface de comparaison indisponible") end
+    elseif command == "minimap" then
+        local action = Lower(rest)
+        if action == "hide" or action == "masquer" then
+            if CoALootAdvisor_SetMinimapVisible then CoALootAdvisor_SetMinimapVisible(false) end
+            Chat("bouton de minicarte masqué ; /cld minimap show pour le retrouver")
+        elseif action == "reset" or action == "reinitialiser" then
+            if CoALootAdvisor_ResetMinimapButton then CoALootAdvisor_ResetMinimapButton() end
+            Chat("bouton de minicarte replacé")
+        else
+            if CoALootAdvisor_SetMinimapVisible then CoALootAdvisor_SetMinimapVisible(true) end
+            Chat("bouton de minicarte affiché")
+        end
     elseif command == "visuals" then
         if CoALootAdvisor_ToggleVisuals then
             Chat("conseils visuels " .. (CoALootAdvisor_ToggleVisuals() and "ACTIVES" or "desactives"))

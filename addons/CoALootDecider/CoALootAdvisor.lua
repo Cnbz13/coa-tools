@@ -8,6 +8,7 @@ local REFRESH_DELAY = 0.20
 local MAX_BAG_BUTTONS = 36
 local MAX_CONTAINER_FRAMES = 13
 local MERCHANT_PAGE_SIZE = 10
+local LOOT_MINIMAP_DEFAULT_ANGLE = 2.75
 
 local refreshPending = false
 local refreshElapsed = 0
@@ -19,6 +20,7 @@ local analysisCache = {}
 local visibilityHooks = {}
 local adiBagsHooked = false
 local adiBagsListener = {}
+local minimapButton = nil
 
 local SLOT_NAMES = {
     INVTYPE_HEAD = "Tete",
@@ -70,6 +72,13 @@ local SLOT_GROUP = {
 local function EnsureSettings()
     CoALootDeciderDB = CoALootDeciderDB or {}
     CoALootDeciderDB.advisor = CoALootDeciderDB.advisor or {}
+    CoALootDeciderDB.minimap = CoALootDeciderDB.minimap or {}
+    if type(CoALootDeciderDB.minimap.angle) ~= "number" then
+        CoALootDeciderDB.minimap.angle = LOOT_MINIMAP_DEFAULT_ANGLE
+    end
+    if type(CoALootDeciderDB.minimap.hidden) ~= "boolean" then
+        CoALootDeciderDB.minimap.hidden = false
+    end
     local settings = CoALootDeciderDB.advisor
     if settings.enabled == nil then settings.enabled = true end
     if settings.visualVersion ~= 3 then settings.visualVersion = 3 end
@@ -762,6 +771,128 @@ function CoALootAdvisor_ShowHistory()
     RefreshWindow()
 end
 
+local function Atan2(y, x)
+    if x > 0 then return math.atan(y / x) end
+    if x < 0 and y >= 0 then return math.atan(y / x) + math.pi end
+    if x < 0 and y < 0 then return math.atan(y / x) - math.pi end
+    if x == 0 and y > 0 then return math.pi / 2 end
+    if x == 0 and y < 0 then return -math.pi / 2 end
+    return 0
+end
+
+local function PositionLootMinimapButton()
+    if not minimapButton then return end
+    EnsureSettings()
+    minimapButton:ClearAllPoints()
+    if Minimap then
+        local angle = CoALootDeciderDB.minimap.angle or LOOT_MINIMAP_DEFAULT_ANGLE
+        local radius = 80
+        minimapButton:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * radius, math.sin(angle) * radius)
+    else
+        minimapButton:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -250, -20)
+    end
+end
+
+function CoALootAdvisor_SetMinimapVisible(visible)
+    EnsureSettings()
+    CoALootDeciderDB.minimap.hidden = not visible
+    if minimapButton then
+        if visible then
+            PositionLootMinimapButton()
+            minimapButton:Show()
+        else
+            minimapButton:Hide()
+        end
+    end
+end
+
+function CoALootAdvisor_ResetMinimapButton()
+    EnsureSettings()
+    CoALootDeciderDB.minimap.angle = LOOT_MINIMAP_DEFAULT_ANGLE
+    CoALootDeciderDB.minimap.hidden = false
+    PositionLootMinimapButton()
+    if minimapButton then minimapButton:Show() end
+end
+
+local function BuildLootMinimapButton()
+    if minimapButton then return end
+    EnsureSettings()
+    local iconWasDragged = false
+    minimapButton = CreateFrame("Button", "CoALootDeciderMinimapButton", UIParent)
+    minimapButton:SetWidth(32)
+    minimapButton:SetHeight(32)
+    minimapButton:SetFrameStrata("HIGH")
+    minimapButton:SetFrameLevel(30)
+    minimapButton:SetClampedToScreen(true)
+    minimapButton:SetMovable(true)
+    minimapButton:EnableMouse(true)
+    minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    minimapButton:RegisterForDrag("LeftButton")
+
+    local icon = minimapButton:CreateTexture(nil, "BACKGROUND")
+    icon:SetWidth(22)
+    icon:SetHeight(22)
+    icon:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    local border = minimapButton:CreateTexture(nil, "OVERLAY")
+    border:SetWidth(52)
+    border:SetHeight(52)
+    border:SetPoint("TOPLEFT", minimapButton, "TOPLEFT", 0, 0)
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+
+    local highlight = minimapButton:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetWidth(32)
+    highlight:SetHeight(32)
+    highlight:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
+    highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    highlight:SetBlendMode("ADD")
+
+    minimapButton:SetScript("OnMouseDown", function() iconWasDragged = false end)
+    minimapButton:SetScript("OnDragStart", function(self)
+        iconWasDragged = true
+        self:SetScript("OnUpdate", function()
+            if not Minimap then return end
+            local cursorX, cursorY = GetCursorPosition()
+            local scale = UIParent:GetEffectiveScale() or 1
+            local minimapX, minimapY = Minimap:GetCenter()
+            if not minimapX or not minimapY then return end
+            cursorX, cursorY = cursorX / scale, cursorY / scale
+            CoALootDeciderDB.minimap.angle = Atan2(cursorY - minimapY, cursorX - minimapX)
+            PositionLootMinimapButton()
+        end)
+    end)
+    minimapButton:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
+        PositionLootMinimapButton()
+    end)
+    minimapButton:SetScript("OnClick", function(_, button)
+        if iconWasDragged then
+            iconWasDragged = false
+            return
+        end
+        if button == "RightButton" then
+            CoALootAdvisor_ShowHistory()
+        else
+            CoALootAdvisor_Toggle()
+        end
+    end)
+    minimapButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:AddLine("CoA Loot Decider", 1, 0.82, 0.20)
+        GameTooltip:AddLine("Clic gauche : ouvrir le comparateur de butin.", 1, 1, 1)
+        GameTooltip:AddLine("Clic droit : ouvrir l'historique.", 1, 1, 1)
+        GameTooltip:AddLine("Glisser : déplacer l'icône autour de la minicarte.", 0.65, 0.78, 1)
+        GameTooltip:AddLine("/cld minimap hide pour masquer l'icône.", 0.65, 0.72, 0.80)
+        GameTooltip:Show()
+    end)
+    minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    PositionLootMinimapButton()
+    if CoALootDeciderDB.minimap.hidden then minimapButton:Hide() else minimapButton:Show() end
+end
+
 function CoALootAdvisor_ToggleVisuals()
     local settings = EnsureSettings()
     settings.enabled = not settings.enabled
@@ -800,6 +931,7 @@ eventFrame:SetScript("OnEvent", function(self, event)
     EnsureSettings()
     if event == "PLAYER_LOGIN" then
         api.RefreshProfile()
+        BuildLootMinimapButton()
         HookTooltip(GameTooltip)
         HookTooltip(ItemRefTooltip)
         HookTooltip(ShoppingTooltip1)

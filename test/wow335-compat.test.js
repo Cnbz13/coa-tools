@@ -359,12 +359,14 @@ test('UI Manager always exposes a clickable way to leave mover mode', async () =
     'the Centre CoA must still save its own directly dragged position');
 });
 
-test('UI Manager minimap button is the shared CoA tools hub', async () => {
+test('UI Manager minimap button remains the hub for shared tools but leaves Loot Decider standalone', async () => {
   const lua = await readFile('addons/CoAUIManager/CoAUIManager.lua', 'utf8');
   for (const required of [
-    'Centre CoA', 'OUTILS COA', 'Butin', 'Heretic', 'Rotations', 'Messages',
-    'CoALootAdvisor_Toggle', 'CoAHereticHelperAPI:Toggle()',
+    'Centre CoA', 'OUTILS COA', 'Heretic', 'Rotations', 'Messages',
+    'CoAHereticHelperAPI:Toggle()',
     'CoAMessageCenter:Toggle()', 'CoARotationGuideAPI:Toggle()', 'CoADungeonNavigatorAPI:Toggle()', 'SetHubManaged(true)',
     'minimapUnreadText', 'CoAMessageCenterDB.unread', 'UpdateHubAvailability'
   ]) assert.ok(lua.includes(required), `missing shared CoA hub feature: ${required}`);
+  assert.doesNotMatch(lua, /HubButton\("Butin"|lootHubButton|CoALootAdvisor_Toggle/,
+    'the standalone Loot Decider must not be routed through Centre CoA');
 });

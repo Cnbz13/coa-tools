@@ -50,7 +50,7 @@ test('CoA Loot Decider adapts all 70 profiles to live CoA talents, level and spe
   const profileTabs = profileSection.match(/^\s*\["[^"]+:[^"]+"\] = "[^"]+"/gm) ?? [];
   const weightRows = profiles.match(/^\s*\["[^"]+:[^"]+"\]\s*=\s*\{[^\n]+\},?$/gm) ?? [];
 
-  assert.match(toc, /^## Version: 1\.16\.0$/m);
+  assert.match(toc, /^## Version: 1\.16\.1$/m);
   assert.equal(nodeRows.length, 3618, 'the pinned live CoA dataset must remain complete');
   assert.equal(classRows.length, 21, 'every CoA class must have an adaptive talent dataset');
   assert.equal(profileTabs.length, 70, 'every shipped loot profile must resolve to a live talent tab');
@@ -236,11 +236,32 @@ test('CoA Loot Advisor compares bags, bank, merchants, loot and universal item t
     'an off-hand item cannot be recommended alone behind an equipped two-hander');
 });
 
+test('CoA Loot Decider exposes its own persistent minimap button without UI Manager', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  const advisor = await readFile(advisorPath, 'utf8');
+  const uiManager = await readFile('addons/CoAUIManager/CoAUIManager.lua', 'utf8');
+  for (const required of [
+    'CoALootDeciderMinimapButton', 'INV_Misc_Coin_01', 'BuildLootMinimapButton',
+    'CoALootDeciderDB.minimap.angle', 'CoALootDeciderDB.minimap.hidden',
+    'RegisterForClicks("LeftButtonUp", "RightButtonUp")', 'RegisterForDrag("LeftButton")',
+    'GetCursorPosition()', 'PositionLootMinimapButton', 'CoALootAdvisor_Toggle()',
+    'CoALootAdvisor_ShowHistory()', 'CoALootAdvisor_SetMinimapVisible',
+    'CoALootAdvisor_ResetMinimapButton', 'command == "minimap"',
+    '/cld minimap show|hide|reset'
+  ]) assert.ok(lua.includes(required) || advisor.includes(required), `missing standalone Loot Decider button feature: ${required}`);
+  assert.match(advisor, /if button == "RightButton" then[\s\S]+CoALootAdvisor_ShowHistory\(\)[\s\S]+CoALootAdvisor_Toggle\(\)/,
+    'right-click must show history while left-click toggles the comparator');
+  assert.match(advisor, /math\.cos\(angle\) \* radius, math\.sin\(angle\) \* radius/,
+    'the dedicated button must remain anchored to the minimap ring');
+  assert.doesNotMatch(uiManager, /HubButton\("Butin"|lootHubButton|CoALootAdvisor_Toggle/,
+    'Loot Decider must no longer depend on the shared CoA tools hub');
+});
+
 test('CoA Loot Decider preserves the local 1.9 BagAware and fit-scoring behavior', async () => {
   const toc = await readFile(tocPath, 'utf8');
   const lua = await readFile(luaPath, 'utf8');
   const advisor = await readFile(advisorPath, 'utf8');
-  assert.match(toc, /^## Version: 1\.16\.0$/m,
+  assert.match(toc, /^## Version: 1\.16\.1$/m,
     'the published addon must be newer than the installed 1.9.0 custom build');
   for (const required of [
     'ScanBagItems', 'profile.bagItems = ScanBagItems()', 'OwnedBaselineFor',

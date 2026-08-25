@@ -227,21 +227,17 @@ local function HubButton(text, x, y)
     return button
 end
 
-local lootHubButton = HubButton("Butin", 18)
-local hereticHubButton = HubButton("Heretic", 101)
-local rotationHubButton = HubButton("Rotations", 184)
-local messagesHubButton = HubButton("Messages", 267)
-local dungeonHubButton = HubButton("Donjons", 18, -143)
+local hereticHubButton = HubButton("Heretic", 18)
+local rotationHubButton = HubButton("Rotations", 101)
+local messagesHubButton = HubButton("Messages", 184)
+local dungeonHubButton = HubButton("Donjons", 267)
 
 local hubHint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-hubHint:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -174)
+hubHint:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -146)
 hubHint:SetWidth(334)
 hubHint:SetJustifyH("LEFT")
-hubHint:SetText("Un seul bouton de minicarte pour les outils CoA. Les fenêtres sont aussi disponibles dans le mode déplacement.")
+hubHint:SetText("Ces outils restent regroupés ici. Loot Decider possède maintenant son propre bouton de minicarte.")
 
-lootHubButton:SetScript("OnClick", function()
-    if CoALootAdvisor_Toggle then CoALootAdvisor_Toggle() else Chat("CoA Loot Decider n'est pas chargé.") end
-end)
 hereticHubButton:SetScript("OnClick", function()
     if CoAHereticHelperAPI and CoAHereticHelperAPI.Toggle then
         CoAHereticHelperAPI:Toggle()
@@ -279,7 +275,6 @@ local function UpdateHubAvailability()
     if CoARotationGuideAPI and CoARotationGuideAPI.SetHubManaged then CoARotationGuideAPI:SetHubManaged(true) end
     if CoAMessageCenter and CoAMessageCenter.SetHubManaged then CoAMessageCenter:SetHubManaged(true) end
     if CoADungeonNavigatorAPI and CoADungeonNavigatorAPI.SetHubManaged then CoADungeonNavigatorAPI:SetHubManaged(true) end
-    if CoALootAdvisor_Toggle then lootHubButton:Enable() else lootHubButton:Disable() end
     if CoAHereticHelperAPI and CoAHereticHelperAPI.Toggle then hereticHubButton:Enable() else hereticHubButton:Disable() end
     if CoARotationGuideAPI and CoARotationGuideAPI.Toggle then rotationHubButton:Enable() else rotationHubButton:Disable() end
     if CoAMessageCenter and CoAMessageCenter.Toggle then messagesHubButton:Enable() else messagesHubButton:Disable() end

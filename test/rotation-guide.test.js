@@ -157,7 +157,7 @@ test('Rotation Guide embeds a level-aware offline progression path and live loot
 test('Rotation Guide release metadata targets Ascension 3.3.5', async () => {
   const toc = await readFile('addons/CoARotationGuide/CoARotationGuide.toc', 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 1\.16\.0$/m);
+  assert.match(toc, /^## Version: 1\.16\.1$/m);
   assert.match(toc, /^## SavedVariables: CoARotationGuideDB$/m);
   assert.match(toc, /^CoARotationUpdates\.lua\r?\nCoARotationData\.lua\r?\nCoAProgressionData\.lua\r?\nCoARotationGuide\.lua$/m);
 });

@@ -7,7 +7,7 @@ Suite locale sans télémétrie regroupant les outils CoA suivants :
 - **CoA Combat Assistant** — addon WoW de recommandations visuelles et de mémoire des combats ;
 - **CoA UI Manager** — gestionnaire complet de positions, profils, échelle et alpha ;
 - **CoA Rotation Guide** — guide hors ligne consultable, adapté à la classe, la spécialisation, au niveau, au spellbook et aux talents actifs ;
-- **CoA Dungeon Navigator** — enregistreur discret de parcours, packs, boss et raccourcis pour construire des routes Ascension fiables ;
+- **CoA Dungeon Navigator** — véritable guide de tank hors ligne avec flèche, trace d'étage, prochaines rencontres et recalage automatique, doublé d'un collecteur de parcours ;
 - **CoA Addon Manager** — application Windows qui détecte Project Ascension et gère automatiquement les addons CoA.
 
 ## Artefacts installables
@@ -20,7 +20,7 @@ Chaque release publie dix ZIP :
 - `CoALootDecider-vX.Y.Z.zip` : compare automatiquement le butin, les sacs, la banque, les vendeurs PNJ et tout lien d'objet avec l'équipement et le profil de spécialisation du personnage ; ajoute des contours vert/jaune/rouge, un pourcentage dans les icônes, un diagnostic dans les tooltips et une fenêtre accessible par son propre bouton de minicarte ou `/cld gear` ;
 - `CoAMessageCenter-vX.Y.Z.zip` : centralise les messages des addons CoA hors du chat général ;
 - `CoARotationGuide-vX.Y.Z.zip` : ouvre un guide de priorités ST/AOE et solo/groupe filtré par les sorts réellement appris, avec parcours de leveling et d'équipement niveau 60 ;
-- `CoADungeonNavigator-vX.Y.Z.zip` : démarre automatiquement son mode apprentissage en donjon, relève le trajet et permet d'exporter un parcours sans enregistrer le chat ni le nom des autres joueurs ;
+- `CoADungeonNavigator-vX.Y.Z.zip` : guide automatiquement 15 donjons déjà observés, affiche la direction et les prochaines étapes, puis continue d'apprendre les trajets sans enregistrer le chat ni le nom des autres joueurs ;
 - `CoAHereticHelper-v3.9.0.zip` : HUD visuel compact dédié au Cultist Heretic heal, avec diagnostic au survol, sons séparés, seuils Sang noir réglables, proc de Soin occulte et couverture membre par membre ;
 - `GridCoA-vX.Y.Z.zip` : compagnon du véritable Grid ; il détecte les dissipations apprises et réserve l’icône centrale aux seuls affaiblissements que le personnage peut retirer.
 - `EventAlertCoA-vX.Y.Z.zip` : couche de compatibilité appliquée automatiquement par le manager au véritable EventAlert 4.3.6. Le code original, sous licence « All Rights Reserved », est téléchargé séparément depuis [sa fiche CurseForge officielle](https://www.curseforge.com/wow/addons/event-alert/files/456081), puis vérifié par taille et SHA-256.
@@ -69,7 +69,11 @@ La veille hebdomadaire lit le changelog et les actualités officiels Ascension. 
 
 ## CoA Dungeon Navigator
 
-La première étape du navigateur est un mode apprentissage utilisable immédiatement sur un DPS ou un soigneur pendant qu'un tank expérimenté mène le groupe. Il démarre automatiquement dans une instance de type donjon et s'arrête à la sortie. Il mémorise des points de parcours espacés, les changements de carte et d'étage disponibles, les pulls du groupe, les créatures rencontrées, les morts observées, les boss potentiels et les objets réellement vus dans les fenêtres de butin. Il ne relève jamais le chat ni le nom des autres joueurs et ne prend jamais automatiquement un objet.
+Le navigateur contient maintenant 15 routes hors ligne compilées à partir de 36 passages réels sur Ascension. Dès l'entrée dans un donjon connu, un HUD compact affiche une flèche relative à l'orientation du personnage, la prochaine étape, une consigne naturelle, l'étage, la progression et la prochaine rencontre importante. Les étapes de pack ou de boss attendent la fin du combat avant de continuer. Si le personnage quitte la trace, le moteur recherche un point cohérent sur le bon étage ; le bouton **Me recaler** permet de forcer immédiatement cette récupération.
+
+La grande fenêtre présente la trace de l'étage, la position du joueur, la prochaine étape, les rencontres à venir et les objets déjà observés évaluables par CoA Loot Decider. Les commandes `/cdg next`, `/cdg prev`, `/cdg recal`, `/cdg reset` et `/cdg hud` permettent de corriger le suivi sans ouvrir le panneau. Le HUD et la fenêtre sont déplaçables directement ou depuis `/cui unlock`.
+
+Le mode apprentissage reste disponible depuis **Collecte** ou par clic droit sur le bouton de minicarte. Il démarre automatiquement dans une instance de type donjon et s'arrête à la sortie. Il mémorise des points de parcours espacés, les changements de carte et d'étage disponibles, les pulls du groupe, les créatures rencontrées, les morts observées, les boss potentiels et les objets réellement vus dans les fenêtres de butin. Il ne relève jamais le chat ni le nom des autres joueurs et ne prend jamais automatiquement un objet.
 
 La fenêtre **Centre CoA → Donjons** permet de poser en un clic un repère Raccourci, Porte, Escalier, Danger, Boss ou Pack évité. **Exporter** produit un bloc texte sélectionné automatiquement avec `Ctrl+C`, destiné à être comparé à d'autres passages avant de devenir une route guidée. Le petit témoin vert n'apparaît que pendant l'enregistrement et peut être déplacé.
 

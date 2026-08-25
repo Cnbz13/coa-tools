@@ -9,7 +9,8 @@ local DEFAULT_FRAMES = {
     "CoACombatAssistantFrame", "EA_Main_Frame", "EA_Anchor_Frame", "CoAUIManagerPanel",
     "CoALootDeciderBanner", "CoALootAdvisorWindow", "CoAHereticProcAnchor",
     "CoAHereticBlackBloodTracker", "CoAHereticHUDMenu", "CoAMessageCenterFrame",
-    "CoARotationGuideFrame", "CoADungeonNavigatorFrame", "CoADungeonNavigatorRecorder"
+    "CoARotationGuideFrame", "CoADungeonNavigatorFrame", "CoADungeonNavigatorHUD",
+    "CoADungeonNavigatorLearningFrame", "CoADungeonNavigatorRecorder"
 }
 
 local FRAME_LABELS = {
@@ -28,6 +29,7 @@ local FRAME_LABELS = {
     CoAHereticProcAnchor = "Heretic : proc", CoAHereticBlackBloodTracker = "Heretic : Sang noir",
     CoAHereticHUDMenu = "Réglages Heretic", CoAMessageCenterFrame = "Messages CoA",
     CoARotationGuideFrame = "Guide de rotation", CoADungeonNavigatorFrame = "Navigateur de donjon",
+    CoADungeonNavigatorHUD = "Flèche de donjon", CoADungeonNavigatorLearningFrame = "Collecte de donjon",
     CoADungeonNavigatorRecorder = "Enregistrement de donjon"
 }
 

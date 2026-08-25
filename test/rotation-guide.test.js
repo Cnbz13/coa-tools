@@ -6,6 +6,8 @@ import luaparse from 'luaparse';
 const luaPromise = readFile('addons/CoARotationGuide/CoARotationGuide.lua', 'utf8');
 const dataPromise = readFile('addons/CoARotationGuide/CoARotationData.lua', 'utf8');
 const progressionPromise = readFile('addons/CoARotationGuide/CoAProgressionData.lua', 'utf8');
+const packageVersion = JSON.parse(await readFile('package.json', 'utf8')).version;
+const escapedPackageVersion = packageVersion.replaceAll('.', '\\.');
 
 test('Rotation Guide embeds all CoA class/spec profiles and dated sources', async () => {
   const data = await dataPromise;
@@ -157,7 +159,7 @@ test('Rotation Guide embeds a level-aware offline progression path and live loot
 test('Rotation Guide release metadata targets Ascension 3.3.5', async () => {
   const toc = await readFile('addons/CoARotationGuide/CoARotationGuide.toc', 'utf8');
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 1\.16\.1$/m);
+  assert.match(toc, new RegExp(`^## Version: ${escapedPackageVersion}$`, 'm'));
   assert.match(toc, /^## SavedVariables: CoARotationGuideDB$/m);
   assert.match(toc, /^CoARotationUpdates\.lua\r?\nCoARotationData\.lua\r?\nCoAProgressionData\.lua\r?\nCoARotationGuide\.lua$/m);
 });

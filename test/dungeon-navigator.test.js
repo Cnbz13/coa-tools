@@ -12,12 +12,19 @@ const forbiddenRetailApis = [
 test('Dungeon Navigator is a strict Ascension 3.3.5 addon', async () => {
   const toc = await readFile('addons/CoADungeonNavigator/CoADungeonNavigator.toc', 'utf8');
   const lua = await readFile('addons/CoADungeonNavigator/CoADungeonNavigator.lua', 'utf8');
+  const guide = await readFile('addons/CoADungeonNavigator/CoADungeonGuide.lua', 'utf8');
+  const routes = await readFile('addons/CoADungeonNavigator/CoADungeonRoutes.lua', 'utf8');
+  const allLua = `${lua}\n${guide}\n${routes}`;
   assert.match(toc, /^## Interface: 30300$/m);
   assert.match(toc, /^## SavedVariables: CoADungeonNavigatorDB$/m);
   assert.match(toc, /^CoADungeonNavigator\.lua$/m);
-  assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
-  for (const api of forbiddenRetailApis) assert.equal(lua.includes(api), false, `forbidden Retail API: ${api}`);
-  assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
+  assert.match(toc, /^CoADungeonRoutes\.lua$/m);
+  assert.match(toc, /^CoADungeonGuide\.lua$/m);
+  for (const source of [lua, guide, routes]) {
+    assert.doesNotThrow(() => luaparse.parse(source, { luaVersion: '5.1', comments: false, locations: true }));
+  }
+  for (const api of forbiddenRetailApis) assert.equal(allLua.includes(api), false, `forbidden Retail API: ${api}`);
+  assert.doesNotMatch(allLua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
   assert.doesNotMatch(lua, /\b(?:LootSlot|RollOnLoot|ConfirmLootRoll|ConfirmLootSlot|UseContainerItem)\s*\(/,
     'the recorder must observe loot without taking items or choosing rolls');
   assert.doesNotMatch(lua, /tonumber\s*\(\s*select\s*\(/,
@@ -71,19 +78,49 @@ test('learning mode records observed dungeon loot for the future character-aware
     'LOOT_OPENED', 'CaptureLootWindow', 'GetNumLootItems()', 'LootSlotIsItem(slot)',
     'GetLootSlotInfo(slot)', 'GetLootSlotLink(slot)', 'GetItemInfo(link or visibleName)',
     'lastKilledEnemy', 'sourceBossCandidate', 'activeSession.loot', 'activeSession.lootSeen',
+    'lootCaptureUntil = Now() + 1.5', 'lootRetryElapsed >= 0.20',
     '"L", tostring(loot.t or 0)', 'objets vus'
   ]) assert.ok(lua.includes(required), `missing loot-learning feature: ${required}`);
 });
 
 test('Dungeon Navigator integrates with the shared CoA hub and remains independently accessible', async () => {
   const navigator = await readFile('addons/CoADungeonNavigator/CoADungeonNavigator.lua', 'utf8');
+  const guide = await readFile('addons/CoADungeonNavigator/CoADungeonGuide.lua', 'utf8');
   const uiManager = await readFile('addons/CoAUIManager/CoAUIManager.lua', 'utf8');
   for (const required of [
-    'CoADungeonNavigatorFrame', 'CoADungeonNavigatorRecorder', 'CoADungeonNavigatorMinimapButton',
+    'CoADungeonNavigatorLearningFrame', 'CoADungeonNavigatorRecorder', 'CoADungeonNavigatorMinimapButton',
     'function API:SetHubManaged(value)', 'minimapButton:Hide()', 'minimapButton:Show()'
   ]) assert.ok(navigator.includes(required), `missing standalone/hub feature: ${required}`);
   for (const required of [
-    'CoADungeonNavigatorFrame', 'CoADungeonNavigatorRecorder', 'HubButton("Donjons"',
+    'CoADungeonNavigatorFrame', 'CoADungeonNavigatorHUD', 'function API:Toggle()', 'function API:Recalibrate()'
+  ]) assert.ok(guide.includes(required), `missing live-guide integration: ${required}`);
+  for (const required of [
+    'CoADungeonNavigatorFrame', 'CoADungeonNavigatorHUD', 'CoADungeonNavigatorLearningFrame',
+    'CoADungeonNavigatorRecorder', 'HubButton("Donjons"',
     'CoADungeonNavigatorAPI:Toggle()', 'CoADungeonNavigatorAPI:SetHubManaged(true)'
   ]) assert.ok(uiManager.includes(required), `UI Manager is missing Dungeon Navigator integration: ${required}`);
+});
+
+test('live guide provides offline routes, visual direction and safe contextual progression', async () => {
+  const guide = await readFile('addons/CoADungeonNavigator/CoADungeonGuide.lua', 'utf8');
+  const routeData = await readFile('addons/CoADungeonNavigator/CoADungeonRoutes.lua', 'utf8');
+  const compiler = await readFile('scripts/compile-dungeon-routes.mjs', 'utf8');
+  for (const required of [
+    'CoADungeonRouteData.routeCount', 'SelectRoute(false)', 'FindNearestStep', 'Recalibrate',
+    'RelativeAngle', 'RotateTexture', 'DirectionText', 'DistanceText', 'RouteProgress',
+    'step.kind == "pack" or step.kind == "boss" or step.kind == "danger"',
+    'PLAYER_REGEN_ENABLED', 'Combat terminé — on continue', 'Boss repéré',
+    'TRACE DE L\'ÉTAGE ACTUEL', 'CE QUI T\'ATTEND', 'BUTIN POUR TON PERSONNAGE',
+    'CoALootDeciderAPI.AnalyzeItem', 'SLASH_COADUNGEONGUIDE1 = "/cdg"'
+  ]) assert.ok(guide.includes(required), `missing live guidance feature: ${required}`);
+  assert.match(routeData, /\["routeCount"\] = 15/);
+  for (const dungeon of [
+    'blackfathom deeps', 'blackrock caverns', 'gnomeregan', 'shadowfang keep',
+    'sunken temple', 'vaults of the inquisition', 'wailing caverns'
+  ]) assert.ok(routeData.includes(`["${dungeon}"]`), `missing compiled route: ${dungeon}`);
+  assert.doesNotMatch(routeData, /characterClass|characterLevel|startedAt|@(?:gmail|hotmail|outlook)/i);
+  assert.ok(Buffer.byteLength(routeData) < 400000, 'compiled routes should stay lightweight');
+  assert.match(compiler, /Contains only anonymized dungeon geometry and encounter data/);
+  assert.match(compiler, /simplifyRoute/);
+  assert.match(compiler, /routeScore/);
 });

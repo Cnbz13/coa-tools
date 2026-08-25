@@ -1,6 +1,6 @@
 local addonName = ...
 
-local ADDON_VERSION = "1.16.1"
+local ADDON_VERSION = "1.17.0"
 local EXPORT_FORMAT = "COADN1"
 local DEFAULT_SAMPLE_INTERVAL = 0.75
 local DEFAULT_MIN_DISTANCE = 0.0015
@@ -25,6 +25,8 @@ local historyText = nil
 local autoButton = nil
 local recordButton = nil
 local lastKilledEnemy = nil
+local lootCaptureUntil = nil
+local lootRetryElapsed = 0
 
 CoADungeonNavigatorAPI = CoADungeonNavigatorAPI or {}
 local API = CoADungeonNavigatorAPI
@@ -329,8 +331,10 @@ local function CaptureTarget()
     enemy.classification = UnitClassification and UnitClassification("target") or enemy.classification
     enemy.creatureType = UnitCreatureType and UnitCreatureType("target") or enemy.creatureType
     enemy.maxHealth = math.max(tonumber(enemy.maxHealth) or 0, tonumber(UnitHealthMax("target")) or 0)
+    local playerHealth = tonumber(UnitHealthMax and UnitHealthMax("player") or 0) or 0
     enemy.bossCandidate = enemy.classification == "worldboss" or enemy.classification == "rareelite"
-        or enemy.classification == "elite" or enemy.level == -1
+        or enemy.level == -1 or (enemy.classification == "elite" and playerHealth > 0
+        and (tonumber(enemy.maxHealth) or 0) >= playerHealth * 2.5)
     if not activeSession.targets[guid] then
         activeSession.targets[guid] = { name = enemy.name, firstSeen = enemy.firstSeen, count = 0 }
     end
@@ -605,7 +609,7 @@ local function MakeButton(parent, text, width, x, y, callback)
     return button
 end
 
-panel = CreateFrame("Frame", "CoADungeonNavigatorFrame", UIParent)
+panel = CreateFrame("Frame", "CoADungeonNavigatorLearningFrame", UIParent)
 panel:SetWidth(510)
 panel:SetHeight(430)
 panel:SetPoint("CENTER", UIParent, "CENTER", 0, 20)
@@ -629,14 +633,14 @@ panel:Hide()
 
 local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 title:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -16)
-title:SetText("CoA • Navigateur de donjon")
+title:SetText("CoA • Collecte avancée")
 title:SetTextColor(0.35, 0.85, 1)
 
 local subtitle = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -7)
 subtitle:SetWidth(472)
 subtitle:SetJustifyH("LEFT")
-subtitle:SetText("MODE APPRENTISSAGE  •  suis les tanks expérimentés, puis exporte une route propre")
+subtitle:SetText("APPRENTISSAGE  •  enregistre les trajets qui serviront aux prochains guides")
 
 statusText = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 statusText:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -70)
@@ -765,7 +769,7 @@ minimapButton:SetWidth(32)
 minimapButton:SetHeight(32)
 minimapButton:SetFrameStrata("MEDIUM")
 minimapButton:SetFrameLevel(8)
-minimapButton:RegisterForClicks("LeftButtonUp")
+minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 local miniBackground = minimapButton:CreateTexture(nil, "BACKGROUND")
 miniBackground:SetTexture("Interface/Minimap/MiniMap-TrackingBorder")
 miniBackground:SetWidth(54)
@@ -777,11 +781,14 @@ miniIcon:SetWidth(20)
 miniIcon:SetHeight(20)
 miniIcon:SetPoint("CENTER", minimapButton, "CENTER", 0, 1)
 minimapButton:SetHighlightTexture("Interface/Minimap/UI-Minimap-ZoomButton-Highlight")
-minimapButton:SetScript("OnClick", function() API:Toggle() end)
+minimapButton:SetScript("OnClick", function(_, button)
+    if button == "RightButton" and API.ToggleLearning then API:ToggleLearning()
+    else API:Toggle() end
+end)
 minimapButton:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
     GameTooltip:SetText("CoA Dungeon Navigator")
-    GameTooltip:AddLine("Ouvre le mode apprentissage des donjons.", 1, 1, 1)
+    GameTooltip:AddLine("Ouvre le guide de donjon. Clic droit : collecte avancée.", 1, 1, 1)
     GameTooltip:Show()
 end)
 minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -792,6 +799,28 @@ end
 
 function API:Show()
     panel:Show()
+    RefreshDisplay()
+end
+
+function API:ToggleLearning()
+    if panel:IsShown() then panel:Hide() else panel:Show() RefreshDisplay() end
+end
+
+function API:ShowLearning()
+    panel:Show()
+    RefreshDisplay()
+end
+
+function API:GetActiveSession()
+    return activeSession
+end
+
+function API:GetLatestSession()
+    return LatestSession()
+end
+
+function API:AddMarker(kind, note)
+    AddMarker(kind, note)
     RefreshDisplay()
 end
 
@@ -883,6 +912,8 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
         HandleCombatLog(...)
     elseif event == "LOOT_OPENED" then
+        lootCaptureUntil = Now() + 1.5
+        lootRetryElapsed = 0
         CaptureLootWindow()
     end
 end)
@@ -898,6 +929,14 @@ eventFrame:SetScript("OnUpdate", function(_, elapsed)
         updateElapsed = 0
         local point = AddRoutePoint(false, "sample")
         if point and point.x then activeSession.coordinatesAvailable = true end
+    end
+    if activeSession and lootCaptureUntil then
+        lootRetryElapsed = lootRetryElapsed + elapsed
+        if lootRetryElapsed >= 0.20 then
+            lootRetryElapsed = 0
+            CaptureLootWindow()
+        end
+        if Now() >= lootCaptureUntil then lootCaptureUntil = nil end
     end
     statusElapsed = statusElapsed + elapsed
     if statusElapsed >= 0.5 then

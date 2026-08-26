@@ -4,6 +4,7 @@ local PROGRESSION = CoAProgressionGuideData or { bands = {}, sources = {} }
 
 local guideFrame
 local minimapButton
+local quickSettings
 local rows = {}
 local buttons = {}
 local spellbook = {}
@@ -1591,7 +1592,27 @@ end
 local function UpdateMinimapVisibility()
     if not minimapButton then return end
     EnsureDatabase()
-    if hubManaged or CoARotationGuideDB.minimap.hidden then minimapButton:Hide() else minimapButton:Show() end
+    -- Le guide garde volontairement son bouton autonome : le Centre CoA est
+    -- pratique, mais il ne doit jamais être le seul chemin vers les réglages.
+    if CoARotationGuideDB.minimap.hidden then minimapButton:Hide() else minimapButton:Show() end
+end
+
+local function RefreshQuickSettings()
+    if not quickSettings then return end
+    EnsureDatabase()
+    local nextSpell = actionHUDAction and actionHUDAction.spell and actionHUDAction.spell.name or "aucune action immédiate"
+    quickSettings.status:SetText(tostring(currentCharacter.className or "Classe") .. "  •  "
+        .. tostring(currentCharacter.specName or "spécialisation") .. "  •  niveau " .. tostring(currentCharacter.level or "?")
+        .. "\nProchain conseil : " .. tostring(nextSpell))
+    quickSettings.hudButton:SetText(CoARotationGuideDB.hud.enabled and "MASQUER L'ICÔNE" or "AFFICHER L'ICÔNE")
+    quickSettings.lockButton:SetText(CoARotationGuideDB.hud.locked and "DÉPLACER L'ICÔNE" or "VERROUILLER L'ICÔNE")
+end
+
+local function ToggleQuickSettings()
+    if not quickSettings then return end
+    if quickSettings:IsShown() then quickSettings:Hide(); return end
+    RefreshQuickSettings()
+    quickSettings:Show()
 end
 
 local function BuildMinimapButton()
@@ -1623,9 +1644,7 @@ local function BuildMinimapButton()
 
     minimapButton:SetScript("OnClick", function(_, button)
         if button == "RightButton" then
-            CoARotationGuideDB.minimap.hidden = true
-            UpdateMinimapVisibility()
-            Chat("Bouton masque. /rotation minimap pour le reafficher.")
+            ToggleQuickSettings()
         else
             ToggleGuide()
         end
@@ -1644,9 +1663,10 @@ local function BuildMinimapButton()
     minimapButton:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
     minimapButton:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("CoA Rotation Guide", 1, 0.82, 0)
-        GameTooltip:AddLine("Clic : ouvrir le guide", 1, 1, 1)
-        GameTooltip:AddLine("Clic droit : masquer ce bouton", 0.75, 0.85, 1)
+        GameTooltip:AddLine("Assistant universel CoA", 1, 0.82, 0)
+        GameTooltip:AddLine("Clic gauche : ouvrir le guide", 1, 1, 1)
+        GameTooltip:AddLine("Clic droit : réglages rapides", 0.55, 0.90, 1)
+        GameTooltip:AddLine("Glisser : déplacer autour de la minicarte", 0.75, 0.85, 1)
         GameTooltip:Show()
     end)
     minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1687,6 +1707,77 @@ local function BuildInterface()
     guideFrame:SetScript("OnDragStart", function(self) self:StartMoving() end)
     guideFrame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); SavePosition() end)
     guideFrame:Hide()
+
+    quickSettings = CreateFrame("Frame", "CoARotationGuideSettings", UIParent)
+    quickSettings:SetWidth(330)
+    quickSettings:SetHeight(292)
+    quickSettings:SetPoint("CENTER", UIParent, "CENTER", 0, 30)
+    quickSettings:SetFrameStrata("DIALOG")
+    quickSettings:SetMovable(true)
+    quickSettings:EnableMouse(true)
+    quickSettings:RegisterForDrag("LeftButton")
+    quickSettings:SetBackdrop({
+        bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+        edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    quickSettings:SetBackdropColor(0.02, 0.035, 0.065, 0.97)
+    quickSettings:SetBackdropBorderColor(0.28, 0.78, 0.95, 0.95)
+    quickSettings:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    quickSettings:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+
+    local settingsTitle = quickSettings:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    settingsTitle:SetPoint("TOP", quickSettings, "TOP", 0, -16)
+    settingsTitle:SetText("Assistant universel CoA")
+    settingsTitle:SetTextColor(1.00, 0.82, 0.20)
+    quickSettings.status = quickSettings:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    quickSettings.status:SetPoint("TOPLEFT", quickSettings, "TOPLEFT", 18, -47)
+    quickSettings.status:SetWidth(294)
+    quickSettings.status:SetJustifyH("LEFT")
+    quickSettings.status:SetTextColor(0.72, 0.88, 1.00)
+
+    local function QuickButton(textValue, x, y, width)
+        local button = CreateFrame("Button", nil, quickSettings, "UIPanelButtonTemplate")
+        button:SetWidth(width or 142)
+        button:SetHeight(25)
+        button:SetPoint("TOPLEFT", quickSettings, "TOPLEFT", x, y)
+        button:SetText(textValue)
+        return button
+    end
+    local openGuide = QuickButton("GUIDE COMPLET", 18, -91, 142)
+    local chooseSpec = QuickButton("CHOISIR MA SPÉ", 170, -91, 142)
+    quickSettings.hudButton = QuickButton("MASQUER L'ICÔNE", 18, -126, 142)
+    quickSettings.lockButton = QuickButton("DÉPLACER L'ICÔNE", 170, -126, 142)
+    local resetHUD = QuickButton("RÉINITIALISER POSITION", 18, -161, 294)
+    local refreshNow = QuickButton("RELIRE NIVEAU, SORTS ET TALENTS", 18, -196, 294)
+    local closeSettings = QuickButton("FERMER", 94, -241, 142)
+
+    openGuide:SetScript("OnClick", function() quickSettings:Hide(); ToggleGuide() end)
+    chooseSpec:SetScript("OnClick", function()
+        quickSettings:Hide(); guidePage = 1; viewMode = "ADVISER"
+        if CoARotationGuideAPI and CoARotationGuideAPI.Refresh then CoARotationGuideAPI:Refresh() else RefreshDisplay() end
+        guideFrame:Show()
+    end)
+    quickSettings.hudButton:SetScript("OnClick", function()
+        CoARotationGuideDB.hud.enabled = not CoARotationGuideDB.hud.enabled
+        UpdateActionHUD(); RefreshQuickSettings()
+    end)
+    quickSettings.lockButton:SetScript("OnClick", function()
+        CoARotationGuideDB.hud.enabled = true
+        CoARotationGuideDB.hud.locked = not CoARotationGuideDB.hud.locked
+        UpdateActionHUD(); RefreshQuickSettings()
+    end)
+    resetHUD:SetScript("OnClick", function()
+        CoARotationGuideDB.hud.x, CoARotationGuideDB.hud.y, CoARotationGuideDB.hud.scale = 0, -105, 0.9
+        PositionActionHUD(); UpdateActionHUD(); RefreshQuickSettings()
+    end)
+    refreshNow:SetScript("OnClick", function()
+        if CoARotationGuideAPI and CoARotationGuideAPI.Refresh then CoARotationGuideAPI:Refresh() end
+        RefreshQuickSettings()
+    end)
+    closeSettings:SetScript("OnClick", function() quickSettings:Hide() end)
+    quickSettings:Hide()
 
     local header = CreateFrame("Frame", nil, guideFrame)
     header:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 8, -8)
@@ -1908,7 +1999,10 @@ local function BuildInterface()
     later:SetScript("OnClick", function() updatePopup:Hide() end)
     updatePopup:Hide()
 
-    if UISpecialFrames then table.insert(UISpecialFrames, "CoARotationGuideFrame") end
+    if UISpecialFrames then
+        table.insert(UISpecialFrames, "CoARotationGuideFrame")
+        table.insert(UISpecialFrames, "CoARotationGuideSettings")
+    end
     RestorePosition()
 end
 

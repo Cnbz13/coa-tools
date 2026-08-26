@@ -34,7 +34,9 @@ test('Rotation Guide provides one compact universal HUD and honest role/spec adv
     'CooldownFrameTemplate', 'ActionKeybind', 'SelectActionHUDEntry', 'SpecializedActionName',
     'PLAYER_TARGET_CHANGED', 'ACTIONBAR_UPDATE_USABLE', 'SetUniversalManaged',
     'viewMode == "ADVISER"', 'CHOISIR MA SPÉ', 'CurrentMetaPicks', 'TalentDirection',
-    'Un vote mesure la popularité, pas une simulation parfaite', 'command == "hud unlock"'
+    'Un vote mesure la popularité, pas une simulation parfaite', 'command == "hud unlock"',
+    'CoARotationGuideSettings', 'ToggleQuickSettings', 'réglages rapides',
+    'MASQUER L\'ICÔNE', 'RELIRE NIVEAU, SORTS ET TALENTS'
   ]) assert.ok(lua.includes(required), `universal adaptive UI is missing ${required}`);
   for (const className of [
     'Barbarian', 'Witch Doctor', 'Felsworn', 'Witch Hunter', 'Stormbringer',

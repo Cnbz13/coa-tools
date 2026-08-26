@@ -10,7 +10,8 @@ local DEFAULT_FRAMES = {
     "CoALootDeciderBanner", "CoALootAdvisorWindow", "CoAHereticProcAnchor",
     "CoAHereticBlackBloodTracker", "CoAHereticHUDMenu", "CoAMessageCenterFrame",
     "CoARotationGuideFrame", "CoADungeonNavigatorFrame", "CoADungeonNavigatorHUD",
-    "CoADungeonNavigatorLearningFrame", "CoADungeonNavigatorRecorder"
+    "CoADungeonNavigatorLearningFrame", "CoADungeonNavigatorRecorder",
+    "CoAStormbringerHUD", "CoAStormbringerMenu", "CoAStormbringerLevelToast"
 }
 
 local FRAME_LABELS = {
@@ -30,7 +31,9 @@ local FRAME_LABELS = {
     CoAHereticHUDMenu = "Réglages Heretic", CoAMessageCenterFrame = "Messages CoA",
     CoARotationGuideFrame = "Guide de rotation", CoADungeonNavigatorFrame = "Navigateur de donjon",
     CoADungeonNavigatorHUD = "Flèche de donjon", CoADungeonNavigatorLearningFrame = "Collecte de donjon",
-    CoADungeonNavigatorRecorder = "Enregistrement de donjon"
+    CoADungeonNavigatorRecorder = "Enregistrement de donjon",
+    CoAStormbringerHUD = "Stormbringer : conseil", CoAStormbringerMenu = "Réglages Stormbringer",
+    CoAStormbringerLevelToast = "Stormbringer : niveau"
 }
 
 local movers = {}
@@ -182,7 +185,7 @@ end
 
 local panel = CreateFrame("Frame", "CoAUIManagerPanel", UIParent)
 panel:SetWidth(370)
-panel:SetHeight(245)
+panel:SetHeight(275)
 panel:SetPoint("TOP", UIParent, "TOP", 0, -90)
 panel:SetFrameStrata("DIALOG")
 panel:SetFrameLevel(20)
@@ -233,12 +236,13 @@ local hereticHubButton = HubButton("Heretic", 18)
 local rotationHubButton = HubButton("Rotations", 101)
 local messagesHubButton = HubButton("Messages", 184)
 local dungeonHubButton = HubButton("Donjons", 267)
+local stormHubButton = HubButton("Storm", 18, -140)
 
 local hubHint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-hubHint:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -146)
-hubHint:SetWidth(334)
+hubHint:SetPoint("TOPLEFT", panel, "TOPLEFT", 101, -143)
+hubHint:SetWidth(250)
 hubHint:SetJustifyH("LEFT")
-hubHint:SetText("Ces outils restent regroupés ici. Loot Decider possède maintenant son propre bouton de minicarte.")
+hubHint:SetText("Stormbringer s'active uniquement sur cette classe. Loot Decider garde son bouton autonome.")
 
 hereticHubButton:SetScript("OnClick", function()
     if CoAHereticHelperAPI and CoAHereticHelperAPI.Toggle then
@@ -265,6 +269,13 @@ dungeonHubButton:SetScript("OnClick", function()
         Chat("CoA Dungeon Navigator n'est pas chargé.")
     end
 end)
+stormHubButton:SetScript("OnClick", function()
+    if CoAStormbringerHelperAPI and CoAStormbringerHelperAPI.Toggle then
+        CoAStormbringerHelperAPI:Toggle()
+    else
+        Chat("CoA Stormbringer Helper n'est pas chargé pour ce personnage.")
+    end
+end)
 
 local function UpdateHubBadge()
     local unread = tonumber(CoAMessageCenterDB and CoAMessageCenterDB.unread) or 0
@@ -277,10 +288,12 @@ local function UpdateHubAvailability()
     if CoARotationGuideAPI and CoARotationGuideAPI.SetHubManaged then CoARotationGuideAPI:SetHubManaged(true) end
     if CoAMessageCenter and CoAMessageCenter.SetHubManaged then CoAMessageCenter:SetHubManaged(true) end
     if CoADungeonNavigatorAPI and CoADungeonNavigatorAPI.SetHubManaged then CoADungeonNavigatorAPI:SetHubManaged(true) end
+    if CoAStormbringerHelperAPI and CoAStormbringerHelperAPI.SetHubManaged then CoAStormbringerHelperAPI:SetHubManaged(true) end
     if CoAHereticHelperAPI and CoAHereticHelperAPI.Toggle then hereticHubButton:Enable() else hereticHubButton:Disable() end
     if CoARotationGuideAPI and CoARotationGuideAPI.Toggle then rotationHubButton:Enable() else rotationHubButton:Disable() end
     if CoAMessageCenter and CoAMessageCenter.Toggle then messagesHubButton:Enable() else messagesHubButton:Disable() end
     if CoADungeonNavigatorAPI and CoADungeonNavigatorAPI.Toggle then dungeonHubButton:Enable() else dungeonHubButton:Disable() end
+    if CoAStormbringerHelperAPI and CoAStormbringerHelperAPI.Toggle then stormHubButton:Enable() else stormHubButton:Disable() end
     UpdateHubBadge()
 end
 

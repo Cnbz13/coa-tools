@@ -52,6 +52,15 @@ const IMPACT_RULES = [
     suggestion: 'Réexaminer les priorités, ressources, portées et conditions de la recommandation.'
   },
   {
+    component: 'stormbringer-helper', name: 'CoA Stormbringer Helper',
+    keywords: [
+      'stormbringer', 'lightning', 'maelstrom', 'wind servant', 'air elemental',
+      'static', 'arm of thorim', 'forked lightning', 'volt', 'conductive',
+      'torrential wrath', 'thunder orb', 'gale winds', 'typhoon'
+    ],
+    suggestion: 'Vérifier le proc ou la priorité Stormbringer concernée, puis publier une règle corrigée seulement après validation.'
+  },
+  {
     component: 'rotation-guide', name: 'CoA Rotation Guide',
     keywords: [
       'barbarian', 'witch doctor', 'felsworn', 'witch hunter', 'stormbringer',

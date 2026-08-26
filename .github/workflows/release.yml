@@ -39,6 +39,7 @@ jobs:
         run: |
           $tag = "v$env:RELEASE_VERSION"
           $hereticHelper = (Get-ChildItem "dist/CoAHereticHelper-v*.zip" | Select-Object -First 1).FullName
+          $stormbringerHelper = (Get-ChildItem "dist/CoAStormbringerHelper-v*.zip" | Select-Object -First 1).FullName
           $assets = @(
             "dist/CoAAddonManager-v$env:RELEASE_VERSION-Windows.zip",
             "dist/CoACombatAssistant-v$env:RELEASE_VERSION.zip",
@@ -48,6 +49,7 @@ jobs:
             "dist/CoARotationGuide-v$env:RELEASE_VERSION.zip",
             "dist/CoADungeonNavigator-v$env:RELEASE_VERSION.zip",
             $hereticHelper,
+            $stormbringerHelper,
             "dist/GridCoA-v$env:RELEASE_VERSION.zip",
             "dist/EventAlertCoA-v$env:RELEASE_VERSION.zip",
             'dist/SHA256SUMS.txt',

@@ -68,6 +68,15 @@ test('impact rules map spell, proc, dispel and interface changes to the affected
   assert.equal(result.confidence, 'élevée');
 });
 
+test('Stormbringer patch notes are routed to the dedicated helper', () => {
+  const result = classifyImpact({
+    id: 'storm-1', sourceId: 'test', sourceType: 'official', title: 'Stormbringer change',
+    summary: 'Arm of Thorim damage increased and Conductive duration changed.'
+  });
+  assert.equal(result.significant, true);
+  assert.ok(result.impacts.some(item => item.component === 'stormbringer-helper'));
+});
+
 test('rotation watch creates a natural Lua 5.1 feed and writes it into the installed guide', async () => {
   const item = classifyImpact({
     id: '900', sourceId: 'ascension-coa-changelog', sourceType: 'official',

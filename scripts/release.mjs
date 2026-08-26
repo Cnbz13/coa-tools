@@ -28,6 +28,7 @@ const packages = [
   { name: 'CoA Rotation Guide', component: 'rotation-guide', platform: 'any', arch: 'any', targetFolder: 'CoARotationGuide', installPath: 'Interface/AddOns', file: `CoARotationGuide-v${version}.zip`, source: path.resolve('addons', 'CoARotationGuide', '..'), only: 'CoARotationGuide' },
   { name: 'CoA Dungeon Navigator', component: 'dungeon-navigator', platform: 'any', arch: 'any', targetFolder: 'CoADungeonNavigator', installPath: 'Interface/AddOns', file: `CoADungeonNavigator-v${version}.zip`, source: path.resolve('addons', 'CoADungeonNavigator', '..'), only: 'CoADungeonNavigator' },
   { name: 'CoA Heretic Helper', component: 'heretic-helper', contentVersion: '3.9.0', platform: 'any', arch: 'any', targetFolder: 'CoAHereticHelper', installPath: 'Interface/AddOns', file: 'CoAHereticHelper-v3.9.0.zip', source: path.resolve('addons', 'CoAHereticHelper', '..'), only: 'CoAHereticHelper' },
+  { name: 'CoA Stormbringer Helper', component: 'stormbringer-helper', contentVersion: '1.0.0', platform: 'any', arch: 'any', targetFolder: 'CoAStormbringerHelper', installPath: 'Interface/AddOns', file: 'CoAStormbringerHelper-v1.0.0.zip', source: path.resolve('addons', 'CoAStormbringerHelper', '..'), only: 'CoAStormbringerHelper' },
   { name: 'Grid - Compatibilité CoA', component: 'grid-compat', platform: 'any', arch: 'any', targetFolder: 'GridCoA', installPath: 'Interface/AddOns', file: `GridCoA-v${version}.zip`, source: path.resolve('addons', 'GridCoA', '..'), only: 'GridCoA' },
   {
     name: 'EventAlert 4.3.6 + compatibilité CoA', component: 'event-alert', platform: 'any', arch: 'any',
@@ -66,7 +67,7 @@ for (const item of packages) {
 const manifest = {
   $schema: './schemas/manifest.schema.json',
   schemaVersion: 1, name: 'CoA Tools', version, channel: process.env.RELEASE_CHANNEL || 'stable',
-  publishedAt: process.env.RELEASE_DATE || '2026-08-24T00:00:00.000Z', minimumNodeVersion: '24.14.0',
+  publishedAt: process.env.RELEASE_DATE || '2026-08-26T00:00:00.000Z', minimumNodeVersion: '24.14.0',
   releaseUrl: `https://github.com/Cnbz13/coa-tools/releases/tag/v${version}`, artifacts
 };
 const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;

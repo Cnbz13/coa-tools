@@ -7,7 +7,7 @@ const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
 test('release manifest describes every managed component and the official EventAlert source', () => {
   assert.equal(manifest.version, pkg.version);
-  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'dungeon-navigator', 'event-alert', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'rotation-guide', 'ui-manager']);
+  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'dungeon-navigator', 'event-alert', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'rotation-guide', 'stormbringer-helper', 'ui-manager']);
   for (const artifact of manifest.artifacts) {
     assert.equal(artifact.version, pkg.version);
     assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
@@ -18,6 +18,9 @@ test('release manifest describes every managed component and the official EventA
   const hereticHelper = manifest.artifacts.find(item => item.component === 'heretic-helper');
   assert.equal(hereticHelper.contentVersion, '3.9.0');
   assert.equal(hereticHelper.targetFolder, 'CoAHereticHelper');
+  const stormbringerHelper = manifest.artifacts.find(item => item.component === 'stormbringer-helper');
+  assert.equal(stormbringerHelper.contentVersion, '1.0.0');
+  assert.equal(stormbringerHelper.targetFolder, 'CoAStormbringerHelper');
   const eventAlert = manifest.artifacts.find(item => item.component === 'event-alert');
   assert.equal(eventAlert.targetFolder, 'EventAlert');
   assert.equal(eventAlert.upstream.version, '4.3.6');
@@ -52,6 +55,7 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(workflow, /CoARotationGuide-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoADungeonNavigator-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoAHereticHelper-v\*\.zip/);
+  assert.match(workflow, /CoAStormbringerHelper-v\*\.zip/);
 });
 
 test('Windows AddOns picker is owned and forced to the foreground', async () => {
@@ -121,6 +125,8 @@ test('addon manager exposes sourced CoA watch recommendations without automatic 
   assert.match(server, /pathname === '\/api\/watch\/check'/);
   assert.match(server, /gameFeedWriter: \(luaContents, feed\) => addons\.writeRotationUpdateFeed/);
   assert.match(addons, /async writeRotationUpdateFeed\(luaContents, feed = \{\}\)/);
+  assert.match(addons, /CoAStormbringerUpdates\.lua/);
+  assert.match(addons, /preservedStormbringerFeed/);
   assert.match(addons, /component === 'rotation-guide' && preservedRotationFeed/);
   assert.match(app, /ont aussi été transmis au Guide de Rotation en jeu/);
   assert.match(app, /loadCoaWatch/);
@@ -139,6 +145,9 @@ test('WoW addon metadata matches the package version', async () => {
   const hereticToc = await readFile('addons/CoAHereticHelper/CoAHereticHelper.toc', 'utf8');
   assert.match(hereticToc, /^## Version: 3\.9\.0$/m);
   assert.match(hereticToc, /^CoAHereticHelper\.lua$/m);
+  const stormToc = await readFile('addons/CoAStormbringerHelper/CoAStormbringerHelper.toc', 'utf8');
+  assert.match(stormToc, /^## Version: 1\.0\.0$/m);
+  assert.match(stormToc, /^CoAStormbringerHelper\.lua$/m);
   const compatibilityToc = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.toc', 'utf8');
   const patch = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.lua', 'utf8');
   assert.match(compatibilityToc, /^## Interface: 30300$/m);

@@ -1,0 +1,9 @@
+## Interface: 30300
+## Title: CoA Stormbringer Helper
+## Notes: Assistant visuel Stormbringer adaptatif au niveau, aux talents, au spellbook, a la Static et aux procs CoA.
+## Author: OpenAI + Yaya
+## Version: 1.0.0
+## SavedVariables: CoAStormbringerHelperDB
+
+CoAStormbringerUpdates.lua
+CoAStormbringerHelper.lua

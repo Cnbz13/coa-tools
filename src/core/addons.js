@@ -8,7 +8,7 @@ import { ensureDir, readJson, writeJsonAtomic } from '../lib/files.js';
 import { extractZip } from '../lib/zip.js';
 
 export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
-const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'rotation-guide', 'dungeon-navigator', 'heretic-helper', 'event-alert', 'grid-compat']);
+const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'rotation-guide', 'dungeon-navigator', 'heretic-helper', 'stormbringer-helper', 'event-alert', 'grid-compat']);
 const USER_MANAGEABLE_COMPONENTS = new Set([...MANAGED_COMPONENTS].filter(component => component !== 'event-alert'));
 const EVENT_ALERT_COMPANION_FOLDER = 'EventAlertCoA';
 const EVENT_ALERT_LEGACY_FOLDER = 'CoAEventAlert';
@@ -115,13 +115,17 @@ export class AddonManager {
     }
     const detection = await this.detectDirectory();
     if (!detection.exists) return { written: false, reason: 'addons-directory-missing', count: 0 };
-    const addonFolder = path.join(detection.directory, 'CoARotationGuide');
-    if (!(await isDirectory(addonFolder))) return { written: false, reason: 'rotation-guide-not-installed', count: 0 };
-    const destination = path.join(addonFolder, 'CoARotationUpdates.lua');
-    await writeFile(destination, text, 'utf8');
+    const destinations = [];
+    const rotationFolder = path.join(detection.directory, 'CoARotationGuide');
+    const stormbringerFolder = path.join(detection.directory, 'CoAStormbringerHelper');
+    if (await isDirectory(rotationFolder)) destinations.push(path.join(rotationFolder, 'CoARotationUpdates.lua'));
+    if (await isDirectory(stormbringerFolder)) destinations.push(path.join(stormbringerFolder, 'CoAStormbringerUpdates.lua'));
+    if (!destinations.length) return { written: false, reason: 'rotation-guide-not-installed', count: 0 };
+    for (const destination of destinations) await writeFile(destination, text, 'utf8');
     return {
       written: true,
-      path: destination,
+      path: destinations[0],
+      paths: destinations,
       count: Array.isArray(feed.items) ? feed.items.length : 0,
       generatedAt: feed.generatedAt || null
     };
@@ -389,6 +393,13 @@ export class AddonManager {
         if (candidate.includes('CoARotationUpdateFeed = {')) preservedRotationFeed = candidate;
       } catch { /* Une ancienne version du guide peut ne pas encore avoir de flux. */ }
     }
+    let preservedStormbringerFeed = null;
+    if (component === 'stormbringer-helper' && local) {
+      try {
+        const candidate = await readFile(path.join(local.path, 'CoAStormbringerUpdates.lua'), 'utf8');
+        if (candidate.includes('CoARotationUpdateFeed = {')) preservedStormbringerFeed = candidate;
+      } catch { /* Une ancienne version peut ne pas encore avoir de flux. */ }
+    }
     const transaction = path.join(this.transactionsRoot, randomUUID());
     const archive = path.join(transaction, path.basename(artifact.file));
     const extracted = path.join(transaction, 'extracted');
@@ -418,6 +429,9 @@ export class AddonManager {
       }
       if (component === 'rotation-guide' && preservedRotationFeed) {
         await writeFile(path.join(destination, 'CoARotationUpdates.lua'), preservedRotationFeed, 'utf8');
+      }
+      if (component === 'stormbringer-helper' && preservedStormbringerFeed) {
+        await writeFile(path.join(destination, 'CoAStormbringerUpdates.lua'), preservedStormbringerFeed, 'utf8');
       }
       report({ step: 'enable', message: 'Activation dans les profils Ascension…', phasePercent: 91 });
       let enabledProfiles = await this.enableAddonForProfiles(detection.directory, artifact.targetFolder);

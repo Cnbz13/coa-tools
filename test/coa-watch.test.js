@@ -77,6 +77,15 @@ test('Stormbringer patch notes are routed to the dedicated helper', () => {
   assert.ok(result.impacts.some(item => item.component === 'stormbringer-helper'));
 });
 
+test('Primalist patch notes are routed to the dedicated helper', () => {
+  const result = classifyImpact({
+    id: 'primal-1', sourceId: 'test', sourceType: 'official', title: 'Primalist change',
+    summary: 'Earthshaping stacks and Wildclaw damage changed for Primalist.'
+  });
+  assert.equal(result.significant, true);
+  assert.ok(result.impacts.some(item => item.component === 'primalist-helper'));
+});
+
 test('rotation watch creates a natural Lua 5.1 feed and writes it into the installed guide', async () => {
   const item = classifyImpact({
     id: '900', sourceId: 'ascension-coa-changelog', sourceType: 'official',
@@ -98,12 +107,17 @@ test('rotation watch creates a natural Lua 5.1 feed and writes it into the insta
   const root = await mkdtemp(path.join(os.tmpdir(), 'coa-game-feed-'));
   const addonsDir = path.join(root, 'Interface', 'AddOns');
   const guideDir = path.join(addonsDir, 'CoARotationGuide');
-  await mkdir(guideDir, { recursive: true });
+  const stormDir = path.join(addonsDir, 'CoAStormbringerHelper');
+  const primalDir = path.join(addonsDir, 'CoAPrimalistHelper');
+  await Promise.all([guideDir, stormDir, primalDir].map(directory => mkdir(directory, { recursive: true })));
   const manager = new AddonManager({ dataDir: path.join(root, 'data'), canonicalPath: addonsDir, environmentPath: null });
   const result = await manager.writeRotationUpdateFeed(lua, feed);
   assert.equal(result.written, true);
   assert.equal(result.count, 1);
+  assert.equal(result.paths.length, 3);
   assert.equal(await readFile(path.join(guideDir, 'CoARotationUpdates.lua'), 'utf8'), lua);
+  assert.equal(await readFile(path.join(stormDir, 'CoAStormbringerUpdates.lua'), 'utf8'), lua);
+  assert.equal(await readFile(path.join(primalDir, 'CoAPrimalistUpdates.lua'), 'utf8'), lua);
 });
 
 test('rank-by-rank changelog entries are grouped into one readable recommendation', () => {

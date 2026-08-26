@@ -61,6 +61,15 @@ const IMPACT_RULES = [
     suggestion: 'Vérifier le proc ou la priorité Stormbringer concernée, puis publier une règle corrigée seulement après validation.'
   },
   {
+    component: 'primalist-helper', name: 'CoA Primalist Helper',
+    keywords: [
+      'primalist', 'wildwalker', 'geomancy', 'grovekeeper', 'mountain king',
+      'earthshaping', 'terrasurge', 'wildclaw', 'primal shred', 'totemic smash',
+      'seismic wave', 'spirit charge', 'mountain fury', 'quake', 'aftershock'
+    ],
+    suggestion: 'Vérifier la spécialisation, la Rage, les soins ou le proc Primalist concernés avant de publier une priorité corrigée.'
+  },
+  {
     component: 'rotation-guide', name: 'CoA Rotation Guide',
     keywords: [
       'barbarian', 'witch doctor', 'felsworn', 'witch hunter', 'stormbringer',

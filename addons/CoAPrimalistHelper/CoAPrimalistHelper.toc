@@ -1,0 +1,9 @@
+## Interface: 30300
+## Title: CoA Primalist Helper
+## Notes: Assistant visuel Primalist adaptatif au niveau, aux talents, au spellbook, à la Rage et aux quatre spécialisations CoA.
+## Author: Cnbz13
+## Version: 1.0.0
+## SavedVariables: CoAPrimalistHelperDB
+
+CoAPrimalistUpdates.lua
+CoAPrimalistHelper.lua

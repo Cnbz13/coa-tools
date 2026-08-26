@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import luaparse from 'luaparse';
 
-const addons = ['CoACombatAssistant', 'CoAUIManager', 'CoARotationGuide', 'CoADungeonNavigator', 'CoAStormbringerHelper'];
+const addons = ['CoACombatAssistant', 'CoAUIManager', 'CoARotationGuide', 'CoADungeonNavigator', 'CoAStormbringerHelper', 'CoAPrimalistHelper'];
 const forbiddenRetailApis = [
   'BackdropTemplate', 'SetShown', 'SetSize', 'SetObeyStepOnDrag', 'C_Timer',
   'GetSpecialization', 'CombatLogGetCurrentEventInfo', 'RegisterUnitEvent',
@@ -21,7 +21,7 @@ for (const name of addons) {
       // GetSpecialization is an Ascension bridge API on CoA. The guide uses it
       // only when the custom C_ClassInfo catalogue is present, with a 3.3.5
       // talent-tab fallback.
-      if ((name === 'CoARotationGuide' || name === 'CoAStormbringerHelper') && api === 'GetSpecialization') continue;
+      if ((name === 'CoARotationGuide' || name === 'CoAStormbringerHelper' || name === 'CoAPrimalistHelper') && api === 'GetSpecialization') continue;
       assert.equal(lua.includes(api), false, `${name} contains forbidden Retail API: ${api}`);
     }
     assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
@@ -311,7 +311,8 @@ test('UI Manager provides persistent movers and never applies frames during comb
     'CoALootDeciderBanner', 'CoALootAdvisorWindow', 'CoAHereticProcAnchor',
     'CoAHereticBlackBloodTracker', 'CoAHereticHUDMenu', 'CoAMessageCenterFrame',
     'CoARotationGuideFrame', 'CoADungeonNavigatorFrame', 'CoADungeonNavigatorRecorder',
-    'CoAStormbringerHUD', 'CoAStormbringerMenu', 'CoAStormbringerLevelToast'
+    'CoAStormbringerHUD', 'CoAStormbringerMenu', 'CoAStormbringerLevelToast',
+    'CoAPrimalistHUD', 'CoAPrimalistMenu', 'CoAPrimalistLevelToast'
   ]) assert.ok(lua.includes(`"${frame}"`), `UI Manager is missing mover target ${frame}`);
   for (const required of [
     'profiles.global', 'profiles.characters', 'characterModes', 'customFrames',
@@ -363,9 +364,9 @@ test('UI Manager always exposes a clickable way to leave mover mode', async () =
 test('UI Manager minimap button remains the hub for shared tools but leaves Loot Decider standalone', async () => {
   const lua = await readFile('addons/CoAUIManager/CoAUIManager.lua', 'utf8');
   for (const required of [
-    'Centre CoA', 'OUTILS COA', 'Heretic', 'Rotations', 'Messages', 'Storm',
+    'Centre CoA', 'OUTILS COA', 'Heretic', 'Rotations', 'Messages', 'Storm', 'Primalist',
     'CoAHereticHelperAPI:Toggle()',
-    'CoAMessageCenter:Toggle()', 'CoARotationGuideAPI:Toggle()', 'CoADungeonNavigatorAPI:Toggle()', 'CoAStormbringerHelperAPI:Toggle()', 'SetHubManaged(true)',
+    'CoAMessageCenter:Toggle()', 'CoARotationGuideAPI:Toggle()', 'CoADungeonNavigatorAPI:Toggle()', 'CoAStormbringerHelperAPI:Toggle()', 'CoAPrimalistHelperAPI:Toggle()', 'SetHubManaged(true)',
     'minimapUnreadText', 'CoAMessageCenterDB.unread', 'UpdateHubAvailability'
   ]) assert.ok(lua.includes(required), `missing shared CoA hub feature: ${required}`);
   assert.doesNotMatch(lua, /HubButton\("Butin"|lootHubButton|CoALootAdvisor_Toggle/,

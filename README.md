@@ -9,11 +9,12 @@ Suite locale sans télémétrie regroupant les outils CoA suivants :
 - **CoA Rotation Guide** — guide hors ligne consultable, adapté à la classe, la spécialisation, au niveau, au spellbook et aux talents actifs ;
 - **CoA Dungeon Navigator** — véritable guide de tank hors ligne avec flèche, trace d'étage, prochaines rencontres et recalage automatique, doublé d'un collecteur de parcours ;
 - **CoA Stormbringer Helper** — HUD compact dédié au leveling Stormbringer, aux procs et aux trois spécialisations ;
+- **CoA Primalist Helper** — compagnon adaptatif niveau 1–60 pour les quatre spécialisations Primalist, y compris soin et tank ;
 - **CoA Addon Manager** — application Windows qui détecte Project Ascension et gère automatiquement les addons CoA.
 
 ## Artefacts installables
 
-Chaque release publie onze ZIP :
+Chaque release publie douze ZIP :
 
 - `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
 - `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans le dossier `Interface/AddOns` de Project Ascension ;
@@ -24,6 +25,7 @@ Chaque release publie onze ZIP :
 - `CoADungeonNavigator-vX.Y.Z.zip` : guide automatiquement 15 donjons déjà observés, affiche la direction et les prochaines étapes, puis continue d'apprendre les trajets sans enregistrer le chat ni le nom des autres joueurs ;
 - `CoAHereticHelper-v3.9.0.zip` : HUD visuel compact dédié au Cultist Heretic heal, avec diagnostic au survol, sons séparés, seuils Sang noir réglables, proc de Soin occulte et couverture membre par membre ;
 - `CoAStormbringerHelper-v1.0.0.zip` : compagnon Stormbringer du niveau 1 à 60, avec détection Lightning/Maelstrom/Wind, Static, procs, summons, cooldowns et conseils filtrés par le personnage réel ;
+- `CoAPrimalistHelper-v1.0.0.zip` : compagnon Primalist du niveau 1 à 60, avec détection Wildwalker/Geomancy/Grovekeeper/Mountain King, Rage, Earthshaping, procs, familier, soins de groupe et défensifs ;
 - `GridCoA-vX.Y.Z.zip` : compagnon du véritable Grid ; il détecte les dissipations apprises et réserve l’icône centrale aux seuls affaiblissements que le personnage peut retirer.
 - `EventAlertCoA-vX.Y.Z.zip` : couche de compatibilité appliquée automatiquement par le manager au véritable EventAlert 4.3.6. Le code original, sous licence « All Rights Reserved », est téléchargé séparément depuis [sa fiche CurseForge officielle](https://www.curseforge.com/wow/addons/event-alert/files/456081), puis vérifié par taille et SHA-256.
 
@@ -62,6 +64,14 @@ Le compagnon Stormbringer fonctionne dès le niveau 1. Il surveille les gains de
 Le HUD reste compact et se cache lorsqu'aucune action utile n'est disponible. Son icône montre le sort conseillé, son cooldown, son glow, la touche correspondante, la Static exposée par Ascension et une explication courte. Lightning gère notamment la construction/dépense de Static, Volt, Forked Lightning, les fenêtres de Storm Ascendance et Arm of Thorim ; Maelstrom suit Conductive et les Thunder Orbs ; Wind suit l'Air Elemental/Wind Servant, Gale et les fenêtres Typhoon. Les conseils restent filtrés par la cible, la portée, la ressource, les cooldowns et les sorts réellement appris. L'addon ne lance jamais de sort.
 
 Le panneau est accessible depuis **Centre CoA → Storm**, son bouton autonome de minicarte ou `/storm`. Commandes utiles : `/storm status`, `/storm scan`, `/storm unlock`, `/storm lock`, `/storm test`, `/storm debug` et `/storm reset`.
+
+## CoA Primalist Helper
+
+Le compagnon Primalist fonctionne dès le niveau 1 avec les capacités réellement apprises. À chaque gain de niveau, nouveau sort ou changement de talent, il rescane automatiquement le personnage. Au niveau 10, il reconnaît le choix **Wildwalker (Primal)**, **Geomancy**, **Grovekeeper (Life)** ou **Mountain King**, puis remplace immédiatement son moteur de priorité.
+
+Le HUD n'affiche qu'une action actuellement utilisable avec son cooldown, sa touche et une raison courte. Wildwalker suit le familier, la Rage, les saignements et le cleave ; Geomancy suit Earthshaping, Aftershock et les dépenses de Rage ; Mountain King sépare menace, regroupement et défensifs ; Grovekeeper analyse aussi les membres du groupe et nomme l'allié à soigner ou à purifier lorsqu'un poison ou une maladie peut réellement être retiré. Il ne cible jamais un joueur et ne lance jamais de sort.
+
+Le panneau est accessible depuis **Centre CoA → Primalist**, son bouton de minicarte ou `/primal`. Commandes utiles : `/primal status`, `/primal scan`, `/primal unlock`, `/primal lock`, `/primal test`, `/primal debug` et `/primal reset`.
 
 ## CoA Rotation Guide
 

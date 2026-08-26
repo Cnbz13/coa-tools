@@ -278,7 +278,7 @@ function renderCoaWatch() {
     : `${coaWatch?.newCount || 0} nouveauté(s), ${coaWatch?.significantCount || 0} changement(s) significatif(s)`;
   const gameFeed = coaWatch?.gameFeed;
   const gameFeedText = gameFeed?.written
-    ? ` ${gameFeed.count || 0} changement(s) pertinent(s) ont aussi été transmis au Guide de Rotation en jeu.`
+    ? ` ${gameFeed.count || 0} changement(s) pertinent(s) ont aussi été transmis au Guide de Rotation et aux assistants de classe installés.`
     : gameFeed?.reason === 'rotation-guide-not-installed'
       ? ' Installez le Guide de Rotation pour recevoir ces alertes directement en jeu.'
       : '';

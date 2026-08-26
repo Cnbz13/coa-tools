@@ -9,7 +9,7 @@ const luaPath = 'addons/CoAPrimalistHelper/CoAPrimalistHelper.lua';
 test('Primalist Helper is a strict Lua 5.1 recommendation HUD', async () => {
   const [toc, lua] = await Promise.all([readFile(tocPath, 'utf8'), readFile(luaPath, 'utf8')]);
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 1\.0\.0$/m);
+  assert.match(toc, /^## Version: 1\.1\.0$/m);
   assert.match(toc, /^## SavedVariables: CoAPrimalistHelperDB$/m);
   assert.match(toc, /^CoAPrimalistUpdates\.lua\r?\nCoAPrimalistHelper\.lua$/m);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
@@ -53,7 +53,7 @@ test('Primalist Helper stays compact, movable, targeted and explainable', async 
     'CoAPrimalistHUD', 'CoAPrimalistMenu', 'CoAPrimalistLevelToast', 'CooldownFrameTemplate',
     'UI-ActionButton-Border', 'OnDragStop', 'TargetLabel', 'db.x', 'db.y',
     'PRIMALIST • GLISSER POUR DÉPLACER', 'Aucun sort ne sera lancé',
-    'SLASH_COAPRIMALIST1 = "/primal"', 'CoAPrimalistHelperAPI', 'SetHubManaged'
+    'SLASH_COAPRIMALIST1 = "/primal"', 'CoAPrimalistHelperAPI', 'SetHubManaged', 'SetUniversalManaged'
   ]) assert.ok(lua.includes(required), `missing visual or diagnostic feature: ${required}`);
   for (const command of ['status', 'scan', 'unlock', 'lock', 'test', 'sound', 'text', 'burst', 'debug', 'reset']) {
     assert.match(lua, new RegExp(`command == "${command}"`));

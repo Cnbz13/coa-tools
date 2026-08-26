@@ -28,6 +28,15 @@ local activeTalentSource = "talents classiques"
 local scannerTooltip
 local updatePopup
 local sessionUpdatePrompted = false
+local actionHUD
+local actionHUDIcon
+local actionHUDCooldown
+local actionHUDGlow
+local actionHUDKey
+local actionHUDHint
+local actionHUDAction = nil
+local actionHUDElapsed = 0
+local ToggleGuide
 
 local function Chat(message)
     if DEFAULT_CHAT_FRAME then
@@ -89,6 +98,12 @@ local function EnsureDatabase()
     if type(CoARotationGuideDB.showPreparation) ~= "boolean" then CoARotationGuideDB.showPreparation = true end
     if type(CoARotationGuideDB.updateAcknowledged) ~= "table" then CoARotationGuideDB.updateAcknowledged = {} end
     if type(CoARotationGuideDB.characters) ~= "table" then CoARotationGuideDB.characters = {} end
+    CoARotationGuideDB.hud = CoARotationGuideDB.hud or {}
+    if type(CoARotationGuideDB.hud.enabled) ~= "boolean" then CoARotationGuideDB.hud.enabled = true end
+    if type(CoARotationGuideDB.hud.locked) ~= "boolean" then CoARotationGuideDB.hud.locked = true end
+    if type(CoARotationGuideDB.hud.scale) ~= "number" then CoARotationGuideDB.hud.scale = 0.9 end
+    if type(CoARotationGuideDB.hud.x) ~= "number" then CoARotationGuideDB.hud.x = 0 end
+    if type(CoARotationGuideDB.hud.y) ~= "number" then CoARotationGuideDB.hud.y = -105 end
 end
 
 local function CharacterKey()
@@ -615,6 +630,263 @@ local function RoleColor(role)
     return { 1.00, 0.70, 0.22 }
 end
 
+local function ActionKeybind(spellName)
+    if not GetActionInfo then return "" end
+    local slot
+    for slot = 1, 120 do
+        local kind, id = GetActionInfo(slot)
+        local name = nil
+        if kind == "spell" and id and GetSpellInfo then name = GetSpellInfo(id)
+        elseif kind == "macro" and id and GetMacroSpell then
+            local macroSpell = GetMacroSpell(id)
+            if type(macroSpell) == "number" and GetSpellInfo then name = GetSpellInfo(macroSpell)
+            elseif type(macroSpell) == "string" then name = macroSpell end
+        end
+        if name and Lower(name) == Lower(spellName) then
+            local command
+            if slot <= 12 then command = "ACTIONBUTTON" .. slot
+            elseif slot <= 24 then command = "MULTIACTIONBAR1BUTTON" .. (slot - 12)
+            elseif slot <= 36 then command = "MULTIACTIONBAR2BUTTON" .. (slot - 24)
+            elseif slot <= 48 then command = "MULTIACTIONBAR3BUTTON" .. (slot - 36)
+            elseif slot <= 60 then command = "MULTIACTIONBAR4BUTTON" .. (slot - 48) end
+            if command and GetBindingKey then
+                local key = GetBindingKey(command)
+                if key then
+                    key = string.gsub(key, "CTRL%-", "C-")
+                    key = string.gsub(key, "SHIFT%-", "S-")
+                    key = string.gsub(key, "ALT%-", "A-")
+                    return key
+                end
+            end
+        end
+    end
+    return ""
+end
+
+local function AuraActive(unit, spellName, harmful)
+    local getter = harmful and UnitDebuff or UnitBuff
+    if not getter or not UnitExists or not UnitExists(unit) then return false end
+    local index
+    for index = 1, 40 do
+        local name, _, _, _, _, duration, expires = getter(unit, index)
+        if not name then break end
+        if Lower(name) == Lower(spellName) then
+            if not expires or tonumber(expires) == 0 then return true end
+            return (tonumber(expires) or 0) - (GetTime and GetTime() or 0) > math.min(2.5, (tonumber(duration) or 0) * 0.25)
+        end
+    end
+    return false
+end
+
+local function HostileTarget()
+    return UnitExists and UnitExists("target") and UnitCanAttack and UnitCanAttack("player", "target")
+        and not (UnitIsDeadOrGhost and UnitIsDeadOrGhost("target"))
+end
+
+local function UnitHealthPercent(unit)
+    local maximum = UnitHealthMax and tonumber(UnitHealthMax(unit)) or 0
+    if maximum <= 0 then return 100 end
+    return (tonumber(UnitHealth(unit)) or maximum) / maximum * 100
+end
+
+local function SpellStateForHUD(spell, targetUnit)
+    local usable, noResource = true, false
+    if IsUsableSpell then
+        local ok, value, noMana = pcall(IsUsableSpell, spell.name)
+        if ok then usable, noResource = value and true or false, noMana and true or false end
+    end
+    local start, duration = 0, 0
+    if GetSpellCooldown then
+        local ok, valueStart, valueDuration = pcall(GetSpellCooldown, spell.name)
+        if ok then start, duration = tonumber(valueStart) or 0, tonumber(valueDuration) or 0 end
+    end
+    -- La recharge globale ne doit pas faire clignoter toute la file comme si
+    -- chaque sort etait réellement indisponible.
+    local ready = duration <= 1.6 or start + duration <= (GetTime and GetTime() or 0) + 0.08
+    local inRange = nil
+    if targetUnit and IsSpellInRange then
+        local ok, value = pcall(IsSpellInRange, spell.name, targetUnit)
+        if ok and value ~= nil then inRange = value == 1 end
+    end
+    return { usable = usable, noResource = noResource, ready = ready, inRange = inRange, start = start, duration = duration }
+end
+
+local function SpecializedActionName()
+    local api = nil
+    if currentCharacter.className == "Stormbringer" then api = CoAStormbringerHelperAPI
+    elseif currentCharacter.className == "Primalist" then api = CoAPrimalistHelperAPI end
+    if type(api) ~= "table" or type(api.GetStatus) ~= "function" then return nil end
+    local ok, status = pcall(api.GetStatus, api)
+    if ok and type(status) == "table" and status.active and status.action then return status.action, status.target end
+    return nil
+end
+
+local function EntryFitsImmediateMoment(entry, targetUnit, hostile)
+    local c = entry.spell.categories or {}
+    local role = currentCharacter.role
+    if hostile then
+        if c.buff or c.summon then return false end
+        if role == "HEALER" and not c.direct and not c.dot and not c.debuff then return false end
+        if role ~= "HEALER" and c.heal then return false end
+        if role ~= "TANK" and (c.mitigation or c.absorb) then return false end
+        if role == "TANK" and (c.mitigation or c.absorb) and UnitHealthPercent("player") > 58 then return false end
+        if c.execute and UnitHealthPercent("target") > 35 then return false end
+        if c.dot and AuraActive("target", entry.spell.name, true) then return false end
+    else
+        if role ~= "HEALER" or not c.heal then return false end
+        if not targetUnit or UnitHealthPercent(targetUnit) >= 92 then return false end
+        if c.hot and AuraActive(targetUnit, entry.spell.name, false) then return false end
+    end
+    return c.direct or c.dot or c.debuff or c.builder or c.spender or c.execute or c.aoe
+        or c.heal or c.mitigation or c.absorb
+end
+
+local function SelectActionHUDEntry()
+    local hostile = HostileTarget()
+    local targetUnit = hostile and "target" or nil
+    if not hostile and currentCharacter.role == "HEALER" then
+        if UnitExists and UnitExists("target") and UnitCanAssist and UnitCanAssist("player", "target") and UnitHealthPercent("target") < 92 then
+            targetUnit = "target"
+        elseif UnitHealthPercent("player") < 92 then targetUnit = "player" end
+    end
+    if not targetUnit then return nil end
+
+    local specializedName, specializedTarget = SpecializedActionName()
+    local specializedSpell = specializedName and spellbook[Lower(specializedName)] or nil
+    if specializedSpell then
+        local state = SpellStateForHUD(specializedSpell, specializedTarget or targetUnit)
+        if state.usable and state.ready and state.inRange ~= false then
+            return { spell = specializedSpell, state = state, targetUnit = specializedTarget or targetUnit,
+                reason = "Le module spécialisé tient compte de ta ressource, de tes procs et de la situation actuelle." }
+        end
+    end
+
+    local _, entry
+    for _, entry in ipairs((currentGuide and currentGuide.entries) or {}) do
+        if EntryFitsImmediateMoment(entry, targetUnit, hostile) then
+            local state = SpellStateForHUD(entry.spell, targetUnit)
+            if state.usable and state.ready and state.inRange ~= false then
+                return { spell = entry.spell, state = state, targetUnit = targetUnit,
+                    reason = entry.explanation or entry.instruction or "Premier choix immédiatement utilisable de ta priorité." }
+            end
+        end
+    end
+    return nil
+end
+
+local function PositionActionHUD()
+    if not actionHUD then return end
+    EnsureDatabase()
+    actionHUD:ClearAllPoints()
+    actionHUD:SetPoint("CENTER", UIParent, "CENTER", CoARotationGuideDB.hud.x or 0, CoARotationGuideDB.hud.y or -105)
+    actionHUD:SetScale(Clamp(CoARotationGuideDB.hud.scale, 0.65, 1.5))
+end
+
+local function SaveActionHUDPosition()
+    if not actionHUD then return end
+    local _, _, _, x, y = actionHUD:GetPoint(1)
+    CoARotationGuideDB.hud.x = tonumber(x) or 0
+    CoARotationGuideDB.hud.y = tonumber(y) or -105
+end
+
+local function UpdateSpecializedHUDOwnership()
+    if type(CoAStormbringerHelperAPI) == "table" and type(CoAStormbringerHelperAPI.SetUniversalManaged) == "function" then
+        pcall(CoAStormbringerHelperAPI.SetUniversalManaged, CoAStormbringerHelperAPI, true)
+    end
+    if type(CoAPrimalistHelperAPI) == "table" and type(CoAPrimalistHelperAPI.SetUniversalManaged) == "function" then
+        pcall(CoAPrimalistHelperAPI.SetUniversalManaged, CoAPrimalistHelperAPI, true)
+    end
+end
+
+local function UpdateActionHUD()
+    if not actionHUD then return end
+    EnsureDatabase()
+    UpdateSpecializedHUDOwnership()
+    actionHUDAction = SelectActionHUDEntry()
+    local unlocked = not CoARotationGuideDB.hud.locked
+    if not CoARotationGuideDB.hud.enabled or not actionHUDAction and not unlocked then actionHUD:Hide(); return end
+    actionHUD:Show()
+    local color = RoleColor(currentCharacter.role)
+    actionHUD:SetBackdropBorderColor(color[1], color[2], color[3], 0.98)
+    if actionHUDAction and actionHUDAction.spell then
+        local spell, state = actionHUDAction.spell, actionHUDAction.state
+        actionHUDIcon:SetTexture(spell.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        actionHUDIcon:SetVertexColor(state.usable and 1 or 0.45, state.usable and 1 or 0.45, state.usable and 1 or 0.45, state.usable and 1 or 0.72)
+        if actionHUDCooldown and actionHUDCooldown.SetCooldown then actionHUDCooldown:SetCooldown(state.start or 0, state.duration or 0) end
+        actionHUDGlow:Show()
+        actionHUDKey:SetText(ActionKeybind(spell.name))
+    else
+        actionHUDIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        actionHUDIcon:SetVertexColor(0.35, 0.55, 0.70, 0.72)
+        if actionHUDCooldown and actionHUDCooldown.SetCooldown then actionHUDCooldown:SetCooldown(0, 0) end
+        actionHUDGlow:Hide()
+        actionHUDKey:SetText("")
+    end
+    if unlocked then actionHUDHint:Show() else actionHUDHint:Hide() end
+end
+
+local function BuildActionHUD()
+    if actionHUD then return end
+    actionHUD = CreateFrame("Frame", "CoARotationGuideHUD", UIParent)
+    actionHUD:SetWidth(66)
+    actionHUD:SetHeight(66)
+    actionHUD:SetFrameStrata("HIGH")
+    actionHUD:SetMovable(true)
+    actionHUD:EnableMouse(true)
+    actionHUD:RegisterForDrag("LeftButton")
+    actionHUD:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border", edgeSize = 10,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+    actionHUD:SetBackdropColor(0.015, 0.025, 0.045, 0.92)
+    actionHUD:SetScript("OnDragStart", function(self)
+        if not CoARotationGuideDB.hud.locked then self:StartMoving() end
+    end)
+    actionHUD:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); SaveActionHUDPosition() end)
+    actionHUD:SetScript("OnMouseUp", function(_, button)
+        if button == "RightButton" then ToggleGuide() end
+    end)
+    actionHUD:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if actionHUDAction and actionHUDAction.spell then
+            GameTooltip:AddLine(actionHUDAction.spell.name, 1.00, 0.82, 0.20)
+            GameTooltip:AddLine(tostring(currentCharacter.className) .. " • " .. tostring(currentCharacter.specName) .. " • " .. RoleLabel(currentCharacter.role), 0.48, 0.86, 1.00)
+            GameTooltip:AddLine(Shorten(actionHUDAction.reason, 260), 1, 1, 1, true)
+            GameTooltip:AddLine("Recommandation uniquement : aucun sort n'est lancé.", 0.55, 0.95, 0.65, true)
+        else
+            GameTooltip:AddLine("Assistant universel CoA", 1.00, 0.82, 0.20)
+            GameTooltip:AddLine("Glisse pour déplacer, puis /rotation hud lock.", 1, 1, 1, true)
+        end
+        GameTooltip:AddLine("Clic droit : ouvrir le guide", 0.70, 0.80, 0.95)
+        GameTooltip:Show()
+    end)
+    actionHUD:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    actionHUDIcon = actionHUD:CreateTexture(nil, "ARTWORK")
+    actionHUDIcon:SetWidth(54)
+    actionHUDIcon:SetHeight(54)
+    actionHUDIcon:SetPoint("CENTER", actionHUD, "CENTER", 0, 0)
+    actionHUDIcon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    actionHUDCooldown = CreateFrame("Cooldown", nil, actionHUD, "CooldownFrameTemplate")
+    actionHUDCooldown:SetWidth(54)
+    actionHUDCooldown:SetHeight(54)
+    actionHUDCooldown:SetPoint("CENTER", actionHUDIcon, "CENTER", 0, 0)
+    actionHUDGlow = actionHUD:CreateTexture(nil, "OVERLAY")
+    actionHUDGlow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+    actionHUDGlow:SetBlendMode("ADD")
+    actionHUDGlow:SetWidth(82)
+    actionHUDGlow:SetHeight(82)
+    actionHUDGlow:SetPoint("CENTER", actionHUD, "CENTER", 0, 0)
+    actionHUDGlow:SetVertexColor(0.28, 0.92, 1.00, 0.92)
+    actionHUDKey = actionHUD:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    actionHUDKey:SetPoint("BOTTOMRIGHT", actionHUD, "BOTTOMRIGHT", -6, 6)
+    actionHUDKey:SetTextColor(1.00, 0.94, 0.55)
+    actionHUDHint = actionHUD:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    actionHUDHint:SetPoint("TOP", actionHUD, "BOTTOM", 0, -2)
+    actionHUDHint:SetText("GLISSER • HUD UNIVERSEL")
+    actionHUDHint:SetTextColor(0.45, 0.88, 1.00)
+    PositionActionHUD()
+    actionHUD:Hide()
+end
+
 local function LevelChapter(level)
     if level < 10 then
         return { title = "On pose les bases", text = "À ce niveau, ton personnage n'a encore qu'une partie de ses outils. Cherche surtout un bouton fiable, une façon de te protéger et une position confortable.", exercise = "Sur les prochains combats, essaie simplement de reconnaître ton attaque principale sans regarder toutes tes barres. Le reste arrivera progressivement." }
@@ -913,6 +1185,59 @@ local function HideRows()
     for _, row in ipairs(rows) do row.spell = nil; row.update = nil; row:Hide() end
 end
 
+local META_ROLE_ORDER = { "DAMAGE", "TANK", "HEALER", "SUPPORT" }
+local META_ROLE_LABELS = {
+    DAMAGE = "DPS", TANK = "TANK", HEALER = "SOIN", SUPPORT = "SOUTIEN"
+}
+local META_ROLE_ICONS = {
+    DAMAGE = "Interface\\Icons\\Ability_DualWield",
+    TANK = "Interface\\Icons\\INV_Shield_06",
+    HEALER = "Interface\\Icons\\Spell_Holy_FlashHeal",
+    SUPPORT = "Interface\\Icons\\Spell_Holy_PrayerOfSpirit"
+}
+
+local function CurrentMetaPicks()
+    local classMeta = DATA.meta and DATA.meta[currentCharacter.className]
+    return type(classMeta) == "table" and classMeta or {}
+end
+
+local function PreferredMetaPick(picks)
+    local wanted = picks[currentCharacter.role]
+    if wanted then return wanted, currentCharacter.role end
+    if picks.DAMAGE then return picks.DAMAGE, "DAMAGE" end
+    local _, role
+    for _, role in ipairs(META_ROLE_ORDER) do
+        if picks[role] then return picks[role], role end
+    end
+    return nil, nil
+end
+
+local function TalentDirection(pick, guide)
+    if pick and type(pick.talents) == "table" and #pick.talents > 0 then
+        local limit = currentCharacter.level < 20 and 3 or 6
+        local names = {}
+        local index
+        for index = 1, math.min(limit, #pick.talents) do table.insert(names, pick.talents[index]) end
+        return "Au fil des points, cherche d'abord : " .. table.concat(names, "  →  ") .. ".",
+            "Ces noms viennent du build communautaire daté. Vérifie quand même leur tooltip après un patch : l'addon ne dépense jamais tes points à ta place."
+    end
+    local focus = guide and guide.profile and guide.profile.focus or {}
+    local labels = {
+        direct = "ton attaque principale", builder = "la génération de ressource", spender = "ta dépense forte",
+        aoe = "l'AOE", execute = "l'exécution", dot = "les dégâts sur la durée", debuff = "les faiblesses de cible",
+        heal = "tes soins fiables", hot = "les soins progressifs", mitigation = "la réduction de dégâts",
+        absorb = "les absorptions", summon = "tes compagnons", buff = "les bonus réellement structurants", combo = "ta chaîne de coups"
+    }
+    local directions = {}
+    local _, category
+    for _, category in ipairs(focus) do
+        if labels[category] and #directions < 3 then table.insert(directions, labels[category]) end
+    end
+    if #directions == 0 then directions = { "le sort que tu utilises le plus", "ta ressource", "un outil de survie" } end
+    return "Priorise les talents qui renforcent " .. table.concat(directions, ", puis ") .. ".",
+        "Je n'ai pas de chemin de talents exact assez récent pour cette spécialisation : je te donne une direction utile, pas de faux points précis."
+end
+
 local function RefreshButtons()
     if not buttons.st then return end
     buttons.st:SetText(CoARotationGuideDB.context == "ST" and "ST : ACTIF" or "ST")
@@ -923,6 +1248,7 @@ local function RefreshButtons()
     buttons.rotation:SetText(viewMode == "ROTATION" and "• ROTATION •" or "ROTATION")
     buttons.situations:SetText(viewMode == "SITUATIONS" and "• SITUATIONS •" or "SITUATIONS")
     buttons.progression:SetText(viewMode == "PROGRESSION" and "• PROGRESSION •" or "PROGRESSION")
+    if buttons.adviser then buttons.adviser:SetText(viewMode == "ADVISER" and "• CHOISIR MA SPÉ •" or "CHOISIR MA SPÉ") end
     local unread = UnreadUpdateCount(RelevantUpdates())
     local updateLabel = unread > 0 and ("ACTUS (" .. tostring(unread) .. ")") or "ACTUS"
     buttons.updates:SetText(viewMode == "UPDATES" and ("• " .. updateLabel .. " •") or updateLabel)
@@ -1015,6 +1341,46 @@ local function RefreshDisplay()
             SetRow(rows[5], "Interface\\Icons\\INV_Misc_Note_06", "Regle de prudence", "Aucun guide exact assez fiable n'est embarque pour ce profil.", "L'addon explique alors une priorite deduite des tooltips et l'etiquette clairement comme adaptative.", "GARDE-FOU", { 1, 0.55, 0.25 })
         end
         guideFrame.source:SetText("Banque hors ligne : " .. tostring(DATA.sourceDate or "?") .. "  •  talents : " .. tostring(DATA.talentPatch or "?") .. "  •  changelog officiel lu jusqu'au : " .. tostring(DATA.officialPatchThrough or "?"))
+        RefreshPagination(guide)
+        return
+    end
+
+    if viewMode == "ADVISER" then
+        local picks = CurrentMetaPicks()
+        local preferred, preferredRole = PreferredMetaPick(picks)
+        local talentBody, talentWhy = TalentDirection(preferred, guide)
+        local beforeTen = currentCharacter.level < 10
+        guideFrame.plan:SetText("Ton personnage est détecté automatiquement : " .. tostring(currentCharacter.className)
+            .. ", niveau " .. tostring(currentCharacter.level) .. ".\n"
+            .. (beforeTen and "Tu choisiras ta spécialisation au niveau 10 ; voici les pistes les plus solides pour préparer ce choix."
+                or "Je compare les rôles disponibles sans remplacer ton envie de jeu ni prétendre mesurer ton DPS en laboratoire."))
+        guideFrame.preparation:SetText(preferred and ("Conseil rapide : " .. META_ROLE_LABELS[preferredRole] .. " → " .. tostring(preferred.spec)
+            .. "  •  confiance " .. tostring(preferred.confidence) .. "  •  " .. tostring(preferred.score or 0) .. " vote(s) net(s)")
+            or "Aucun favori communautaire assez clair : garde la spécialisation qui correspond au rôle que tu veux jouer.")
+        SetRow(rows[1], "Interface\\Icons\\INV_Misc_Book_11", beforeTen and "Tes premiers talents, à partir du niveau 10" or "Où mettre tes prochains points ?",
+            talentBody, talentWhy, preferred and string.upper(tostring(preferred.spec)) or "DIRECTION", { 0.72, 0.52, 1.00 })
+        local rowIndex = 2
+        local _, role
+        for _, role in ipairs(META_ROLE_ORDER) do
+            local pick = picks[role]
+            if pick and rows[rowIndex] then
+                local badge = META_ROLE_LABELS[role] .. " • " .. string.upper(tostring(pick.confidence or "prudente"))
+                local title = META_ROLE_LABELS[role] .. "  •  " .. tostring(pick.spec)
+                local body = tostring(pick.note or "Choix communautaire à essayer avec les sorts réellement appris.")
+                local why = "Repère public « " .. tostring(pick.title or pick.spec) .. " » : score net " .. tostring(pick.score or 0)
+                    .. ". Un vote mesure la popularité, pas une simulation parfaite."
+                local color = RoleColor(role)
+                SetRow(rows[rowIndex], META_ROLE_ICONS[role], title, body, why, badge, color)
+                rowIndex = rowIndex + 1
+            end
+        end
+        if rowIndex == 2 and rows[2] then
+            SetRow(rows[2], "Interface\\Icons\\INV_Misc_Note_06", "Pas encore de classement sérieux pour cette classe",
+                "Le guide continuera malgré tout à suivre ton niveau, tes sorts et tes talents actuels.",
+                "Je préfère afficher cette limite plutôt que d'inventer une meilleure spécialisation.", "PRUDENT", { 1.00, 0.55, 0.25 })
+        end
+        guideFrame.source:SetText("Favoris communautaires CoA Build Hub • capture " .. tostring(DATA.sourceDate or "?")
+            .. " • talents/changements vérifiés jusqu'au " .. tostring(DATA.talentPatch or "?") .. " • clic sur SOURCES pour la méthode")
         RefreshPagination(guide)
         return
     end
@@ -1184,6 +1550,7 @@ local function FullScan(silent, reason)
     lastCharacterFingerprint = CharacterFingerprint()
     SaveCharacterSnapshot(lastScanReason)
     PromptForRelevantUpdates()
+    UpdateActionHUD()
     if not silent then
         Chat(tostring(#spellOrder) .. " sorts et " .. tostring(#activeTalentList) .. " talents lus pour " .. tostring(currentCharacter.className) .. " - " .. tostring(currentCharacter.specName) .. ".")
         Chat("Guide actualise automatiquement au niveau " .. tostring(currentCharacter.level) .. " (" .. tostring(lastScanReason) .. ").")
@@ -1196,7 +1563,7 @@ local function ScheduleScan(delay, reason, passes)
     scheduledScanPasses = math.max(tonumber(passes) or 0, scheduledScanPasses or 0)
 end
 
-local function ToggleGuide()
+ToggleGuide = function()
     if not guideFrame then return end
     if guideFrame:IsShown() then
         SavePosition()
@@ -1375,6 +1742,7 @@ local function BuildInterface()
     buttons.st = MakeButton(nil, "ST", 68, 186, -124)
     buttons.aoe = MakeButton(nil, "AOE", 72, 258, -124)
     buttons.refresh = MakeButton(nil, "ACTUALISER MAINTENANT", 157, 505, -124)
+    buttons.adviser = MakeButton(nil, "CHOISIR MA SPÉ", 165, 334, -124)
 
     buttons.learn:SetScript("OnClick", function() guidePage = 1; viewMode = "LEARN"; RefreshDisplay() end)
     buttons.rotation:SetScript("OnClick", function() guidePage = 1; viewMode = "ROTATION"; RefreshDisplay() end)
@@ -1382,6 +1750,7 @@ local function BuildInterface()
     buttons.progression:SetScript("OnClick", function() guidePage = 1; viewMode = "PROGRESSION"; FullScan(true, "ouverture progression") end)
     buttons.updates:SetScript("OnClick", OpenUpdatePage)
     buttons.sources:SetScript("OnClick", function() guidePage = 1; viewMode = "SOURCES"; RefreshDisplay() end)
+    buttons.adviser:SetScript("OnClick", function() guidePage = 1; viewMode = "ADVISER"; RefreshDisplay() end)
     buttons.solo:SetScript("OnClick", function() CoARotationGuideDB.content = "SOLO"; guidePage = 1; RefreshDisplay() end)
     buttons.group:SetScript("OnClick", function() CoARotationGuideDB.content = "GROUP"; guidePage = 1; RefreshDisplay() end)
     buttons.st:SetScript("OnClick", function() CoARotationGuideDB.context = "ST"; guidePage = 1; RefreshDisplay() end)
@@ -1392,7 +1761,7 @@ local function BuildInterface()
     contextHint:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 344, -130)
     contextHint:SetWidth(150)
     contextHint:SetJustifyH("RIGHT")
-    contextHint:SetText("Contexte du guide")
+    contextHint:SetText("")
 
     local planBox = CreateFrame("Frame", nil, guideFrame)
     planBox:SetPoint("TOPLEFT", guideFrame, "TOPLEFT", 18, -154)
@@ -1579,6 +1948,20 @@ local function SlashHandler(message)
         OpenUpdatePage()
     elseif command == "sources" or command == "method" or command == "methode" then
         viewMode = "SOURCES"; RefreshDisplay(); guideFrame:Show()
+    elseif command == "spec" or command == "spe" or command == "meta" or command == "talents" or command == "choix" then
+        guidePage = 1; viewMode = "ADVISER"; FullScan(true, "conseil de specialisation"); guideFrame:Show()
+    elseif command == "hud" then
+        CoARotationGuideDB.hud.enabled = not CoARotationGuideDB.hud.enabled
+        UpdateActionHUD()
+        Chat("HUD universel : " .. (CoARotationGuideDB.hud.enabled and "active" or "masque") .. ".")
+    elseif command == "hud unlock" or command == "hud move" or command == "hud deplacer" then
+        CoARotationGuideDB.hud.enabled = true; CoARotationGuideDB.hud.locked = false; UpdateActionHUD()
+        Chat("HUD deverrouille : glisse l'icone, puis /rotation hud lock.")
+    elseif command == "hud lock" or command == "hud verrouiller" then
+        CoARotationGuideDB.hud.locked = true; UpdateActionHUD(); Chat("HUD verrouille.")
+    elseif command == "hud reset" then
+        CoARotationGuideDB.hud.x, CoARotationGuideDB.hud.y, CoARotationGuideDB.hud.scale = 0, -105, 0.9
+        PositionActionHUD(); UpdateActionHUD(); Chat("Position du HUD reinitialisee.")
     elseif command == "status" then
         PrintStatus()
     elseif command == "minimap" then
@@ -1586,9 +1969,10 @@ local function SlashHandler(message)
     elseif command == "reset" then
         CoARotationGuideDB.position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
         CoARotationGuideDB.minimap.angle = 2.65
-        RestorePosition(); PositionMinimapButton(); Chat("Positions reinitialisees.")
+        CoARotationGuideDB.hud.x, CoARotationGuideDB.hud.y, CoARotationGuideDB.hud.scale = 0, -105, 0.9
+        RestorePosition(); PositionMinimapButton(); PositionActionHUD(); Chat("Positions reinitialisees.")
     else
-        Chat("/rotation | comprendre | pourquoi | situations | progression | actus | scan | status | st | aoe | solo | groupe | sources | minimap | reset")
+        Chat("/rotation | comprendre | pourquoi | spec | talents | situations | progression | actus | scan | status | st | aoe | solo | groupe | hud [unlock/lock/reset] | sources | minimap | reset")
     end
 end
 
@@ -1602,12 +1986,21 @@ function CoARotationGuideAPI:SetHubManaged(value)
     UpdateMinimapVisibility()
 end
 function CoARotationGuideAPI:Refresh() FullScan(true, "actualisation API") end
+function CoARotationGuideAPI:SetHUDEnabled(value)
+    EnsureDatabase(); CoARotationGuideDB.hud.enabled = value and true or false; UpdateActionHUD()
+end
+function CoARotationGuideAPI:GetStatus()
+    return { className = currentCharacter.className, specName = currentCharacter.specName, role = currentCharacter.role,
+        level = currentCharacter.level, spellCount = #spellOrder, talentCount = math.max(#activeTalentList, adaptiveTalentCount),
+        action = actionHUDAction and actionHUDAction.spell and actionHUDAction.spell.name or nil }
+end
 
 SLASH_COAROTATIONGUIDE1 = "/rotation"
 SLASH_COAROTATIONGUIDE2 = "/crg"
 SlashCmdList.COAROTATIONGUIDE = SlashHandler
 
 BuildInterface()
+BuildActionHUD()
 
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
@@ -1623,12 +2016,23 @@ if eventFrame.RegisterEvent then
     pcall(eventFrame.RegisterEvent, eventFrame, "CHARACTER_POINTS_CHANGED")
     pcall(eventFrame.RegisterEvent, eventFrame, "CHARACTER_ADVANCEMENT_UPDATE_ENTRIES_RESULT")
     pcall(eventFrame.RegisterEvent, eventFrame, "ASCENSION_CA_SPECIALIZATION_ACTIVE_ID_CHANGED")
+    pcall(eventFrame.RegisterEvent, eventFrame, "PLAYER_TARGET_CHANGED")
+    pcall(eventFrame.RegisterEvent, eventFrame, "ACTIONBAR_UPDATE_USABLE")
+    pcall(eventFrame.RegisterEvent, eventFrame, "ACTIONBAR_UPDATE_COOLDOWN")
+    pcall(eventFrame.RegisterEvent, eventFrame, "UNIT_AURA")
+    pcall(eventFrame.RegisterEvent, eventFrame, "UNIT_HEALTH")
+    pcall(eventFrame.RegisterEvent, eventFrame, "UNIT_MANA")
+    pcall(eventFrame.RegisterEvent, eventFrame, "UNIT_POWER")
+    pcall(eventFrame.RegisterEvent, eventFrame, "PLAYER_REGEN_DISABLED")
+    pcall(eventFrame.RegisterEvent, eventFrame, "PLAYER_REGEN_ENABLED")
 end
 eventFrame:SetScript("OnEvent", function(_, event, loadedAddon)
     if event == "ADDON_LOADED" and loadedAddon == addonName then
         EnsureDatabase()
         RestorePosition()
         BuildMinimapButton()
+        BuildActionHUD()
+        PositionActionHUD()
         ScheduleScan(0.6, "chargement de l'addon", 1)
     elseif event == "ADDON_LOADED" then
         if CoAUIManagerPanel then hubManaged = true; UpdateMinimapVisibility() end
@@ -1643,6 +2047,11 @@ eventFrame:SetScript("OnEvent", function(_, event, loadedAddon)
         ScheduleScan(0.35, "gain de niveau", 2)
     elseif event == "SPELLS_CHANGED" or event == "LEARNED_SPELL_IN_TAB" then
         ScheduleScan(0.35, "spellbook modifie", 2)
+    elseif event == "PLAYER_TARGET_CHANGED" or event == "ACTIONBAR_UPDATE_USABLE" or event == "ACTIONBAR_UPDATE_COOLDOWN"
+        or event == "UNIT_AURA" or event == "UNIT_HEALTH" or event == "UNIT_MANA" or event == "UNIT_POWER"
+        or event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED"
+    then
+        UpdateActionHUD()
     elseif event == "PLAYER_TALENT_UPDATE" or event == "ACTIVE_TALENT_GROUP_CHANGED"
         or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "CHARACTER_POINTS_CHANGED"
         or event == "CHARACTER_ADVANCEMENT_UPDATE_ENTRIES_RESULT"
@@ -1653,8 +2062,10 @@ eventFrame:SetScript("OnEvent", function(_, event, loadedAddon)
         ScheduleScan(0.45, tostring(event), 1)
     end
 end)
-eventFrame:SetScript("OnUpdate", function()
+eventFrame:SetScript("OnUpdate", function(_, elapsed)
     local now = GetTime and GetTime() or 0
+    actionHUDElapsed = actionHUDElapsed + (tonumber(elapsed) or 0)
+    if actionHUDElapsed >= 0.12 then actionHUDElapsed = 0; UpdateActionHUD() end
     if scheduledScanAt and now >= scheduledScanAt then
         local reason = scheduledScanReason or "changement detecte"
         local remainingPasses = scheduledScanPasses or 0

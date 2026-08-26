@@ -1,4 +1,4 @@
-CoA Stormbringer Helper v1.0.0
+CoA Stormbringer Helper v1.1.0
 ================================
 
 Compagnon visuel strictement informatif pour Project Ascension / Conquest of Azeroth 3.3.5a.

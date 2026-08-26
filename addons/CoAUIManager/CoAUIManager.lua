@@ -9,7 +9,7 @@ local DEFAULT_FRAMES = {
     "CoACombatAssistantFrame", "EA_Main_Frame", "EA_Anchor_Frame", "CoAUIManagerPanel",
     "CoALootDeciderBanner", "CoALootAdvisorWindow", "CoAHereticProcAnchor",
     "CoAHereticBlackBloodTracker", "CoAHereticHUDMenu", "CoAMessageCenterFrame",
-    "CoARotationGuideFrame", "CoADungeonNavigatorFrame", "CoADungeonNavigatorHUD",
+    "CoARotationGuideFrame", "CoARotationGuideHUD", "CoADungeonNavigatorFrame", "CoADungeonNavigatorHUD",
     "CoADungeonNavigatorLearningFrame", "CoADungeonNavigatorRecorder",
     "CoAStormbringerHUD", "CoAStormbringerMenu", "CoAStormbringerLevelToast",
     "CoAPrimalistHUD", "CoAPrimalistMenu", "CoAPrimalistLevelToast"
@@ -30,7 +30,7 @@ local FRAME_LABELS = {
     CoALootDeciderBanner = "Décision de butin", CoALootAdvisorWindow = "Comparateur de butin",
     CoAHereticProcAnchor = "Heretic : proc", CoAHereticBlackBloodTracker = "Heretic : Sang noir",
     CoAHereticHUDMenu = "Réglages Heretic", CoAMessageCenterFrame = "Messages CoA",
-    CoARotationGuideFrame = "Guide de rotation", CoADungeonNavigatorFrame = "Navigateur de donjon",
+    CoARotationGuideFrame = "Guide de rotation", CoARotationGuideHUD = "Rotation : prochain sort", CoADungeonNavigatorFrame = "Navigateur de donjon",
     CoADungeonNavigatorHUD = "Flèche de donjon", CoADungeonNavigatorLearningFrame = "Collecte de donjon",
     CoADungeonNavigatorRecorder = "Enregistrement de donjon",
     CoAStormbringerHUD = "Stormbringer : conseil", CoAStormbringerMenu = "Réglages Stormbringer",

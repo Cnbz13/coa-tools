@@ -19,10 +19,10 @@ test('release manifest describes every managed component and the official EventA
   assert.equal(hereticHelper.contentVersion, '3.9.0');
   assert.equal(hereticHelper.targetFolder, 'CoAHereticHelper');
   const stormbringerHelper = manifest.artifacts.find(item => item.component === 'stormbringer-helper');
-  assert.equal(stormbringerHelper.contentVersion, '1.0.0');
+  assert.equal(stormbringerHelper.contentVersion, '1.1.0');
   assert.equal(stormbringerHelper.targetFolder, 'CoAStormbringerHelper');
   const primalistHelper = manifest.artifacts.find(item => item.component === 'primalist-helper');
-  assert.equal(primalistHelper.contentVersion, '1.0.0');
+  assert.equal(primalistHelper.contentVersion, '1.1.0');
   assert.equal(primalistHelper.targetFolder, 'CoAPrimalistHelper');
   const eventAlert = manifest.artifacts.find(item => item.component === 'event-alert');
   assert.equal(eventAlert.targetFolder, 'EventAlert');
@@ -152,10 +152,10 @@ test('WoW addon metadata matches the package version', async () => {
   assert.match(hereticToc, /^## Version: 3\.9\.0$/m);
   assert.match(hereticToc, /^CoAHereticHelper\.lua$/m);
   const stormToc = await readFile('addons/CoAStormbringerHelper/CoAStormbringerHelper.toc', 'utf8');
-  assert.match(stormToc, /^## Version: 1\.0\.0$/m);
+  assert.match(stormToc, /^## Version: 1\.1\.0$/m);
   assert.match(stormToc, /^CoAStormbringerHelper\.lua$/m);
   const primalistToc = await readFile('addons/CoAPrimalistHelper/CoAPrimalistHelper.toc', 'utf8');
-  assert.match(primalistToc, /^## Version: 1\.0\.0$/m);
+  assert.match(primalistToc, /^## Version: 1\.1\.0$/m);
   assert.match(primalistToc, /^CoAPrimalistHelper\.lua$/m);
   const compatibilityToc = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.toc', 'utf8');
   const patch = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.lua', 'utf8');

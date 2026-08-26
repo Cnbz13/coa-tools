@@ -1,4 +1,4 @@
-CoA Primalist Helper v1.0.0
+CoA Primalist Helper v1.1.0
 
 Compagnon d'information pour Project Ascension / Conquest of Azeroth 3.3.5a.
 Il ne lance jamais de sort, ne cible rien et n'automatise aucun combat.

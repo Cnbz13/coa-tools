@@ -6,7 +6,7 @@ Suite locale sans télémétrie regroupant les outils CoA suivants :
 
 - **CoA Combat Assistant** — addon WoW de recommandations visuelles et de mémoire des combats ;
 - **CoA UI Manager** — gestionnaire complet de positions, profils, échelle et alpha ;
-- **CoA Rotation Guide** — guide hors ligne consultable, adapté à la classe, la spécialisation, au niveau, au spellbook et aux talents actifs ;
+- **CoA Rotation Guide** — guide universel hors ligne avec une seule icône de combat compacte, adapté automatiquement à la classe, la spécialisation, au niveau, au spellbook et aux talents actifs ;
 - **CoA Dungeon Navigator** — véritable guide de tank hors ligne avec flèche, trace d'étage, prochaines rencontres et recalage automatique, doublé d'un collecteur de parcours ;
 - **CoA Stormbringer Helper** — HUD compact dédié au leveling Stormbringer, aux procs et aux trois spécialisations ;
 - **CoA Primalist Helper** — compagnon adaptatif niveau 1–60 pour les quatre spécialisations Primalist, y compris soin et tank ;
@@ -21,11 +21,11 @@ Chaque release publie douze ZIP :
 - `CoAUIManager-vX.Y.Z.zip` : extrayez le dossier `CoAUIManager` dans le dossier `Interface/AddOns` de Project Ascension.
 - `CoALootDecider-vX.Y.Z.zip` : compare automatiquement le butin, les sacs, la banque, les vendeurs PNJ et tout lien d'objet avec l'équipement et le profil de spécialisation du personnage ; ajoute des contours vert/jaune/rouge, un pourcentage dans les icônes, un diagnostic dans les tooltips et une fenêtre accessible par son propre bouton de minicarte ou `/cld gear` ;
 - `CoAMessageCenter-vX.Y.Z.zip` : centralise les messages des addons CoA hors du chat général ;
-- `CoARotationGuide-vX.Y.Z.zip` : ouvre un guide de priorités ST/AOE et solo/groupe filtré par les sorts réellement appris, avec parcours de leveling et d'équipement niveau 60 ;
+- `CoARotationGuide-vX.Y.Z.zip` : affiche une icône compacte du prochain sort réellement utilisable pour toutes les classes, ouvre un guide de priorités ST/AOE et solo/groupe, et propose des spécialisations DPS/tank/soin datées avec leur confiance ;
 - `CoADungeonNavigator-vX.Y.Z.zip` : guide automatiquement 15 donjons déjà observés, affiche la direction et les prochaines étapes, puis continue d'apprendre les trajets sans enregistrer le chat ni le nom des autres joueurs ;
 - `CoAHereticHelper-v3.9.0.zip` : HUD visuel compact dédié au Cultist Heretic heal, avec diagnostic au survol, sons séparés, seuils Sang noir réglables, proc de Soin occulte et couverture membre par membre ;
-- `CoAStormbringerHelper-v1.0.0.zip` : compagnon Stormbringer du niveau 1 à 60, avec détection Lightning/Maelstrom/Wind, Static, procs, summons, cooldowns et conseils filtrés par le personnage réel ;
-- `CoAPrimalistHelper-v1.0.0.zip` : compagnon Primalist du niveau 1 à 60, avec détection Wildwalker/Geomancy/Grovekeeper/Mountain King, Rage, Earthshaping, procs, familier, soins de groupe et défensifs ;
+- `CoAStormbringerHelper-v1.1.0.zip` : moteur Stormbringer du niveau 1 à 60, avec détection Lightning/Maelstrom/Wind, Static, procs, summons et décisions transmises au HUD universel ;
+- `CoAPrimalistHelper-v1.1.0.zip` : moteur Primalist niveau 1–60 pour Wildwalker/Geomancy/Grovekeeper/Mountain King, Rage, Earthshaping, procs, familier, soins et décisions transmises au HUD universel ;
 - `GridCoA-vX.Y.Z.zip` : compagnon du véritable Grid ; il détecte les dissipations apprises et réserve l’icône centrale aux seuls affaiblissements que le personnage peut retirer.
 - `EventAlertCoA-vX.Y.Z.zip` : couche de compatibilité appliquée automatiquement par le manager au véritable EventAlert 4.3.6. Le code original, sous licence « All Rights Reserved », est téléchargé séparément depuis [sa fiche CurseForge officielle](https://www.curseforge.com/wow/addons/event-alert/files/456081), puis vérifié par taille et SHA-256.
 

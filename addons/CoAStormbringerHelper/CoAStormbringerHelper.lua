@@ -1,10 +1,10 @@
 local addonName = ...
 
--- CoA Stormbringer Helper 1.0.0
+-- CoA Stormbringer Helper 1.1.0
 -- Project Ascension / Conquest of Azeroth, client WoW 3.3.5a, Lua 5.1.
 -- Recommendations only: this addon never casts, targets or clicks a spell.
 
-local VERSION = "1.0.0"
+local VERSION = "1.1.0"
 local SOURCE_DATE = "2026-08-26"
 local BOOK = BOOKTYPE_SPELL or "spell"
 local lower = string.lower
@@ -32,6 +32,7 @@ local refreshElapsed = 0
 local testUntil = 0
 local toastUntil = 0
 local hubManaged = false
+local universalManaged = false
 local activeEnemies = {}
 local ownedSummons = {}
 local assumedServantUntil = 0
@@ -77,7 +78,7 @@ local function EnsureDB()
     if db.enabled == nil then db.enabled = true end
     if db.locked == nil then db.locked = true end
     if db.sound == nil then db.sound = true end
-    if db.showText == nil then db.showText = true end
+    if db.showText == nil then db.showText = false end
     if db.showBurst == nil then db.showBurst = true end
     if db.buttonHidden == nil then db.buttonHidden = false end
     if type(db.scale) ~= "number" then db.scale = 1.0 end
@@ -668,7 +669,7 @@ local function UpdateHUD()
         local testSpell = SpellFor("shock") or SpellFor("discharge") or spellList[1]
         if testSpell then action = { spell = testSpell, rule = { key = "test" }, score = 999, reason = "Test visuel : l'addon ne lance rien." , state = SpellState(testSpell) } end
     end
-    local visible = db.enabled and classActive and (action ~= nil or not db.locked or testUntil > now)
+    local visible = db.enabled and classActive and not universalManaged and (action ~= nil or not db.locked or testUntil > now)
     if not visible then hud:Hide(); return end
     hud:Show()
     if action and action.spell then
@@ -899,6 +900,7 @@ CoAStormbringerHelperAPI = CoAStormbringerHelperAPI or {}
 function CoAStormbringerHelperAPI:Toggle() if menu:IsShown() then menu:Hide() else menu:Show(); UpdateMenu() end end
 function CoAStormbringerHelperAPI:Show() menu:Show(); UpdateMenu() end
 function CoAStormbringerHelperAPI:SetHubManaged(value) hubManaged = value and true or false; UpdateMinimapVisibility() end
+function CoAStormbringerHelperAPI:SetUniversalManaged(value) universalManaged = value and true or false; UpdateHUD() end
 function CoAStormbringerHelperAPI:Refresh() FullScan("API", true) end
 function CoAStormbringerHelperAPI:GetStatus()
     return { active = classActive, level = playerLevel, spec = activeSpec, source = specSource,

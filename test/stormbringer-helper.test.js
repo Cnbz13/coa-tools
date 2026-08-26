@@ -9,7 +9,7 @@ const luaPath = 'addons/CoAStormbringerHelper/CoAStormbringerHelper.lua';
 test('Stormbringer Helper is a strict Lua 5.1 recommendation HUD', async () => {
   const [toc, lua] = await Promise.all([readFile(tocPath, 'utf8'), readFile(luaPath, 'utf8')]);
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 1\.0\.0$/m);
+  assert.match(toc, /^## Version: 1\.1\.0$/m);
   assert.match(toc, /^## SavedVariables: CoAStormbringerHelperDB$/m);
   assert.match(toc, /^CoAStormbringerUpdates\.lua\r?\nCoAStormbringerHelper\.lua$/m);
   assert.doesNotThrow(() => luaparse.parse(lua, { luaVersion: '5.1', comments: false, locations: true }));
@@ -52,7 +52,7 @@ test('Stormbringer Helper stays compact, movable and explainable', async () => {
     'CoAStormbringerHUD', 'CoAStormbringerMenu', 'CoAStormbringerLevelToast',
     'CooldownFrameTemplate', 'UI-ActionButton-Border', 'OnDragStop', 'db.x', 'db.y',
     'STORMBRINGER • GLISSER POUR DÉPLACER', 'Aucun sort ne sera lancé',
-    'SLASH_COASTORMBRINGER1 = "/storm"', 'CoAStormbringerHelperAPI', 'SetHubManaged'
+    'SLASH_COASTORMBRINGER1 = "/storm"', 'CoAStormbringerHelperAPI', 'SetHubManaged', 'SetUniversalManaged'
   ]) assert.ok(lua.includes(required), `missing visual or diagnostic feature: ${required}`);
   for (const command of ['status', 'scan', 'unlock', 'lock', 'test', 'sound', 'text', 'burst', 'debug', 'reset']) {
     assert.match(lua, new RegExp(`command == "${command}"`));

@@ -1,7 +1,7 @@
 -- Banque hors ligne du Guide de Rotation CoA.
 -- Les descriptions de specialisations viennent de CoA Build Hub et sont
--- recoupees avec les pages/changelogs officiels Ascension. Capture 2026-08-24,
--- donnees de talents du patch communautaire 2026-08-19.
+-- recoupees avec les pages/changelogs officiels Ascension. Capture 2026-08-26,
+-- donnees de talents et changements publics du patch 2026-08-25.
 -- Les priorites exactes ci-dessous sont toujours filtrees par les sorts
 -- reellement appris : aucun nom absent du spellbook ne sera affiche en jeu.
 
@@ -107,6 +107,112 @@ Add("Primalist", "Geomancy", "DAMAGE", { "debuff", "builder", "spender", "aoe" }
 Add("Runemaster", "Engravement", "DAMAGE", { "buff", "combo", "direct", "spender" }, "Grave les bonnes runes sur l'arme puis respecte leur chaine au corps-a-corps.")
 Add("Runemaster", "Glyphic", "DAMAGE", { "buff", "debuff", "spender", "aoe" }, "Pose tes glyphes, laisse-les preparer la cible et declenche-les dans la bonne combinaison.")
 Add("Runemaster", "Riftblade", "DAMAGE", { "buff", "combo", "direct", "aoe" }, "Entretiens les runes elementaires et frappe pendant que leur combinaison est active.")
+
+-- Repères de méta hors ligne. Ils ne prétendent pas mesurer le DPS : CoA Build
+-- Hub classe les builds par votes communautaires. Le guide présente donc ces
+-- choix comme des favoris pratiques, datés, avec leur niveau de confiance.
+local function Pick(spec, score, title, source, confidence, note, talents)
+    return {
+        spec = spec,
+        score = score,
+        title = title,
+        source = source,
+        confidence = confidence or "prudente",
+        note = note,
+        talents = talents or {}
+    }
+end
+
+local meta = {
+    ["Barbarian"] = {
+        DAMAGE = Pick("Headhunting", 3, "HH Spearheads on Foreheads", "https://coabuildhub.com/build/357b736e-2be8-48bc-9052-fc4f9aa7c2e6", "moyenne", "Le choix distance le plus soutenu par les retours publics ; Brutality reste plus direct au corps-a-corps."),
+        SUPPORT = Pick("Ancestry", 1, "Ancestry Barbarian", "https://coabuildhub.com/build/d7224a9d-7c7e-4382-af9e-0fe3c8dec13a", "prudente", "À choisir pour aider le groupe avec les esprits plutôt que pour viser le meilleur DPS personnel.")
+    },
+    ["Witch Doctor"] = {
+        DAMAGE = Pick("Shadowhunting", 3, "Shadowhunter Witch Doctor build", "https://coabuildhub.com/build/f9b4830a-0000-492c-936a-afe69c347fc9", "moyenne", "Le familier et les wards donnent un leveling régulier et pardonnent bien les erreurs."),
+        HEALER = Pick("Brewing", 3, "WD Brewing", "https://coabuildhub.com/build/fd4e200d-cfe4-45dc-b0a2-366e8971591d", "moyenne", "Le favori public pour soigner ; il demande surtout de choisir le bon mélange au bon moment.")
+    },
+    ["Felsworn"] = {
+        DAMAGE = Pick("Slayer", 5, "Felsworn Slayer General Use", "https://coabuildhub.com/build/23902404-fe70-4869-98ab-ee1ef2e08f3e", "moyenne", "La recommandation DPS la plus approuvée ; Infernal reste une option distance plus souple."),
+        TANK = Pick("Tyrant", 10, "IMMORTAL TYRANT - Walking Fortress", "https://coabuildhub.com/build/ae283725-5e17-4da9-b724-6729e0729a54", "haute", "Un des tanks les plus appréciés publiquement, axé survie et stabilité.")
+    },
+    ["Witch Hunter"] = {
+        DAMAGE = Pick("Houndmaster", 5, "Houndmaster Deep Dive", "https://coabuildhub.com/build/e4e89e4c-e64d-41df-b93a-62e7a56fc887", "moyenne", "La meute rend le leveling confortable et le guide public est détaillé."),
+        TANK = Pick("Black Knight", 1, "Black Knight - Leveling Tank", "https://coabuildhub.com/build/20a2dbac-85fd-49cb-8ffa-ea87affdfa38", "prudente", "Choix tank cohérent, mais encore peu voté sur le patch actuel.")
+    },
+    ["Stormbringer"] = {
+        DAMAGE = Pick("Lightning", 3, "Lightning Stormbringer Leveling", "https://coabuildhub.com/build/96c001c3-21f3-432d-8028-e9a6cac7f103", "prudente", "Le favori leveling actuel, mais Volt, Arm of Thorim et Forked Lightning ont changé le 25 août.", { "Cloudburst", "Charge", "Body of Lightning", "Wind Shift", "Arcane Lightning", "Conjuration Mastery" })
+    },
+    ["Knight of Xoroth"] = {
+        DAMAGE = Pick("Hellfire", 13, "KOX Hellfire balanced AOE+ST M+ build", "https://coabuildhub.com/build/45c0c353-08f3-487f-80c0-c47930763571", "haute", "Le choix DPS public le plus nettement approuvé pour mélanger cible unique et packs."),
+        TANK = Pick("Defiance", 5, "M+, Tank, Defiance, Block, Beginner Friendly", "https://coabuildhub.com/build/86d49631-f22d-486d-92da-217af8ea965a", "moyenne", "Une base tank accessible, pensée pour apprendre les donjons.")
+    },
+    ["Guardian"] = {
+        DAMAGE = Pick("Gladiator", 2, "Gladiator - PvE", "https://coabuildhub.com/build/164da105-e964-4a5f-969c-c990037bd745", "moyenne", "Le meilleur repère DPS PvE public de la classe."),
+        TANK = Pick("Vanguard", 5, "Vanguard PvE", "https://coabuildhub.com/build/42d434c2-50ac-4f13-96ca-d69aaf05435d", "moyenne", "Le favori tank public ; le blocage au bon moment reste le cœur du gameplay."),
+        SUPPORT = Pick("Inspiration", 3, "Inspiration Guardian PvE", "https://coabuildhub.com/build/0f6836ab-b365-4f6d-9090-6a2d78eacda4", "moyenne", "Pour renforcer le groupe avec bannières et ballades.")
+    },
+    ["Templar"] = {
+        DAMAGE = Pick("Crusader", 9, "crusader aoe", "https://coabuildhub.com/build/5cb8e685-f728-4360-b867-9b4b2eec22c0", "haute", "Le favori DPS public, surtout dès que plusieurs ennemis sont regroupés."),
+        TANK = Pick("Oathkeeper", 3, "Deadmanfred Oathkeeper Tank", "https://coabuildhub.com/build/a7792a90-0e37-4798-a849-30dd1ed291da", "moyenne", "Le choix tank naturel de la classe, centré sur les runes défensives.")
+    },
+    ["Bloodmage"] = {
+        DAMAGE = Pick("Accursed", 2, "Accursed Big AOE DPS", "https://coabuildhub.com/build/a7fddb88-f32b-45e6-8255-d990785d79eb", "prudente", "Bon repère AOE ; les retours ST sont plus mitigés."),
+        TANK = Pick("Eternal", 2, "Eternal Big AoE PVE - TANK", "https://coabuildhub.com/build/b73f2b5f-a47b-4f49-bbeb-4ba46452fd4e", "moyenne", "Le choix tank public le plus fréquent."),
+        HEALER = Pick("Fleshweaver", 4, "The Fistweaver", "https://coabuildhub.com/build/2eb43843-d2ab-45f9-987c-fb7c73a3dd1b", "moyenne", "Un soigneur de mêlée apprécié en donjon et Mythique+.")
+    },
+    ["Ranger"] = {
+        DAMAGE = Pick("Archery", 4, "Archery - PvE", "https://coabuildhub.com/build/1a626108-5840-4b3b-aaf7-33777a358433", "moyenne", "Le repère DPS le plus simple et le mieux soutenu ; Brigand est préféré pour le corps-a-corps."),
+        SUPPORT = Pick("Farstrider", 1, "Farstrider Ranger Support", "https://coabuildhub.com/build/40b1536a-eca5-456f-813c-b50de9ee2540", "prudente", "Option utilitaire encore peu documentée publiquement.")
+    },
+    ["Chronomancer"] = {
+        DAMAGE = Pick("Infinite", 0, "Infinite PvE", "https://coabuildhub.com/build/eb1748d8-859e-4a72-8b91-f89d5aa258c5", "prudente", "Le choix DPS le plus lisible dans les données actuelles, mais sans vote significatif."),
+        HEALER = Pick("Time", 9, "Updated after rework - Mythic+ Time", "https://coabuildhub.com/build/d0ca993a-cdea-4318-8ca8-129dcb617a31", "haute", "Le choix soin public le plus solide après sa refonte.")
+    },
+    ["Necromancer"] = {
+        DAMAGE = Pick("Animation", 5, "3 Crypt Fiend Animation ST", "https://coabuildhub.com/build/f268b2a3-20e4-49df-bf9e-9c85ff7ae167", "moyenne", "Le favori public en cible unique et en leveling ; adapte ensuite le nombre d'invocations aux packs.")
+    },
+    ["Pyromancer"] = {
+        DAMAGE = Pick("Incineration", 0, "Incineration Pyromancer Raid", "https://coabuildhub.com/build/c3f534e6-5b44-425b-8631-da8129688e82", "prudente", "Spécialisation DPS logique, mais les votes publics restent insuffisants pour parler de domination."),
+        HEALER = Pick("Flameweaving", 6, "The Phoenix Healer", "https://coabuildhub.com/build/95a75263-aeef-43f3-8203-91182b522da6", "moyenne", "Le favori soin public de la classe.")
+    },
+    ["Cultist"] = {
+        DAMAGE = Pick("Godblade", 2, "GodBlade Dungeon/M+", "https://coabuildhub.com/build/45f7910c-ba9b-4ed6-89ce-a7982bced34f", "moyenne", "Le meilleur repère DPS PvE public ; Corruption attire davantage les retours PvP."),
+        TANK = Pick("Dreadnought", 4, "Big Tentacle Boy - Raid", "https://coabuildhub.com/build/54cb9a25-8641-49be-badc-e4ee4aa1ade7", "moyenne", "Le choix tank communautaire le plus soutenu."),
+        HEALER = Pick("Heretic", 12, "Cultist Healer M+ Ready", "https://coabuildhub.com/build/5ba4e749-4871-4e36-aeeb-52c0678bc26c", "haute", "Un des builds soin les plus approuvés de toute la liste publique.")
+    },
+    ["Starcaller"] = {
+        DAMAGE = Pick("Warden", 2, "Warden AOE M+", "https://coabuildhub.com/build/9bf37522-d3ec-40bb-9f59-fddc92bb15fd", "moyenne", "Le meilleur signal DPS PvE public de la classe."),
+        TANK = Pick("Moon Guard", 3, "Moon Guard - Dungeon Farm", "https://coabuildhub.com/build/34420169-e989-4c4d-8775-d964755620fe", "moyenne", "Le favori tank public pour donjons et farm."),
+        HEALER = Pick("Moon Priest", 3, "Moon Priest leveling healer", "https://coabuildhub.com/build/256af7c1-f9e5-47af-9d04-b6d521f51a68", "prudente", "Le parcours soin le mieux documenté, mais pas encore revalidé après le dernier patch.")
+    },
+    ["Sun Cleric"] = {
+        DAMAGE = Pick("Valkyrie", 12, "PvE Valkyrie for Dungeons", "https://coabuildhub.com/build/01175a7b-9331-48b6-98a0-fc2ce22ce560", "haute", "Le favori DPS public très net de la classe."),
+        TANK = Pick("Seraphim", 2, "Seraphim M+ build", "https://coabuildhub.com/build/cab6d340-702c-4db6-9cb5-78d749f1eb0d", "moyenne", "Le choix tank naturel, déjà documenté pour Mythique+."),
+        HEALER = Pick("Blessings", 2, "Blessings Battle Cleric", "https://coabuildhub.com/build/e8ee75b8-8e51-4d3a-af1b-a47d6c4d13b7", "moyenne", "Le meilleur repère soin public actuel.")
+    },
+    ["Tinker"] = {
+        DAMAGE = Pick("Demolition", 8, "Tinker Demolition PvE", "https://coabuildhub.com/build/367f91fe-9108-4d77-9994-054ff4dd090c", "haute", "Le choix DPS public le plus soutenu, particulièrement en AOE."),
+        HEALER = Pick("Invention", 6, "Nanobots, Explosions and Zap!", "https://coabuildhub.com/build/1caf4376-e491-4896-a12e-bcddfb926158", "moyenne", "Le favori soin public, basé sur Nanobots et Beacons.")
+    },
+    ["Venomancer"] = {
+        DAMAGE = Pick("Rotweaver", 3, "ROT BUILD Fungal Assailant", "https://coabuildhub.com/build/dcc2e0ce-fbc3-46f4-8b1d-516105d87d0e", "moyenne", "Le meilleur signal DPS PvE ; Stalking est surtout représenté en PvP."),
+        TANK = Pick("Fortitude", 15, "HUGE MDI-Style Pulls Veno Tank", "https://coabuildhub.com/build/c11e12da-fd1d-4449-b16a-41aac69dd37b", "haute", "À égalité au sommet des votes publics : très bon repère tank et leveling."),
+        HEALER = Pick("Vizier", 9, "Vizier Healing leveling/dungeons", "https://coabuildhub.com/build/6861f8ca-3e80-44c4-9d10-9969d29710f6", "haute", "Le choix soin public le plus clair de la classe.")
+    },
+    ["Reaper"] = {
+        DAMAGE = Pick("Harvest", 2, "Harvest PvE", "https://coabuildhub.com/build/ec7a42ab-af15-4d17-8b31-8e756a34f215", "moyenne", "Le meilleur repère PvE public ; son score très élevé vient surtout du PvP."),
+        TANK = Pick("Domination", 6, "Reaper Tank Dungeons/Raid", "https://coabuildhub.com/build/88596de6-f880-4259-81d5-df050640d357", "haute", "Le tank Reaper le mieux soutenu publiquement.")
+    },
+    ["Primalist"] = {
+        DAMAGE = Pick("Wildwalker", 4, "Wildwalker AoE Dungeon Build", "https://coabuildhub.com/build/06a3a629-dd8e-4c6f-a0e1-6e9e17d63f74", "moyenne", "Le meilleur signal DPS public de la classe."),
+        TANK = Pick("Mountain King", 15, "Optimal Build for Raids/M+", "https://coabuildhub.com/build/604248d9-5113-4057-9363-af68741259e8", "haute", "À égalité au sommet des votes et mis à jour après les buffs du 25 août."),
+        HEALER = Pick("Grovekeeper", 5, "Grovekeeper General Purpose", "https://coabuildhub.com/build/e4f93380-6b16-429b-abf6-7add7b0fb7b6", "moyenne", "Le favori soin/hybride public de la classe.")
+    },
+    ["Runemaster"] = {
+        DAMAGE = Pick("Riftblade", 6, "THE runeGOD PvE Riftblade", "https://coabuildhub.com/build/9c593168-2745-4972-aa1f-23266e0999f9", "haute", "Le choix DPS PvE le plus soutenu publiquement ; Engravement reste une bonne alternative plus méthodique.")
+    }
+}
 
 local curated = {
     ["Guardian:Gladiator"] = {
@@ -404,10 +510,10 @@ local curated = {
 }
 
 CoARotationGuideData = {
-    schema = 3,
-    sourceDate = "2026-08-24",
-    talentPatch = "2026-08-19",
-    officialPatchThrough = "2026-08-22",
+    schema = 4,
+    sourceDate = "2026-08-26",
+    talentPatch = "2026-08-25",
+    officialPatchThrough = "2026-08-25",
     sources = {
         {
             name = "Ascension - changelog officiel Conquest of Azeroth",
@@ -460,5 +566,6 @@ CoARotationGuideData = {
         ["Runemaster:Arcane"] = "Runemaster:Glyphic"
     },
     profiles = profiles,
-    curated = curated
+    curated = curated,
+    meta = meta
 }

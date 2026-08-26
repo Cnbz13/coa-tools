@@ -21,10 +21,29 @@ test('Rotation Guide embeds all CoA class/spec profiles and dated sources', asyn
   for (const source of ['ascension.gg/en/changelog/4', 'coabuildhub.com/', 'github.com/srhinos/coa-datamine']) {
     assert.ok(data.includes(source), `missing source ${source}`);
   }
-  assert.match(data, /schema = 3/);
-  assert.match(data, /sourceDate = "2026-08-24"/);
-  assert.match(data, /talentPatch = "2026-08-19"/);
-  assert.match(data, /officialPatchThrough = "2026-08-22"/);
+  assert.match(data, /schema = 4/);
+  assert.match(data, /sourceDate = "2026-08-26"/);
+  assert.match(data, /talentPatch = "2026-08-25"/);
+  assert.match(data, /officialPatchThrough = "2026-08-25"/);
+});
+
+test('Rotation Guide provides one compact universal HUD and honest role/spec advice', async () => {
+  const [lua, data] = await Promise.all([luaPromise, dataPromise]);
+  for (const required of [
+    'CoARotationGuideHUD', 'actionHUD:SetWidth(66)', 'actionHUDIcon:SetWidth(54)',
+    'CooldownFrameTemplate', 'ActionKeybind', 'SelectActionHUDEntry', 'SpecializedActionName',
+    'PLAYER_TARGET_CHANGED', 'ACTIONBAR_UPDATE_USABLE', 'SetUniversalManaged',
+    'viewMode == "ADVISER"', 'CHOISIR MA SPÉ', 'CurrentMetaPicks', 'TalentDirection',
+    'Un vote mesure la popularité, pas une simulation parfaite', 'command == "hud unlock"'
+  ]) assert.ok(lua.includes(required), `universal adaptive UI is missing ${required}`);
+  for (const className of [
+    'Barbarian', 'Witch Doctor', 'Felsworn', 'Witch Hunter', 'Stormbringer',
+    'Knight of Xoroth', 'Guardian', 'Templar', 'Bloodmage', 'Ranger',
+    'Chronomancer', 'Necromancer', 'Pyromancer', 'Cultist', 'Starcaller',
+    'Sun Cleric', 'Tinker', 'Venomancer', 'Reaper', 'Primalist', 'Runemaster'
+  ]) assert.ok(data.includes(`["${className}"] = {`), `missing offline meta advice for ${className}`);
+  assert.match(data, /Pick\("Lightning"[\s\S]+"Cloudburst", "Charge", "Body of Lightning"/);
+  assert.doesNotMatch(lua, /\b(?:CastSpell|CastSpellByName|UseAction|RunMacroText|PetAttack)\b/);
 });
 
 test('Rotation Guide filters sourced priorities through the learned spellbook', async () => {

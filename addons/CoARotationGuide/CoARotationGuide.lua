@@ -277,11 +277,48 @@ local function TooltipText(spellIndex, book)
     return Trim(text)
 end
 
+local BASIC_ATTACK_IDS = {
+    [75] = true,    -- Auto Shot
+    [2480] = true,  -- Shoot Bow
+    [2764] = true,  -- Throw
+    [5019] = true,  -- Shoot (wand)
+    [6603] = true,  -- Attack
+    [7918] = true,  -- Shoot Gun
+    [7919] = true   -- Shoot Crossbow
+}
+local BASIC_ATTACK_NAMES = {
+    attack = true, autoattack = true, autoshot = true, meleeattack = true, rangedattack = true,
+    shoot = true, shootbow = true, shootgun = true, shootcrossbow = true, shootwand = true,
+    throw = true, throwing = true,
+    attaque = true, attaqueautomatique = true, tir = true, tirautomatique = true,
+    tiralarc = true, tiraufusil = true, tiralarbalete = true, lancer = true
+}
+
+local function NormalizedActionName(value)
+    return string.gsub(Lower(value), "[^%a%d]", "")
+end
+
+local function IsBasicAutoAttack(spell)
+    if not spell then return false end
+    if BASIC_ATTACK_IDS[tonumber(spell.id)] then return true end
+    if BASIC_ATTACK_NAMES[NormalizedActionName(spell.name)] then return true end
+    local tooltip = Lower(spell.tooltip)
+    return ContainsAny(tooltip, {
+        "automatically attack", "automatically shoots", "begins auto attack", "starts auto attack",
+        "continue attacking automatically", "attaque automatiquement", "tir automatiquement"
+    })
+end
+
 local function ClassifySpell(spell)
     local name = Lower(spell.name)
     local tooltip = Lower(spell.tooltip)
     local combined = name .. " " .. tooltip
     local categories = {}
+    if IsBasicAutoAttack(spell) then
+        spell.categories = categories
+        spell.excludedFromRotation = "basic-auto-attack"
+        return
+    end
 
     categories.heal = ContainsAny(combined, { " heal", "heals", "healing", "soigne", "rend ", "mending", "repair shot" })
     categories.absorb = ContainsAny(combined, { "absorb", "shield", "barrier", "bouclier", "absorbe" })
@@ -299,7 +336,7 @@ local function ClassifySpell(spell)
     categories.buff = ContainsAny(combined, { "increases your", "increases the", "grants you", "empowers", "stance", "presence", "vow of", "formation", "ward", "whispers", "reinforcement", "augmente", "confere" })
 
     local hasDamageText = ContainsAny(combined, { " damage", "weapon damage", "damaging", "degats", "attaque" })
-    local damageName = ContainsAny(name, { "strike", "shot", "blast", "bolt", "slash", "slam", "sweep", "ram", "swarm", "plague", "harvest", "pulverize", "justice", "execution", "retribution", "attack" })
+    local damageName = ContainsAny(name, { "strike", "shot", "blast", "bolt", "slash", "slam", "sweep", "ram", "swarm", "plague", "harvest", "pulverize", "justice", "execution", "retribution" })
     categories.direct = (hasDamageText or damageName) and not categories.dot
     spell.categories = categories
 end
@@ -335,10 +372,15 @@ local function ScanSpellbook()
                     name = name,
                     rank = rank or "",
                     index = index,
+                    id = nil,
                     icon = icon,
                     passive = passive,
                     tooltip = TooltipText(index, book)
                 }
+                if GetSpellLink then
+                    local ok, link = pcall(GetSpellLink, index, book)
+                    if ok and type(link) == "string" then spell.id = tonumber(string.match(link, "spell:(%d+)")) end
+                end
                 ClassifySpell(spell)
                 local key = Lower(name)
                 if not spellbook[key] then table.insert(orderKeys, key) end
@@ -542,7 +584,7 @@ local function BuildGuide()
     local talentRules = 0
 
     local function AddCandidate(spell, curatedRank)
-        if not spell or spell.passive or added[Lower(spell.name)] then return end
+        if not spell or spell.passive or spell.excludedFromRotation or added[Lower(spell.name)] then return end
         if curated and NameInList(curated.situational, spell.name) then return end
         local useful = false
         local _, value

@@ -74,6 +74,27 @@ test('Rotation Guide filters sourced priorities through the learned spellbook', 
   assert.match(data, /"Genesis", "Primordial Blast", "Smolder"/);
 });
 
+test('Rotation Guide hard-excludes auto attacks and basic weapon toggles', async () => {
+  const lua = await luaPromise;
+  for (const required of [
+    'BASIC_ATTACK_IDS',
+    '[75] = true',
+    '[5019] = true',
+    '[6603] = true',
+    'BASIC_ATTACK_NAMES',
+    'autoattack = true',
+    'autoshot = true',
+    'shootwand = true',
+    'IsBasicAutoAttack',
+    'spell.excludedFromRotation = "basic-auto-attack"',
+    'spell.passive or spell.excludedFromRotation',
+    'GetSpellLink'
+  ]) {
+    assert.ok(lua.includes(required), `basic attack filter is missing ${required}`);
+  }
+  assert.doesNotMatch(lua, /"retribution", "attack"/);
+});
+
 test('Rotation Guide keeps preparation separate and never automates gameplay', async () => {
   const lua = await luaPromise;
   for (const required of [

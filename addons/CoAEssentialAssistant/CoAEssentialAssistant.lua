@@ -4,7 +4,7 @@
 
 local ADDON_NAME = "CoAEssentialAssistant"
 local DATA = CoAEssentialData or { themes = {}, profiles = {}, aliases = {}, procSemantics = {}, noise = {} }
-local VERSION = "1.20.0"
+local VERSION = "1.20.1"
 local floor = math.floor
 local max = math.max
 local min = math.min
@@ -19,7 +19,9 @@ local spellOrder = {}
 local talents = {}
 local talentCount = 0
 local updateDirty = true
+local coverageDirty = true
 local elapsedUpdate = 0
+local elapsedCoverage = 0
 local elapsedClock = 0
 local testUntil = 0
 local activeSignalKeys = {}
@@ -53,6 +55,10 @@ local coverageText
 local coverageTimer
 local coverageDots = {}
 local scanTooltip
+local auraTooltipCache = {}
+local auraTooltipCacheSize = 0
+local fullScanAt = nil
+local fullScanReason = nil
 
 local function Lower(value)
     return string.lower(tostring(value or ""))
@@ -294,7 +300,9 @@ local function SpellTooltip(index, book)
     return text
 end
 
-local function AuraTooltip(unit, index, harmful)
+local function AuraTooltip(unit, index, harmful, name, spellID)
+    local cacheKey = (harmful and "D:" or "B:") .. tostring(tonumber(spellID) or Lower(name))
+    if auraTooltipCache[cacheKey] ~= nil then return auraTooltipCache[cacheKey] end
     EnsureTooltip()
     scanTooltip:ClearLines()
     local ok
@@ -302,6 +310,12 @@ local function AuraTooltip(unit, index, harmful)
     elseif not harmful and scanTooltip.SetUnitBuff then ok = pcall(scanTooltip.SetUnitBuff, scanTooltip, unit, index) end
     local text = ok and TooltipLines() or ""
     scanTooltip:Hide()
+    if auraTooltipCacheSize >= 256 then
+        auraTooltipCache = {}
+        auraTooltipCacheSize = 0
+    end
+    auraTooltipCache[cacheKey] = text
+    auraTooltipCacheSize = auraTooltipCacheSize + 1
     return text
 end
 
@@ -382,16 +396,16 @@ end
 
 local function AuraSignal(unit, index, harmful)
     local getter = harmful and UnitDebuff or UnitBuff
-    if not getter then return nil end
+    if not getter then return nil, false end
     local name, rank, icon, count, auraType, duration, expiration, caster, stealable, consolidate, spellID = getter(unit, index)
-    if not name then return nil end
-    local tooltip = AuraTooltip(unit, index, harmful)
+    if not name then return nil, false end
+    local tooltip = AuraTooltip(unit, index, harmful, name, spellID)
     local learned = spellbook[Lower(name)]
     if learned and learned.tooltip and learned.tooltip ~= "" then tooltip = tooltip .. " " .. learned.tooltip end
     local key = tostring(tonumber(spellID) or Lower(name))
-    if settings and settings.ignored[key] then return nil end
-    if IsNoise(name, tooltip, duration) then return nil end
-    if caster and caster ~= "player" and caster ~= "pet" and not harmful then return nil end
+    if settings and settings.ignored[key] then return nil, true end
+    if IsNoise(name, tooltip, duration) then return nil, true end
+    if caster and caster ~= "player" and caster ~= "pet" and not harmful then return nil, true end
 
     local explicit, alias = ExplicitMechanic(name)
     local semantic = ContainsAny(tooltip, DATA.procSemantics)
@@ -404,11 +418,11 @@ local function AuraSignal(unit, index, harmful)
     if short then score = score + 16 end
     if stacked then score = score + 22 end
     if harmful and caster == "player" and explicit then score = score + 25 end
-    if harmful and not explicit and not semantic then return nil end
-    if not explicit and not semantic then return nil end
-    if not short and not stacked and not semantic then return nil end
-    if not short and not stacked and not explicit then return nil end
-    if score < 80 then return nil end
+    if harmful and not explicit and not semantic then return nil, true end
+    if not explicit and not semantic then return nil, true end
+    if not short and not stacked and not semantic then return nil, true end
+    if not short and not stacked and not explicit then return nil, true end
+    if score < 80 then return nil, true end
 
     local now = GetTime()
     local remaining = tonumber(expiration) and tonumber(expiration) > 0 and max(0, tonumber(expiration) - now) or nil
@@ -420,7 +434,7 @@ local function AuraSignal(unit, index, harmful)
         count=tonumber(count) or 0, duration=tonumber(duration) or 0, expiration=tonumber(expiration) or 0,
         remaining=remaining, spellID=tonumber(spellID), score=score, explicit=explicit, alias=alias,
         semantic=semantic, harmful=harmful, kind=kind, tooltip=tooltip
-    }
+    }, true
 end
 
 local function RememberSignal(signal)
@@ -439,7 +453,8 @@ local function ScanSignals()
     if specialistDelegated then return end
     local index
     for index = 1, 40 do
-        local signal = AuraSignal("player", index, false)
+        local signal, exists = AuraSignal("player", index, false)
+        if not exists then break end
         if signal then table.insert(currentSignals, signal) end
     end
     table.sort(currentSignals, function(left, right)
@@ -453,7 +468,8 @@ local function ScanSignals()
     if UnitExists and UnitExists("target") and UnitCanAttack and UnitCanAttack("player", "target") then
         local candidates = {}
         for index = 1, 40 do
-            local signal = AuraSignal("target", index, true)
+            local signal, exists = AuraSignal("target", index, true)
+            if not exists then break end
             if signal then table.insert(candidates, signal) end
         end
         table.sort(candidates, function(left, right)
@@ -871,10 +887,16 @@ local function FullScan(reason, quiet)
     profile = ResolveProfile(character.className, character.specName)
     ScanSpellbook(); ScanTalents(); ApplyTheme(); ScanSignals(); ReadResource(); ScanCoverage(); RefreshUpdateNotice(); UpdateVisuals()
     updateDirty = false
+    coverageDirty = false
     if not quiet then
         Chat((reason or "scan") .. " : " .. character.className .. " / " .. character.specName .. " niv. " .. tostring(character.level)
             .. " - " .. tostring(#spellOrder) .. " sorts, " .. tostring(talentCount) .. " talents.")
     elseif previousClass ~= character.className then Chat("profil visuel adapte a " .. character.className .. ".") end
+end
+
+local function ScheduleFullScan(reason)
+    fullScanReason = reason or fullScanReason or "mise a jour"
+    fullScanAt = GetTime() + 0.25
 end
 
 local function SetLocked(value)
@@ -1117,27 +1139,41 @@ eventFrame:SetScript("OnEvent",function(_,event,...)
         FullScan("connexion",true);ApplyCompanionPolicy();UpdateMinimap()
         Chat("v"..VERSION.." active : procs essentiels uniquement, disposition "..tostring(theme.layout)..".")
     elseif event=="UNIT_AURA" then
-        if first=="player" or first=="target" or first==nil or Contains(first,"party") or Contains(first,"raid") then updateDirty=true end
+        if first=="player" or first=="target" or first==nil then updateDirty=true end
+        if first=="player" or first==nil or Contains(first,"party") or Contains(first,"raid") then coverageDirty=true end
     elseif event=="UNIT_POWER" or event=="UNIT_DISPLAYPOWER" then
         if first=="player" or first==nil then updateDirty=true end
     elseif event=="UNIT_SPELLCAST_SUCCEEDED" then
         if first=="player" or first==nil then updateDirty=true end
-    elseif event=="PLAYER_TARGET_CHANGED" or event=="PLAYER_REGEN_DISABLED" or event=="PLAYER_REGEN_ENABLED" then updateDirty=true
+    elseif event=="PLAYER_TARGET_CHANGED" or event=="PLAYER_REGEN_DISABLED" or event=="PLAYER_REGEN_ENABLED" then updateDirty=true;coverageDirty=true
     else
         updateDirty=true
+        coverageDirty=true
         if event=="PLAYER_LEVEL_UP" or event=="SPELLS_CHANGED" or event=="CHARACTER_POINTS_CHANGED" or event=="PLAYER_TALENT_UPDATE" or event=="ACTIVE_TALENT_GROUP_CHANGED" or event=="PLAYER_SPECIALIZATION_CHANGED" or event=="PLAYER_ENTERING_WORLD" then
-            FullScan(Lower(event),true);ApplyCompanionPolicy()
+            ScheduleFullScan(Lower(event))
         end
     end
 end)
 
 eventFrame:SetScript("OnUpdate",function(_,elapsed)
     elapsedUpdate=elapsedUpdate+(tonumber(elapsed) or 0)
+    elapsedCoverage=elapsedCoverage+(tonumber(elapsed) or 0)
     elapsedClock=elapsedClock+(tonumber(elapsed) or 0)
+    if fullScanAt and GetTime()>=fullScanAt then
+        local reason=fullScanReason
+        fullScanAt=nil;fullScanReason=nil
+        FullScan(reason,true);ApplyCompanionPolicy()
+    end
     if elapsedUpdate>=0.15 then
         elapsedUpdate=0
-        if updateDirty and settings then ScanSignals();ReadResource();ScanCoverage();updateDirty=false end
+        if updateDirty and settings then ScanSignals();ReadResource();updateDirty=false end
         UpdateVisuals()
+    end
+    local raidCount=GetNumRaidMembers and tonumber(GetNumRaidMembers()) or 0
+    local coverageInterval=raidCount>0 and 0.90 or 0.40
+    if elapsedCoverage>=coverageInterval then
+        elapsedCoverage=0
+        if coverageDirty and settings then ScanCoverage();coverageDirty=false;UpdateVisuals() end
     end
     if elapsedClock>=1 then elapsedClock=0; if panel and panel:IsShown() then RefreshPanel() end end
 end)

@@ -16,6 +16,8 @@ local lastDistance = nil
 local statusMessage = "En attente d'un donjon"
 local statusColor = { 0.58, 0.70, 0.82 }
 local refreshElapsed = 0
+local heavyRefreshElapsed = 0
+local lastNearestScanAt = -10
 local mapDots = {}
 local playerDot = nil
 local nextDot = nil
@@ -372,7 +374,8 @@ local function UpdateNavigation()
         PersistProgress()
         alertShownFor = nil
     end
-    if distance > 0.16 then
+    if distance > 0.16 and ((GetTime and GetTime() or 0) - lastNearestScanAt >= 1.0) then
+        lastNearestScanAt = GetTime and GetTime() or 0
         local nearestIndex, nearestDistance = FindNearestStep(activeRoute, position, 1, #activeRoute.checkpoints)
         if nearestDistance + 0.035 < distance then
             currentStep = nearestIndex
@@ -502,7 +505,7 @@ local function UpdateRoutePreview()
     PlaceSpecial(playerDot, lastPosition)
 end
 
-local function UpdateDisplays()
+local function UpdateDisplays(refreshDetails)
     local settings = EnsureGuideDatabase()
     local route = activeRoute
     local step = route and route.checkpoints and route.checkpoints[currentStep] or nil
@@ -538,11 +541,13 @@ local function UpdateDisplays()
         end
         progressFill:SetWidth(math.max(1, 620 * progress))
         progressFill:SetVertexColor(color[1], color[2], color[3], 0.95)
-        upcomingText:SetText(FormatUpcoming(route))
-        lootText:SetText(FormatLoot(route))
+        if refreshDetails ~= false then
+            upcomingText:SetText(FormatUpcoming(route))
+            lootText:SetText(FormatLoot(route))
+            UpdateRoutePreview()
+        end
         autoButton:SetText(settings.auto and "Guidage auto : ON" or "Guidage auto : OFF")
         hudButton:SetText(settings.hud and "HUD : ON" or "HUD : OFF")
-        UpdateRoutePreview()
     end
 
     if hud then
@@ -850,11 +855,17 @@ end)
 
 eventFrame:SetScript("OnUpdate", function(_, elapsed)
     refreshElapsed = refreshElapsed + elapsed
-    if refreshElapsed < 0.12 then return end
+    heavyRefreshElapsed = heavyRefreshElapsed + elapsed
+    if refreshElapsed < 0.18 then return end
     refreshElapsed = 0
-    SelectRoute(false)
     if EnsureGuideDatabase().auto then UpdateNavigation() end
-    UpdateDisplays()
+    if heavyRefreshElapsed >= 1.0 then
+        heavyRefreshElapsed = 0
+        SelectRoute(false)
+        UpdateDisplays(true)
+    else
+        UpdateDisplays(false)
+    end
 end)
 
 function API:Toggle()

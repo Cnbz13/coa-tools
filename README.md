@@ -33,6 +33,12 @@ Chaque release publie treize ZIP :
 
 Les addons et la couche EventAlert ciblent strictement le client Project Ascension / WoW 3.3.5a (`## Interface: 30300`) et Lua 5.1.
 
+## Performances en jeu
+
+Depuis la 1.20.1, Loot Decider met en cache les données immuables des objets, fusionne les rafales d’événements de sacs/talents et répartit les contours d’objets sur plusieurs images. Ouvrir un sac, un marchand ou une fenêtre de butin ne déclenche plus un rescan complet du spellbook et des talents. Le guide de donjon sépare aussi la flèche légère des cartes et conseils de loot plus coûteux, tandis qu’Essential Assistant temporise les auras de groupe et mémorise leurs tooltips.
+
+Ces protections réduisent les causes de gels créées par CoA Tools. Si un gel subsiste après la mise à jour, désactiver temporairement les addons Ascension tiers un par un reste utile pour identifier un autre responsable ; le manager ne peut pas corriger le client ou un addon externe sans erreur/profil précis.
+
 ## EventAlert pour CoA
 
 Ce projet ne réinvente pas EventAlert et ne republie pas son code. Le manager compose localement l’archive officielle EventAlert 4.3.6 avec `EventAlertCoA.lua`. La couche prépare les tables pour les jetons de classes CoA tels que `NECROMANCER`, migre les réglages d’anciens ports Ascension, détecte les auras de proc émises par le joueur et les réactions `SPELL_ACTIVE`, puis les affiche dans les vrais frames EventAlert. Les procs appris sont conservés dans les SavedVariables d’EventAlert et apparaissent dans ses options après rechargement.

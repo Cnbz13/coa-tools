@@ -224,7 +224,7 @@ test('CoA Loot Advisor compares bags, bank, merchants, loot and universal item t
     'visual advice must derive its verdict from the strict upgrade decision');
   assert.match(advisor, /MerchantNextPageButton:HookScript\("OnClick", RequestRefresh\)/,
     'merchant overlays must refresh when browsing NPC pages');
-  assert.match(advisor, /AdiBags_UpdateButton[\s\S]+PaintButton\(button, link\)/,
+  assert.match(advisor, /AdiBags_UpdateButton[\s\S]+QueuePaint\(button, link\)/,
     'the real Ascension AdiBags installation must receive the same visual markers');
   assert.match(advisor, /SLOT_GROUP[\s\S]+INVTYPE_ROBE = "INVTYPE_CHEST"/,
     'equivalent inventory types must compete for the same equipment slot');
@@ -236,6 +236,22 @@ test('CoA Loot Advisor compares bags, bank, merchants, loot and universal item t
     'an unscored effect on currently equipped gear must lower comparison confidence');
   assert.match(lua, /INVTYPE_WEAPONOFFHAND[\s\S]+necessite aussi une arme a une main compatible/,
     'an off-hand item cannot be recommended alone behind an equipped two-hander');
+});
+
+test('CoA Loot Advisor spreads bag and merchant work across frames', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  const advisor = await readFile(advisorPath, 'utf8');
+  for (const required of [
+    'itemDataCache', 'ITEM_DATA_CACHE_LIMIT', 'RefreshBagItems',
+    'profileRefreshAt = GetTime() + 0.30', 'AnalyzeItem(itemLink, false)'
+  ]) assert.ok(lua.includes(required), `missing core performance guard: ${required}`);
+  for (const required of [
+    'PAINTS_PER_FRAME = 4', 'paintQueue', 'QueuePaint',
+    'profileRefreshPending', 'bagRefreshPending', 'api.RefreshBagItems()',
+    'painted < PAINTS_PER_FRAME'
+  ]) assert.ok(advisor.includes(required), `missing progressive advisor guard: ${required}`);
+  assert.doesNotMatch(advisor, /local function CollectBestCandidates\(\)[\s\S]{0,80}api\.RefreshProfile\(\)/,
+    'opening the comparison window must not rescan talents and equipment');
 });
 
 test('CoA Loot Decider exposes its own persistent minimap button without UI Manager', async () => {

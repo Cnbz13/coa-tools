@@ -1,6 +1,6 @@
 local addonName = ...
 
-local ADDON_VERSION = "1.18.1"
+local ADDON_VERSION = "1.20.1"
 local EXPORT_FORMAT = "COADN1"
 local DEFAULT_SAMPLE_INTERVAL = 0.75
 local DEFAULT_MIN_DISTANCE = 0.0015
@@ -356,6 +356,28 @@ local function HandleCombatLog(...)
     if not activeSession then return end
     local _, subevent, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags = ...
     if not subevent then return end
+
+    -- Le journal de combat emet enormement d'auras, soins et evenements de
+    -- lancement. Le parcours n'a besoin que des morts et des degats : filtrer
+    -- avant les calculs de flags reduit fortement le cout des gros packs.
+    if subevent == "UNIT_DIED" then
+        if destGUID and activeSession.enemies[destGUID] then
+            local enemy = activeSession.enemies[destGUID]
+            enemy.kills = (enemy.kills or 0) + 1
+            enemy.lastSeen = Round(SessionElapsed(activeSession), 2)
+            if activePull and activePull.enemies[destGUID] and not activePull.enemies[destGUID].killed then
+                activePull.enemies[destGUID].killed = true
+                activePull.kills = (activePull.kills or 0) + 1
+            end
+            lastKilledEnemy = {
+                guid = destGUID, name = enemy.name, t = Round(SessionElapsed(activeSession), 2),
+                bossCandidate = enemy.bossCandidate
+            }
+        end
+        return
+    end
+    if not string.find(subevent, "_DAMAGE", 1, true) then return end
+
     local sourceGroup = GroupOwned(sourceFlags)
     local destGroup = GroupOwned(destFlags)
     local sourceHostile = Hostile(sourceFlags)
@@ -376,20 +398,6 @@ local function HandleCombatLog(...)
             enemy.damageDone = (enemy.damageDone or 0) + amount
             activePull.damageTaken = (activePull.damageTaken or 0) + amount
         end
-    end
-
-    if subevent == "UNIT_DIED" and destGUID and activeSession.enemies[destGUID] then
-        local enemy = activeSession.enemies[destGUID]
-        enemy.kills = (enemy.kills or 0) + 1
-        enemy.lastSeen = Round(SessionElapsed(activeSession), 2)
-        if activePull and activePull.enemies[destGUID] and not activePull.enemies[destGUID].killed then
-            activePull.enemies[destGUID].killed = true
-            activePull.kills = (activePull.kills or 0) + 1
-        end
-        lastKilledEnemy = {
-            guid = destGUID, name = enemy.name, t = Round(SessionElapsed(activeSession), 2),
-            bossCandidate = enemy.bossCandidate
-        }
     end
 end
 

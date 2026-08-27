@@ -4,7 +4,8 @@
 local api = CoALootDeciderAPI
 if not api then return end
 
-local REFRESH_DELAY = 0.20
+local REFRESH_DELAY = 0.40
+local PAINTS_PER_FRAME = 4
 local MAX_BAG_BUTTONS = 36
 local MAX_CONTAINER_FRAMES = 13
 local MERCHANT_PAGE_SIZE = 10
@@ -21,6 +22,11 @@ local visibilityHooks = {}
 local adiBagsHooked = false
 local adiBagsListener = {}
 local minimapButton = nil
+local profileRefreshPending = false
+local bagRefreshPending = false
+local paintQueue = {}
+local paintIndex = 1
+local windowRefreshPending = false
 
 local SLOT_NAMES = {
     INVTYPE_HEAD = "Tete",
@@ -185,18 +191,29 @@ local function PaintButton(button, link, excludeOwnedCopy)
     end
 end
 
+local function QueuePaint(button, link, excludeOwnedCopy)
+    if not button then return end
+    local overlay = EnsureOverlay(button)
+    if overlay then overlay:Hide() end
+    table.insert(paintQueue, {
+        button = button,
+        link = link,
+        excludeOwnedCopy = excludeOwnedCopy and true or false
+    })
+end
+
 local function UpdateBagButtons()
     local frameIndex, itemIndex
     for frameIndex = 1, MAX_CONTAINER_FRAMES do
         local container = _G["ContainerFrame" .. frameIndex]
-        if container then
+        if container and (not container.IsShown or container:IsShown()) then
             for itemIndex = 1, MAX_BAG_BUTTONS do
                 local button = _G["ContainerFrame" .. frameIndex .. "Item" .. itemIndex]
                 if button then
                     local bag = container.GetID and container:GetID() or nil
                     local slot = button.GetID and button:GetID() or nil
                     local link = bag and slot and GetContainerItemLink and GetContainerItemLink(bag, slot) or nil
-                    PaintButton(button, link, true)
+                    QueuePaint(button, link, true)
                 end
             end
         end
@@ -214,7 +231,7 @@ local function UpdateMerchantButtons()
         local button = _G["MerchantItem" .. buttonIndex .. "ItemButton"]
         local link = merchantOpen and GetMerchantItemLink
             and GetMerchantItemLink(MerchantIndex(buttonIndex)) or nil
-        if button then PaintButton(button, link, false) end
+        if button then QueuePaint(button, link, false) end
     end
 end
 
@@ -224,7 +241,7 @@ local function UpdateLootButtons()
         local button = _G["LootButton" .. index]
         local slot = button and button.GetID and button:GetID() or index
         local link = button and GetLootSlotLink and GetLootSlotLink(slot) or nil
-        if button then PaintButton(button, link, false) end
+        if button then QueuePaint(button, link, false) end
     end
 end
 
@@ -366,7 +383,7 @@ local function HookAdiBags()
             if not link and button.bag and button.slot and GetContainerItemLink then
                 link = GetContainerItemLink(button.bag, button.slot)
             end
-            PaintButton(button, link)
+            QueuePaint(button, link)
         end)
     adiBagsHooked = success and true or false
 end
@@ -559,7 +576,6 @@ local function ScanContainer(best, bag, source)
 end
 
 local function CollectBestCandidates()
-    api.RefreshProfile()
     local best = {}
     local bag
     for bag = 0, (NUM_BAG_SLOTS or 4) do ScanContainer(best, bag, "Sacs") end
@@ -728,16 +744,19 @@ local function RefreshWindow()
     end
 end
 
-advisorWindow.refresh:SetScript("OnClick", RefreshWindow)
+advisorWindow.refresh:SetScript("OnClick", function()
+    bagRefreshPending = true
+    RequestRefresh()
+end)
 advisorWindow.mode:SetScript("OnClick", function()
     local settings = EnsureSettings()
     settings.showAllCandidates = not settings.showAllCandidates
-    RefreshWindow()
+    RequestRefresh()
 end)
 advisorWindow.sort:SetScript("OnClick", function()
     local settings = EnsureSettings()
     settings.sortMode = settings.sortMode == "gain" and "slot" or "gain"
-    RefreshWindow()
+    RequestRefresh()
 end)
 advisorWindow.history:SetScript("OnClick", function()
     local settings = EnsureSettings()
@@ -760,7 +779,8 @@ function CoALootAdvisor_Toggle()
         EnsureSettings().viewMode = "gear"
         PositionAdvisorWindow()
         advisorWindow:Show()
-        RefreshWindow()
+        advisorWindow.status:SetText("Analyse progressive des objets…")
+        RequestRefresh()
     end
 end
 
@@ -917,6 +937,8 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 eventFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
+eventFrame:RegisterEvent("PLAYER_LEVEL_UP")
+eventFrame:RegisterEvent("SPELLS_CHANGED")
 eventFrame:RegisterEvent("BAG_UPDATE")
 eventFrame:RegisterEvent("BANKFRAME_OPENED")
 eventFrame:RegisterEvent("BANKFRAME_CLOSED")
@@ -930,7 +952,7 @@ eventFrame:RegisterEvent("LOOT_CLOSED")
 eventFrame:SetScript("OnEvent", function(self, event)
     EnsureSettings()
     if event == "PLAYER_LOGIN" then
-        api.RefreshProfile()
+        if not api.GetProfile() then api.RefreshProfile() end
         BuildLootMinimapButton()
         HookTooltip(GameTooltip)
         HookTooltip(ItemRefTooltip)
@@ -938,6 +960,15 @@ eventFrame:SetScript("OnEvent", function(self, event)
         HookTooltip(ShoppingTooltip2)
         HookAdiBags()
         HookSourceFrames()
+    elseif event == "PLAYER_EQUIPMENT_CHANGED"
+        or event == "PLAYER_SPECIALIZATION_CHANGED"
+        or event == "PLAYER_TALENT_UPDATE"
+        or event == "PLAYER_LEVEL_UP"
+        or event == "SPELLS_CHANGED"
+    then
+        profileRefreshPending = true
+    elseif event == "BAG_UPDATE" or event == "PLAYERBANKSLOTS_CHANGED" then
+        bagRefreshPending = true
     elseif event == "BANKFRAME_OPENED" then
         bankOpen = true
     elseif event == "BANKFRAME_CLOSED" then
@@ -951,19 +982,56 @@ eventFrame:SetScript("OnEvent", function(self, event)
 end)
 
 eventFrame:SetScript("OnUpdate", function(self, elapsed)
-    if not refreshPending then return end
-    refreshElapsed = refreshElapsed + elapsed
-    if refreshElapsed < REFRESH_DELAY then return end
-    refreshPending = false
-    refreshElapsed = 0
-    analysisCache = {}
-    local tooltip
-    for tooltip in pairs(tooltipHooks) do tooltip.CoALootAdvisorLink = nil end
-    api.RefreshProfile()
-    HookAdiBags()
-    HookSourceFrames()
-    UpdateBagButtons()
-    UpdateMerchantButtons()
-    UpdateLootButtons()
-    RefreshWindow()
+    if refreshPending then
+        refreshElapsed = refreshElapsed + elapsed
+        if refreshElapsed >= REFRESH_DELAY then
+            refreshPending = false
+            refreshElapsed = 0
+            local invalidated = profileRefreshPending or bagRefreshPending
+            if profileRefreshPending then
+                -- Le moteur central fusionne deja ces evenements et termine son
+                -- profil apres 0,30 s. Le delai visuel de 0,40 s reutilise ce
+                -- resultat au lieu de refaire le meme scan une seconde fois.
+                profileRefreshPending = false
+                bagRefreshPending = false
+            elseif bagRefreshPending and api.RefreshBagItems then
+                api.RefreshBagItems()
+                bagRefreshPending = false
+            end
+            if invalidated then
+                analysisCache = {}
+                local tooltip
+                for tooltip in pairs(tooltipHooks) do tooltip.CoALootAdvisorLink = nil end
+            end
+            HookAdiBags()
+            HookSourceFrames()
+            paintQueue = {}
+            paintIndex = 1
+            UpdateBagButtons()
+            UpdateMerchantButtons()
+            UpdateLootButtons()
+            windowRefreshPending = advisorWindow:IsVisible()
+        end
+    end
+
+    -- Les analyses passent sur plusieurs images. Ouvrir un grand sac ou un
+    -- marchand ne bloque plus toute l'interface pendant un scan monolithique.
+    local painted = 0
+    while paintIndex <= #paintQueue and painted < PAINTS_PER_FRAME do
+        local job = paintQueue[paintIndex]
+        paintIndex = paintIndex + 1
+        painted = painted + 1
+        if job and job.button then PaintButton(job.button, job.link, job.excludeOwnedCopy) end
+    end
+    if paintIndex > #paintQueue and #paintQueue > 0 then
+        paintQueue = {}
+        paintIndex = 1
+        if windowRefreshPending then
+            windowRefreshPending = false
+            RefreshWindow()
+        end
+    elseif #paintQueue == 0 and windowRefreshPending then
+        windowRefreshPending = false
+        RefreshWindow()
+    end
 end)

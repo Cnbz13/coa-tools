@@ -31,7 +31,11 @@ test('Essential Assistant detects only live high-confidence mechanics', async ()
   for (const noise of ["keeper's scroll", 'well fed', 'gathering speed', 'pve mode']) {
     assert.ok(data.includes(`"${noise}"`), `noise filter is missing ${noise}`);
   }
-  assert.match(lua, /if not explicit and not semantic then return nil end/);
+  assert.match(lua, /if not explicit and not semantic then return nil, true end/);
+  for (const performanceGuard of [
+    'auraTooltipCache', 'if not exists then break end', 'coverageDirty',
+    'coverageInterval=raidCount>0 and 0.90 or 0.40', 'ScheduleFullScan'
+  ]) assert.ok(lua.includes(performanceGuard), `missing aura performance guard: ${performanceGuard}`);
 });
 
 test('Essential Assistant provides class-adaptive movable and personal visual modules', async () => {
@@ -61,7 +65,7 @@ test('Essential Assistant delegates the exact Heretic HUD and suppresses competi
 test('Essential Assistant is strict Lua 5.1 / Ascension 3.3.5', async () => {
   const [lua, data, toc] = await Promise.all([luaPromise, dataPromise, tocPromise]);
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 1\.20\.0$/m);
+  assert.match(toc, /^## Version: 1\.20\.1$/m);
   assert.match(toc, /^## SavedVariables: CoAEssentialAssistantDB$/m);
   for (const forbidden of [
     'BackdropTemplate', 'SetShown', 'SetSize', 'C_Timer', 'CombatLogGetCurrentEventInfo',

@@ -229,7 +229,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     if CoALootDeciderDB.needLockedChests == nil then CoALootDeciderDB.needLockedChests = true end
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.18.1-standalone-minimap"
+    CoALootDeciderDB.version = "1.20.1-performance"
 end
 
 local function ReadItemStats(itemLink)
@@ -246,6 +246,9 @@ end
 
 local weaponScanner = CreateFrame("GameTooltip", "CoALootDeciderWeaponScanner", nil, "GameTooltipTemplate")
 weaponScanner:SetOwner(UIParent, "ANCHOR_NONE")
+local itemDataCache = {}
+local itemDataCacheSize = 0
+local ITEM_DATA_CACHE_LIMIT = 600
 
 local function ReadWeaponSpeed(itemLink)
     if not itemLink then return nil end
@@ -270,6 +273,9 @@ end
 
 local function ItemData(itemLink)
     if not itemLink or not GetItemInfo then return nil end
+    local cacheKey = tostring(itemLink)
+    local cached = itemDataCache[cacheKey]
+    if cached then return cached end
     local name, link, quality, itemLevel, requiredLevel, itemType, itemSubType, stackCount, equipLoc, texture = GetItemInfo(itemLink)
     if not name or not equipLoc then return nil end
     local classID, subClassID
@@ -288,7 +294,7 @@ local function ItemData(itemLink)
         or equipLoc == "INVTYPE_RANGED"
         or equipLoc == "INVTYPE_RANGEDRIGHT"
 
-    return {
+    local data = {
         name = name,
         link = link or itemLink,
         quality = tonumber(quality) or 0,
@@ -304,6 +310,16 @@ local function ItemData(itemLink)
         stats = ReadItemStats(link or itemLink),
         weaponSpeed = isWeapon and ReadWeaponSpeed(link or itemLink) or nil
     }
+    -- GetItemStats et les scanners de tooltip sont parmi les appels les plus
+    -- couteux du client 3.3.5. Les donnees d'un lien complet sont immuables :
+    -- on ne les relit donc pas a chaque BAG_UPDATE ou survol.
+    if itemDataCacheSize >= ITEM_DATA_CACHE_LIMIT then
+        itemDataCache = {}
+        itemDataCacheSize = 0
+    end
+    itemDataCache[cacheKey] = data
+    itemDataCacheSize = itemDataCacheSize + 1
+    return data
 end
 
 local lockedChestScanner = CreateFrame("GameTooltip", "CoALootDeciderLockedChestScanner", nil, "GameTooltipTemplate")
@@ -378,9 +394,6 @@ local function ScanBagItems()
             if linkOk and itemLink then
                 local data = ItemData(itemLink)
                 if data and EQUIP_SLOTS[data.equipLoc] then
-                    data.bag = bag
-                    data.bagSlot = slot
-                    data.ownedSource = "sac"
                     table.insert(result, data)
                 end
             end
@@ -787,6 +800,13 @@ local function ScanEquipment()
     }
     profile.bagItems = ScanBagItems()
     return profile
+end
+
+local function RefreshBagItems()
+    if not profile then return ScanEquipment() end
+    profile.bagItems = ScanBagItems()
+    profile.bagsScannedAt = GetTime and GetTime() or 0
+    return profile.bagItems
 end
 
 local function ThresholdKey(targetProfile)
@@ -1237,7 +1257,10 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
 end
 
 local function EvaluateItem(itemLink)
-    local analysis, errorMessage = AnalyzeItem(itemLink, true)
+    -- Les evenements equipement/talents maintiennent deja le profil a jour.
+    -- Refaire spellbook + talents + sacs a chaque tentative de jet causait des
+    -- gels en donjon, surtout tant que GetLootRollItemLink n'etait pas charge.
+    local analysis, errorMessage = AnalyzeItem(itemLink, false)
     if analysis and analysis.manual then return nil, analysis.reason end
     return analysis, errorMessage
 end
@@ -1247,6 +1270,7 @@ end
 CoALootDeciderAPI = {
     AnalyzeItem = AnalyzeItem,
     RefreshProfile = ScanEquipment,
+    RefreshBagItems = RefreshBagItems,
     GetProfile = function() return profile end,
     GetAdaptiveBuild = function() return profile and profile.adaptive or nil end,
     GetDisplayStats = function() return DISPLAY_STATS end,
@@ -1442,6 +1466,7 @@ local function LeaveUnknownRoll(rollID, reason)
 end
 
 local eventFrame = CreateFrame("Frame")
+local profileRefreshAt = nil
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
@@ -1475,7 +1500,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         or event == "CHARACTER_ADVANCEMENT_UPDATE_ENTRIES_RESULT"
         or event == "ASCENSION_CA_SPECIALIZATION_ACTIVE_ID_CHANGED"
     then
-        ScanEquipment()
+        -- Ascension envoie souvent plusieurs evenements pour un seul changement
+        -- de niveau/talent. Un seul scan groupe evite les micro-gels en chaine.
+        profileRefreshAt = GetTime() + 0.30
     elseif event == "START_LOOT_ROLL" then
         local rollID = ...
         rollID = tonumber(rollID)
@@ -1502,6 +1529,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 end)
 
 eventFrame:SetScript("OnUpdate", function(self, elapsed)
+    if profileRefreshAt and GetTime() >= profileRefreshAt then
+        profileRefreshAt = nil
+        ScanEquipment()
+    end
     retryElapsed = retryElapsed + elapsed
     if retryElapsed < RETRY_INTERVAL then return end
     retryElapsed = 0

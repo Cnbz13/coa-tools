@@ -57,6 +57,8 @@ test('combat learning tracks group pulls, enemies, kills and boss candidates', a
     'activePull.enemyCount', 'activePull.kills', 'UnitClassification("target")',
     'enemy.bossCandidate', 'PLAYER_DEAD'
   ]) assert.ok(lua.includes(required), `missing combat recorder feature: ${required}`);
+  assert.match(lua, /if subevent == "UNIT_DIED" then[\s\S]+if not string\.find\(subevent, "_DAMAGE", 1, true\) then return end/,
+    'high-volume combat log events must be discarded before flag calculations');
 });
 
 test('route annotations and privacy-safe export are usable in game', async () => {
@@ -123,4 +125,8 @@ test('live guide provides offline routes, visual direction and safe contextual p
   assert.match(compiler, /Contains only anonymized dungeon geometry and encounter data/);
   assert.match(compiler, /simplifyRoute/);
   assert.match(compiler, /routeScore/);
+  for (const guard of [
+    'heavyRefreshElapsed', 'refreshElapsed < 0.18', 'heavyRefreshElapsed >= 1.0',
+    'UpdateDisplays(false)', 'refreshDetails ~= false', 'lastNearestScanAt'
+  ]) assert.ok(guide.includes(guard), `missing live-guide performance guard: ${guard}`);
 });

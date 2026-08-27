@@ -7,7 +7,7 @@ Suite locale sans télémétrie regroupant les outils CoA suivants :
 - **CoA Combat Assistant** — addon WoW de recommandations visuelles et de mémoire des combats ;
 - **CoA UI Manager** — gestionnaire complet de positions, profils, échelle et alpha ;
 - **CoA Rotation Guide** — guide universel hors ligne avec une seule icône de combat compacte, adapté automatiquement à la classe, la spécialisation, au niveau, au spellbook et aux talents actifs ;
-- **CoA Dungeon Navigator** — véritable guide de tank hors ligne avec flèche, trace d'étage, prochaines rencontres et recalage automatique, doublé d'un collecteur de parcours ;
+- **CoA Dungeon Navigator** — véritable guide de tank hors ligne avec une flèche discrète au-dessus du personnage, trace d'étage, prochaines rencontres et recalage automatique, doublé d'un collecteur de parcours ;
 - **CoA Essential Assistant** — assistant universel sans rotation : procs, ressources critiques, effets de cible et couverture de groupe, avec une identité visuelle propre à chaque classe ;
 - **CoA Stormbringer Helper** — HUD compact dédié au leveling Stormbringer, aux procs et aux trois spécialisations ;
 - **CoA Primalist Helper** — compagnon adaptatif niveau 1–60 pour les quatre spécialisations Primalist, y compris soin et tank ;
@@ -107,9 +107,9 @@ Sur Cultist Hérétique, le suivi spécialisé existant conserve automatiquement
 
 ## CoA Dungeon Navigator
 
-Le navigateur contient maintenant 15 routes hors ligne compilées à partir de 36 passages réels sur Ascension. Dès l'entrée dans un donjon connu, un HUD compact affiche une flèche relative à l'orientation du personnage, la prochaine étape, une consigne naturelle, l'étage, la progression et la prochaine rencontre importante. Les étapes de pack ou de boss attendent la fin du combat avant de continuer. Si le personnage quitte la trace, le moteur recherche un point cohérent sur le bon étage ; le bouton **Me recaler** permet de forcer immédiatement cette récupération.
+Le navigateur contient maintenant 15 routes hors ligne compilées à partir de 36 passages réels sur Ascension. Dès l'entrée dans un donjon connu, une petite flèche sans panneau de fond apparaît au-dessus du personnage et tourne selon son orientation. Elle ne garde à l'écran que la direction et la distance ; boss, danger, raccourci ou changement d'étage déclenchent un cartouche latéral temporaire qui disparaît ensuite. Les étapes de pack ou de boss attendent la fin du combat avant de continuer. Si le personnage quitte la trace, le moteur recherche un point cohérent sur le bon étage ; le bouton **Me recaler** permet de forcer immédiatement cette récupération.
 
-La grande fenêtre présente la trace de l'étage, la position du joueur, la prochaine étape, les rencontres à venir et les objets déjà observés évaluables par CoA Loot Decider. Les commandes `/cdg next`, `/cdg prev`, `/cdg recal`, `/cdg reset` et `/cdg hud` permettent de corriger le suivi sans ouvrir le panneau. Le HUD et la fenêtre sont déplaçables directement ou depuis `/cui unlock`.
+La grande fenêtre ne s'affiche que sur demande et présente la trace de l'étage, la position du joueur, la prochaine étape, les rencontres à venir et les objets déjà observés évaluables par CoA Loot Decider. Les commandes `/cdg next`, `/cdg prev`, `/cdg recal`, `/cdg reset` et `/cdg hud` permettent de corriger le suivi sans ouvrir le panneau. `/cdg unlock` permet de glisser la flèche, puis `/cdg lock` la rend à nouveau non interactive ; elle reste aussi disponible depuis `/cui unlock`.
 
 Le mode apprentissage reste disponible depuis **Collecte** ou par clic droit sur le bouton de minicarte. Il démarre automatiquement dans une instance de type donjon et s'arrête à la sortie. Il mémorise des points de parcours espacés, les changements de carte et d'étage disponibles, les pulls du groupe, les créatures rencontrées, les morts observées, les boss potentiels et les objets réellement vus dans les fenêtres de butin. Il ne relève jamais le chat ni le nom des autres joueurs et ne prend jamais automatiquement un objet.
 

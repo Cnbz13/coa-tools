@@ -1,6 +1,6 @@
 local addonName = ...
 
-local ADDON_VERSION = "1.20.1"
+local ADDON_VERSION = "1.21.0"
 local EXPORT_FORMAT = "COADN1"
 local DEFAULT_SAMPLE_INTERVAL = 0.75
 local DEFAULT_MIN_DISTANCE = 0.0015

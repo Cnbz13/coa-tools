@@ -32,7 +32,7 @@ local FRAME_LABELS = {
     CoAHereticProcAnchor = "Heretic : proc", CoAHereticBlackBloodTracker = "Heretic : Sang noir",
     CoAHereticHUDMenu = "Réglages Heretic", CoAMessageCenterFrame = "Messages CoA",
     CoARotationGuideFrame = "Guide de rotation", CoARotationGuideHUD = "Rotation : prochain sort", CoADungeonNavigatorFrame = "Navigateur de donjon",
-    CoADungeonNavigatorHUD = "Flèche de donjon", CoADungeonNavigatorLearningFrame = "Collecte de donjon",
+    CoADungeonNavigatorHUD = "Flèche discrète de donjon", CoADungeonNavigatorLearningFrame = "Collecte de donjon",
     CoADungeonNavigatorRecorder = "Enregistrement de donjon",
     CoAStormbringerHUD = "Stormbringer : conseil", CoAStormbringerMenu = "Réglages Stormbringer",
     CoAStormbringerLevelToast = "Stormbringer : niveau",

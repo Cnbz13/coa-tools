@@ -229,7 +229,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     if CoALootDeciderDB.needLockedChests == nil then CoALootDeciderDB.needLockedChests = true end
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.20.1-performance"
+    CoALootDeciderDB.version = "1.21.0-performance"
 end
 
 local function ReadItemStats(itemLink)

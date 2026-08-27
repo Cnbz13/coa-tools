@@ -126,7 +126,21 @@ test('live guide provides offline routes, visual direction and safe contextual p
   assert.match(compiler, /simplifyRoute/);
   assert.match(compiler, /routeScore/);
   for (const guard of [
-    'heavyRefreshElapsed', 'refreshElapsed < 0.18', 'heavyRefreshElapsed >= 1.0',
+    'heavyRefreshElapsed', 'refreshElapsed < 0.12', 'heavyRefreshElapsed >= 1.0',
     'UpdateDisplays(false)', 'refreshDetails ~= false', 'lastNearestScanAt'
   ]) assert.ok(guide.includes(guard), `missing live-guide performance guard: ${guard}`);
+});
+
+test('live dungeon guidance is a non-invasive wayfinder above the character', async () => {
+  const guide = await readFile('addons/CoADungeonNavigator/CoADungeonGuide.lua', 'utf8');
+  for (const required of [
+    'hud:SetWidth(190)', 'hud:SetHeight(116)', 'hudArrow:SetWidth(38)',
+    'hud:EnableMouse(false)', '"CENTER", "CENTER", 0, 145',
+    'hudDistance:SetText(DistanceText(lastDistance))', 'UpdateWaypointToast',
+    'step.kind == "boss" and 7 or 5', 'hudToast:SetWidth(264)',
+    'settings.wayfinderVersion = 2', 'SetHUDLocked(false)', 'SetHUDLocked(true)',
+    'command == "unlock"', 'command == "lock"', 'Flèche : ON'
+  ]) assert.ok(guide.includes(required), `missing minimal wayfinder feature: ${required}`);
+  assert.doesNotMatch(guide, /hud:SetWidth\(430\)|hud:SetHeight\(154\)/,
+    'the old invasive rectangular HUD must not return');
 });

@@ -41,6 +41,13 @@ local hudProgress = nil
 local hudProgressFill = nil
 local hudArrow = nil
 local hudAccent = nil
+local hudDistance = nil
+local hudToast = nil
+local hudToastTitle = nil
+local hudToastText = nil
+local hudMoveHint = nil
+local toastUntil = 0
+local lastToastKey = nil
 local autoButton = nil
 local hudButton = nil
 local alertShownFor = nil
@@ -119,6 +126,14 @@ local function EnsureGuideDatabase()
     if settings.arrival == nil then settings.arrival = 0.028 end
     settings.window = settings.window or {}
     settings.hudPosition = settings.hudPosition or {}
+    if settings.wayfinderVersion ~= 2 then
+        -- Le grand panneau HUD historique etait ancre en haut de l'ecran. La
+        -- nouvelle fleche repart une seule fois au-dessus du personnage.
+        settings.hudPosition = {}
+        settings.hudLocked = true
+        settings.wayfinderVersion = 2
+    end
+    if settings.hudLocked == nil then settings.hudLocked = true end
     settings.progress = settings.progress or {}
     return settings
 end
@@ -283,6 +298,24 @@ local function AlertStep(step)
     end
 end
 
+local function UpdateWaypointToast(step, color)
+    if not hudToast or not step then return end
+    local key = tostring(activeRouteKey or "route") .. ":" .. tostring(currentStep)
+    if key ~= lastToastKey then
+        lastToastKey = key
+        if step.kind and step.kind ~= "route" and step.kind ~= "start" then
+            local label = KIND_LABELS[step.kind] or "REPÈRE"
+            hudToastTitle:SetText(ColorText(label .. "  •  " .. tostring(step.title or "Prochaine étape"), color))
+            hudToastText:SetText(tostring(step.text or StepInstruction(activeRoute, step) or "Suis l'indication."))
+            hudToast:SetBackdropBorderColor(color[1], color[2], color[3], 0.82)
+            toastUntil = (GetTime and GetTime() or 0) + (step.kind == "boss" and 7 or 5)
+        else
+            toastUntil = 0
+        end
+    end
+    if toastUntil > (GetTime and GetTime() or 0) then hudToast:Show() else hudToast:Hide() end
+end
+
 local function SelectRoute(forceReset)
     local settings = EnsureGuideDatabase()
     local name, instanceType = CurrentInstance()
@@ -292,6 +325,8 @@ local function SelectRoute(forceReset)
         activeRoute = route
         activeRouteKey = route and key or nil
         alertShownFor = nil
+        lastToastKey = nil
+        toastUntil = 0
         lastPosition = nil
         if route then
             currentStep = 1
@@ -547,27 +582,37 @@ local function UpdateDisplays(refreshDetails)
             UpdateRoutePreview()
         end
         autoButton:SetText(settings.auto and "Guidage auto : ON" or "Guidage auto : OFF")
-        hudButton:SetText(settings.hud and "HUD : ON" or "HUD : OFF")
+        hudButton:SetText(settings.hud and "Flèche : ON" or "Flèche : OFF")
     end
 
     if hud then
         if route and step and settings.hud then
             hud:Show()
-            hudDungeon:SetText(tostring(route.name) .. "  •  " .. tostring(math.floor(progress * 100 + 0.5)) .. "%")
-            hudKind:SetText(ColorText(KIND_LABELS[step.kind] or "DIRECTION", color))
-            hudTitle:SetText(tostring(step.title or "Suis le chemin"))
-            hudInstruction:SetText(StepInstruction(route, step))
-            hudMeta:SetText(DistanceText(lastDistance) .. "  •  étage " .. tostring(step.floor or 0)
-                .. "  •  étape " .. tostring(currentStep) .. "/" .. tostring(#route.checkpoints))
             hudDirection:SetText(direction)
-            hudProgress:SetText(tostring(math.floor(progress * 100 + 0.5)) .. "%")
-            hudProgressFill:SetWidth(math.max(1, 350 * progress))
+            hudDistance:SetText(DistanceText(lastDistance))
+            if step.kind and step.kind ~= "route" then
+                hudKind:SetText(KIND_LABELS[step.kind] or "REPÈRE")
+                hudTitle:SetText(tostring(step.title or "Prochaine étape"))
+                hudKind:Show(); hudTitle:Show()
+            else
+                hudKind:Hide(); hudTitle:Hide()
+            end
+            hudProgressFill:SetWidth(math.max(1, 96 * progress))
             hudProgressFill:SetVertexColor(color[1], color[2], color[3], 0.95)
             hudAccent:SetVertexColor(color[1], color[2], color[3], 1)
-            hud:SetBackdropBorderColor(color[1], color[2], color[3], 0.95)
             hudArrow:SetVertexColor(color[1], color[2], color[3], 1)
+            UpdateWaypointToast(step, color)
+        elseif not settings.hudLocked then
+            hud:Show()
+            hudArrow:SetVertexColor(0.35, 0.88, 1.00, 1)
+            hudDirection:SetText("PLACE LA FLÈCHE")
+            hudDistance:SetText("puis /cdg lock")
+            hudKind:Hide(); hudTitle:Hide()
+            hudProgressFill:SetWidth(96)
+            if hudToast then hudToast:Hide() end
         else
             hud:Hide()
+            if hudToast then hudToast:Hide() end
         end
     end
 end
@@ -713,7 +758,7 @@ autoButton = MakeButton(guideFrame, "Guidage auto : ON", 132, 304, -526, functio
     settings.auto = not settings.auto
     UpdateDisplays()
 end)
-hudButton = MakeButton(guideFrame, "HUD : ON", 88, 442, -526, function()
+hudButton = MakeButton(guideFrame, "Flèche : ON", 88, 442, -526, function()
     local settings = EnsureGuideDatabase()
     settings.hud = not settings.hud
     UpdateDisplays()
@@ -723,19 +768,13 @@ MakeButton(guideFrame, "Collecte", 102, 536, -526, function()
 end)
 
 hud = CreateFrame("Frame", "CoADungeonNavigatorHUD", UIParent)
-hud:SetWidth(430)
-hud:SetHeight(154)
+hud:SetWidth(190)
+hud:SetHeight(116)
 hud:SetFrameStrata("HIGH")
 hud:SetMovable(true)
-hud:EnableMouse(true)
+hud:EnableMouse(false)
 hud:RegisterForDrag("LeftButton")
 if hud.SetClampedToScreen then hud:SetClampedToScreen(true) end
-hud:SetBackdrop({
-    bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-    tile = true, tileSize = 16, edgeSize = 12, insets = { left = 4, right = 4, top = 4, bottom = 4 }
-})
-hud:SetBackdropColor(0.015, 0.030, 0.048, 0.94)
-hud:SetBackdropBorderColor(0.25, 0.78, 1.00, 0.95)
 hud:SetScript("OnDragStart", function(self) self:StartMoving() end)
 hud:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
@@ -747,66 +786,86 @@ end)
 hud:Hide()
 
 hudAccent = hud:CreateTexture(nil, "ARTWORK")
-hudAccent:SetTexture("Interface/Buttons/WHITE8X8")
-hudAccent:SetPoint("TOPLEFT", hud, "TOPLEFT", 5, -5)
-hudAccent:SetPoint("BOTTOMLEFT", hud, "BOTTOMLEFT", 5, 5)
-hudAccent:SetWidth(4)
+hudAccent:SetTexture("Interface/Buttons/UI-Quickslot2")
+hudAccent:SetWidth(58)
+hudAccent:SetHeight(58)
+hudAccent:SetPoint("TOP", hud, "TOP", 0, 0)
 hudAccent:SetVertexColor(0.25, 0.78, 1.00, 1)
 
-local arrowRing = hud:CreateTexture(nil, "BACKGROUND")
-arrowRing:SetTexture("Interface/Buttons/UI-Quickslot2")
-arrowRing:SetWidth(74)
-arrowRing:SetHeight(74)
-arrowRing:SetPoint("LEFT", hud, "LEFT", 18, 4)
-arrowRing:SetVertexColor(0.18, 0.45, 0.62, 0.90)
 hudArrow = hud:CreateTexture(nil, "ARTWORK")
 hudArrow:SetTexture("Interface/Minimap/MinimapArrow")
-hudArrow:SetWidth(50)
-hudArrow:SetHeight(50)
-hudArrow:SetPoint("CENTER", arrowRing, "CENTER", 0, 0)
+hudArrow:SetWidth(38)
+hudArrow:SetHeight(38)
+hudArrow:SetPoint("CENTER", hudAccent, "CENTER", 0, 0)
 hudArrow:SetVertexColor(0.35, 0.88, 1.00, 1)
 hudDirection = hud:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-hudDirection:SetPoint("TOP", arrowRing, "BOTTOM", 0, -1)
-hudDirection:SetWidth(100)
+hudDirection:SetPoint("TOP", hudAccent, "BOTTOM", 0, 1)
+hudDirection:SetWidth(180)
 hudDirection:SetTextColor(1.00, 0.82, 0.28)
 
-hudDungeon = hud:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-hudDungeon:SetPoint("TOPLEFT", hud, "TOPLEFT", 105, -13)
-hudDungeon:SetWidth(302)
-hudDungeon:SetJustifyH("LEFT")
-hudDungeon:SetTextColor(0.58, 0.72, 0.82)
+hudDistance = hud:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+hudDistance:SetPoint("TOP", hudDirection, "BOTTOM", 0, -2)
+hudDistance:SetWidth(180)
 hudKind = hud:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-hudKind:SetPoint("TOPLEFT", hudDungeon, "BOTTOMLEFT", 0, -6)
-hudKind:SetWidth(302)
-hudKind:SetJustifyH("LEFT")
-hudTitle = hud:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-hudTitle:SetPoint("TOPLEFT", hudKind, "BOTTOMLEFT", 0, -3)
-hudTitle:SetWidth(302)
-hudTitle:SetJustifyH("LEFT")
-hudInstruction = hud:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-hudInstruction:SetPoint("TOPLEFT", hudTitle, "BOTTOMLEFT", 0, -5)
-hudInstruction:SetWidth(302)
-hudInstruction:SetHeight(32)
-hudInstruction:SetJustifyH("LEFT")
-hudInstruction:SetJustifyV("TOP")
-hudMeta = hud:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-hudMeta:SetPoint("BOTTOMLEFT", hud, "BOTTOMLEFT", 105, 20)
-hudMeta:SetWidth(260)
-hudMeta:SetJustifyH("LEFT")
-hudProgress = hud:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-hudProgress:SetPoint("BOTTOMRIGHT", hud, "BOTTOMRIGHT", -14, 20)
-hudProgress:SetJustifyH("RIGHT")
+hudKind:SetPoint("TOP", hudDistance, "BOTTOM", 0, -3)
+hudKind:SetWidth(180)
+hudKind:SetTextColor(0.35, 0.86, 1.00)
+hudTitle = hud:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+hudTitle:SetPoint("TOP", hudKind, "BOTTOM", 0, -1)
+hudTitle:SetWidth(190)
 local hudProgressBack = hud:CreateTexture(nil, "BACKGROUND")
 hudProgressBack:SetTexture("Interface/Buttons/WHITE8X8")
-hudProgressBack:SetPoint("BOTTOMLEFT", hud, "BOTTOMLEFT", 65, 9)
-hudProgressBack:SetWidth(350)
-hudProgressBack:SetHeight(5)
-hudProgressBack:SetVertexColor(0.07, 0.12, 0.17, 1)
+hudProgressBack:SetPoint("BOTTOM", hud, "BOTTOM", 0, 1)
+hudProgressBack:SetWidth(96)
+hudProgressBack:SetHeight(2)
+hudProgressBack:SetVertexColor(0.02, 0.04, 0.06, 0.72)
 hudProgressFill = hud:CreateTexture(nil, "ARTWORK")
 hudProgressFill:SetTexture("Interface/Buttons/WHITE8X8")
 hudProgressFill:SetPoint("LEFT", hudProgressBack, "LEFT", 0, 0)
 hudProgressFill:SetWidth(1)
-hudProgressFill:SetHeight(5)
+hudProgressFill:SetHeight(2)
+
+hudMoveHint = hud:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+hudMoveHint:SetPoint("BOTTOM", hud, "TOP", 0, 4)
+hudMoveHint:SetText("GLISSE POUR PLACER • /cdg lock")
+hudMoveHint:SetTextColor(1.00, 0.82, 0.28)
+hudMoveHint:Hide()
+
+-- Les explications ne restent pas en permanence. Elles apparaissent dans un
+-- petit cartouche lateral uniquement lors d'un boss, danger ou raccourci.
+hudToast = CreateFrame("Frame", nil, hud)
+hudToast:SetWidth(264)
+hudToast:SetHeight(62)
+hudToast:SetPoint("LEFT", hud, "RIGHT", 10, 12)
+hudToast:SetBackdrop({
+    bgFile = "Interface/Tooltips/UI-Tooltip-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+    tile = true, tileSize = 16, edgeSize = 9, insets = { left = 3, right = 3, top = 3, bottom = 3 }
+})
+hudToast:SetBackdropColor(0.01, 0.025, 0.04, 0.82)
+hudToast:SetBackdropBorderColor(0.25, 0.78, 1.00, 0.82)
+hudToastTitle = hudToast:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+hudToastTitle:SetPoint("TOPLEFT", hudToast, "TOPLEFT", 10, -9)
+hudToastTitle:SetWidth(244)
+hudToastTitle:SetJustifyH("LEFT")
+hudToastText = hudToast:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+hudToastText:SetPoint("TOPLEFT", hudToastTitle, "BOTTOMLEFT", 0, -5)
+hudToastText:SetWidth(244)
+hudToastText:SetHeight(30)
+hudToastText:SetJustifyH("LEFT")
+hudToastText:SetJustifyV("TOP")
+hudToast:Hide()
+
+local function SetHUDLocked(locked)
+    local settings = EnsureGuideDatabase()
+    settings.hudLocked = locked and true or false
+    hud:EnableMouse(not settings.hudLocked)
+    if settings.hudLocked then
+        hudMoveHint:Hide()
+    else
+        hudMoveHint:Show()
+        hud:Show()
+    end
+end
 
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
@@ -821,7 +880,8 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         if loaded ~= "CoADungeonNavigator" then return end
         local settings = EnsureGuideDatabase()
         RestorePosition(guideFrame, settings.window, "CENTER", "CENTER", 0, 10)
-        RestorePosition(hud, settings.hudPosition, "TOP", "TOP", 0, -75)
+        RestorePosition(hud, settings.hudPosition, "CENTER", "CENTER", 0, 145)
+        SetHUDLocked(settings.hudLocked)
         SelectRoute(false)
         UpdateNavigation()
         UpdateDisplays()
@@ -856,7 +916,7 @@ end)
 eventFrame:SetScript("OnUpdate", function(_, elapsed)
     refreshElapsed = refreshElapsed + elapsed
     heavyRefreshElapsed = heavyRefreshElapsed + elapsed
-    if refreshElapsed < 0.18 then return end
+    if refreshElapsed < 0.12 then return end
     refreshElapsed = 0
     if EnsureGuideDatabase().auto then UpdateNavigation() end
     if heavyRefreshElapsed >= 1.0 then
@@ -909,10 +969,16 @@ SlashCmdList.COADUNGEONGUIDE = function(message)
     elseif command == "hud" then
         local settings = EnsureGuideDatabase()
         settings.hud = not settings.hud
+    elseif command == "unlock" or command == "deplacer" or command == "déplacer" then
+        SetHUDLocked(false)
+        Chat("flèche déverrouillée : glisse-la au-dessus de ton personnage, puis /cdg lock")
+    elseif command == "lock" or command == "verrouiller" then
+        SetHUDLocked(true)
+        Chat("flèche verrouillée")
     elseif command == "learning" or command == "collecte" then
         if API.ToggleLearning then API:ToggleLearning() end
     else
-        Chat("commandes : /cdg, next, prev, recal, reset, hud, collecte")
+        Chat("commandes : /cdg, next, prev, recal, reset, hud, unlock, lock, collecte")
     end
     UpdateDisplays()
 end

@@ -35,6 +35,17 @@ const COA_NEWS_MARKERS = [
 
 const IMPACT_RULES = [
   {
+    component: 'essential-assistant', name: 'CoA Essential Assistant',
+    keywords: [
+      'barbarian', 'witch doctor', 'felsworn', 'witch hunter', 'stormbringer',
+      'knight of xoroth', 'guardian', 'templar', 'bloodmage', 'ranger',
+      'chronomancer', 'necromancer', 'pyromancer', 'cultist', 'starcaller',
+      'sun cleric', 'tinker', 'venomancer', 'reaper', 'primalist', 'runemaster',
+      'proc', 'aura', 'buff', 'stack', 'charge', 'resource', 'talent', 'specialization'
+    ],
+    suggestion: 'Vérifier si le proc, la charge ou la ressource essentielle doit être ajouté, modifié ou retiré du filtre conservateur.'
+  },
+  {
     component: 'loot-decider', name: 'CoA Loot Decider',
     keywords: [
       'talent', 'specialization', 'stat', 'critical strike', 'haste', 'hit rating',
@@ -138,7 +149,7 @@ function friendlyUpdate(item, tags) {
 
 export function createRotationUpdateFeed(report) {
   const items = (Array.isArray(report?.items) ? report.items : [])
-    .filter(item => item.impacts?.some(impact => impact.component === 'rotation-guide'))
+    .filter(item => item.impacts?.some(impact => impact.component === 'rotation-guide' || impact.component === 'essential-assistant'))
     .slice(0, 100)
     .map(item => {
       const tags = updateTags(item.summary);

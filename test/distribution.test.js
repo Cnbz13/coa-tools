@@ -7,7 +7,7 @@ const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
 test('release manifest describes every managed component and the official EventAlert source', () => {
   assert.equal(manifest.version, pkg.version);
-  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'dungeon-navigator', 'event-alert', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'primalist-helper', 'rotation-guide', 'stormbringer-helper', 'ui-manager']);
+  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'dungeon-navigator', 'essential-assistant', 'event-alert', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'primalist-helper', 'rotation-guide', 'stormbringer-helper', 'ui-manager']);
   for (const artifact of manifest.artifacts) {
     assert.equal(artifact.version, pkg.version);
     assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
@@ -57,6 +57,7 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(workflow, /CoAMessageCenter-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoARotationGuide-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoADungeonNavigator-v\$env:RELEASE_VERSION\.zip/);
+  assert.match(workflow, /CoAEssentialAssistant-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoAHereticHelper-v\*\.zip/);
   assert.match(workflow, /CoAStormbringerHelper-v\*\.zip/);
   assert.match(workflow, /CoAPrimalistHelper-v\*\.zip/);
@@ -133,6 +134,9 @@ test('addon manager exposes sourced CoA watch recommendations without automatic 
   assert.match(addons, /preservedStormbringerFeed/);
   assert.match(addons, /CoAPrimalistUpdates\.lua/);
   assert.match(addons, /preservedPrimalistFeed/);
+  assert.match(addons, /CoAEssentialUpdates\.lua/);
+  assert.match(addons, /preservedEssentialFeed/);
+  assert.match(addons, /component === 'essential-assistant' && preservedEssentialFeed/);
   assert.match(addons, /component === 'rotation-guide' && preservedRotationFeed/);
   assert.match(app, /transmis au Guide de Rotation et aux assistants de classe installés/);
   assert.match(app, /loadCoaWatch/);
@@ -142,7 +146,7 @@ test('addon manager exposes sourced CoA watch recommendations without automatic 
 });
 
 test('WoW addon metadata matches the package version', async () => {
-  for (const name of ['CoACombatAssistant', 'CoAUIManager', 'CoALootDecider', 'CoAMessageCenter', 'CoARotationGuide', 'CoADungeonNavigator', 'GridCoA']) {
+  for (const name of ['CoACombatAssistant', 'CoAUIManager', 'CoALootDecider', 'CoAMessageCenter', 'CoARotationGuide', 'CoADungeonNavigator', 'CoAEssentialAssistant', 'GridCoA']) {
     const toc = await readFile(`addons/${name}/${name}.toc`, 'utf8');
     assert.match(toc, /^## Interface: \d+/m);
     assert.match(toc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));

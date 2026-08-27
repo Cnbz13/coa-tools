@@ -12,7 +12,8 @@ local DEFAULT_FRAMES = {
     "CoARotationGuideFrame", "CoARotationGuideHUD", "CoADungeonNavigatorFrame", "CoADungeonNavigatorHUD",
     "CoADungeonNavigatorLearningFrame", "CoADungeonNavigatorRecorder",
     "CoAStormbringerHUD", "CoAStormbringerMenu", "CoAStormbringerLevelToast",
-    "CoAPrimalistHUD", "CoAPrimalistMenu", "CoAPrimalistLevelToast"
+    "CoAPrimalistHUD", "CoAPrimalistMenu", "CoAPrimalistLevelToast",
+    "CoAEssentialAssistantHUD", "CoAEssentialResourceHUD", "CoAEssentialTargetHUD", "CoAEssentialCoverageHUD", "CoAEssentialAssistantSettings"
 }
 
 local FRAME_LABELS = {
@@ -36,7 +37,10 @@ local FRAME_LABELS = {
     CoAStormbringerHUD = "Stormbringer : conseil", CoAStormbringerMenu = "Réglages Stormbringer",
     CoAStormbringerLevelToast = "Stormbringer : niveau",
     CoAPrimalistHUD = "Primalist : conseil", CoAPrimalistMenu = "Réglages Primalist",
-    CoAPrimalistLevelToast = "Primalist : niveau"
+    CoAPrimalistLevelToast = "Primalist : niveau",
+    CoAEssentialAssistantHUD = "Essentiel : procs", CoAEssentialResourceHUD = "Essentiel : ressource",
+    CoAEssentialTargetHUD = "Essentiel : effet cible", CoAEssentialCoverageHUD = "Essentiel : couverture groupe",
+    CoAEssentialAssistantSettings = "Réglages Essentiel"
 }
 
 local movers = {}
@@ -239,14 +243,15 @@ local hereticHubButton = HubButton("Heretic", 18)
 local rotationHubButton = HubButton("Rotations", 101)
 local messagesHubButton = HubButton("Messages", 184)
 local dungeonHubButton = HubButton("Donjons", 267)
-local stormHubButton = HubButton("Storm", 18, -140)
-local primalistHubButton = HubButton("Primalist", 101, -140)
+local essentialHubButton = HubButton("Essentiel", 18, -140)
+local stormHubButton = HubButton("Storm", 101, -140)
+local primalistHubButton = HubButton("Primalist", 184, -140)
 
 local hubHint = panel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-hubHint:SetPoint("TOPLEFT", panel, "TOPLEFT", 184, -143)
-hubHint:SetWidth(166)
+hubHint:SetPoint("TOPLEFT", panel, "TOPLEFT", 267, -143)
+hubHint:SetWidth(82)
 hubHint:SetJustifyH("LEFT")
-hubHint:SetText("Les assistants de classe ne s'activent que sur le bon personnage.")
+hubHint:SetText("Réglages via minicarte.")
 
 hereticHubButton:SetScript("OnClick", function()
     if CoAHereticHelperAPI and CoAHereticHelperAPI.Toggle then
@@ -287,6 +292,13 @@ primalistHubButton:SetScript("OnClick", function()
         Chat("CoA Primalist Helper n'est pas chargé pour ce personnage.")
     end
 end)
+essentialHubButton:SetScript("OnClick", function()
+    if CoAEssentialAssistantAPI and CoAEssentialAssistantAPI.Toggle then
+        CoAEssentialAssistantAPI:Toggle()
+    else
+        Chat("CoA Essential Assistant n'est pas chargé.")
+    end
+end)
 
 local function UpdateHubBadge()
     local unread = tonumber(CoAMessageCenterDB and CoAMessageCenterDB.unread) or 0
@@ -301,12 +313,14 @@ local function UpdateHubAvailability()
     if CoADungeonNavigatorAPI and CoADungeonNavigatorAPI.SetHubManaged then CoADungeonNavigatorAPI:SetHubManaged(true) end
     if CoAStormbringerHelperAPI and CoAStormbringerHelperAPI.SetHubManaged then CoAStormbringerHelperAPI:SetHubManaged(true) end
     if CoAPrimalistHelperAPI and CoAPrimalistHelperAPI.SetHubManaged then CoAPrimalistHelperAPI:SetHubManaged(true) end
+    if CoAEssentialAssistantAPI and CoAEssentialAssistantAPI.SetHubManaged then CoAEssentialAssistantAPI:SetHubManaged(true) end
     if CoAHereticHelperAPI and CoAHereticHelperAPI.Toggle then hereticHubButton:Enable() else hereticHubButton:Disable() end
     if CoARotationGuideAPI and CoARotationGuideAPI.Toggle then rotationHubButton:Enable() else rotationHubButton:Disable() end
     if CoAMessageCenter and CoAMessageCenter.Toggle then messagesHubButton:Enable() else messagesHubButton:Disable() end
     if CoADungeonNavigatorAPI and CoADungeonNavigatorAPI.Toggle then dungeonHubButton:Enable() else dungeonHubButton:Disable() end
     if CoAStormbringerHelperAPI and CoAStormbringerHelperAPI.Toggle then stormHubButton:Enable() else stormHubButton:Disable() end
     if CoAPrimalistHelperAPI and CoAPrimalistHelperAPI.Toggle then primalistHubButton:Enable() else primalistHubButton:Disable() end
+    if CoAEssentialAssistantAPI and CoAEssentialAssistantAPI.Toggle then essentialHubButton:Enable() else essentialHubButton:Disable() end
     UpdateHubBadge()
 end
 

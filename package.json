@@ -1,6 +1,6 @@
 {
   "name": "coa-tools",
-  "version": "1.19.2",
+  "version": "1.20.0",
   "private": true,
   "type": "module",
   "description": "Local companion suite for combat, UI and addon management.",

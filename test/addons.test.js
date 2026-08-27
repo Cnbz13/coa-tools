@@ -136,11 +136,12 @@ test('manager scans Ascension addons and installs, backs up, restores and update
     const combatBytes = await addonZip(root, 'CoACombatAssistant', 'CoA Combat Assistant', version);
     const uiBytes = await addonZip(root, 'CoAUIManager', 'CoA UI Manager', version);
     const rotationBytes = await addonZip(root, 'CoARotationGuide', 'CoA Rotation Guide', version);
+    const essentialBytes = await addonZip(root, 'CoAEssentialAssistant', 'CoA Essential Assistant', version);
     const profileDir = path.join(root, 'Ascension Game With Spaces', 'WTF', 'Account', 'Test', 'Realm', 'Character');
     const profileAddons = path.join(profileDir, 'AddOns.txt');
     await mkdir(profileDir, { recursive: true });
     await writeFile(profileAddons, 'CoACombatAssistant: enabled\r\n');
-    const archives = { '/combat.zip': combatBytes, '/ui.zip': uiBytes, '/rotation.zip': rotationBytes };
+    const archives = { '/combat.zip': combatBytes, '/ui.zip': uiBytes, '/rotation.zip': rotationBytes, '/essential.zip': essentialBytes };
     let manifest;
     server = createServer((request, response) => {
       if (request.url === '/manifest.json') {
@@ -158,7 +159,8 @@ test('manager scans Ascension addons and installs, backs up, restores and update
       artifacts: [
         { name: 'CoA Combat Assistant', component: 'combat-assistant', version, targetFolder: 'CoACombatAssistant', file: 'combat.zip', url: `${origin}/combat.zip`, sha256: sha256(combatBytes), size: combatBytes.length },
         { name: 'CoA UI Manager', component: 'ui-manager', version, targetFolder: 'CoAUIManager', file: 'ui.zip', url: `${origin}/ui.zip`, sha256: sha256(uiBytes), size: uiBytes.length },
-        { name: 'CoA Rotation Guide', component: 'rotation-guide', version, targetFolder: 'CoARotationGuide', file: 'rotation.zip', url: `${origin}/rotation.zip`, sha256: sha256(rotationBytes), size: rotationBytes.length }
+        { name: 'CoA Rotation Guide', component: 'rotation-guide', version, targetFolder: 'CoARotationGuide', file: 'rotation.zip', url: `${origin}/rotation.zip`, sha256: sha256(rotationBytes), size: rotationBytes.length },
+        { name: 'CoA Essential Assistant', component: 'essential-assistant', version, targetFolder: 'CoAEssentialAssistant', file: 'essential.zip', url: `${origin}/essential.zip`, sha256: sha256(essentialBytes), size: essentialBytes.length }
       ]
     };
     const manager = new AddonManager({ dataDir, canonicalPath: addonsDir, manifestUrl: `${origin}/manifest.json`, environmentPath: null, downloadPolicy: url => url.origin === origin });
@@ -167,7 +169,7 @@ test('manager scans Ascension addons and installs, backs up, restores and update
     assert.equal(inventory.detectionSource, 'project-ascension');
     assert.equal(inventory.localCount, 1);
     assert.equal(inventory.regular[0].title, 'AdiBags');
-    assert.deepEqual(inventory.managed.map(item => item.action), ['install', 'install', 'install']);
+    assert.deepEqual(inventory.managed.map(item => item.action), ['install', 'install', 'install', 'install']);
     assert.equal(inventory.managed.find(item => item.component === 'rotation-guide').userManageable, true);
 
     const combatSha = manifest.artifacts[0].sha256;
@@ -185,12 +187,13 @@ test('manager scans Ascension addons and installs, backs up, restores and update
     assert.equal(await readFile(path.join(addonsDir, 'CoACombatAssistant', 'custom.txt'), 'utf8'), 'local customization');
 
     const updated = await manager.updateAll();
-    assert.deepEqual(updated.updated, ['ui-manager', 'rotation-guide']);
+    assert.deepEqual(updated.updated, ['ui-manager', 'rotation-guide', 'essential-assistant']);
     inventory = updated.inventory;
-    assert.equal(inventory.localCount, 4);
+    assert.equal(inventory.localCount, 5);
     assert.equal(inventory.managed.every(item => item.installed), true);
     assert.equal(inventory.managed.every(item => item.action === 'reinstall'), true);
     assert.match(await readFile(path.join(addonsDir, 'CoARotationGuide', 'CoARotationGuide.toc'), 'utf8'), /## Version: 1\.0\.4/);
+    assert.match(await readFile(path.join(addonsDir, 'CoAEssentialAssistant', 'CoAEssentialAssistant.toc'), 'utf8'), /## Version: 1\.0\.4/);
     assert.match(await readFile(profileAddons, 'utf8'), /^CoARotationGuide: enabled$/m);
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));

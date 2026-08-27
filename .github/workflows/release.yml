@@ -49,6 +49,7 @@ jobs:
             "dist/CoAMessageCenter-v$env:RELEASE_VERSION.zip",
             "dist/CoARotationGuide-v$env:RELEASE_VERSION.zip",
             "dist/CoADungeonNavigator-v$env:RELEASE_VERSION.zip",
+            "dist/CoAEssentialAssistant-v$env:RELEASE_VERSION.zip",
             $hereticHelper,
             $stormbringerHelper,
             $primalistHelper,

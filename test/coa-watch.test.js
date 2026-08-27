@@ -63,7 +63,7 @@ test('impact rules map spell, proc, dispel and interface changes to the affected
   });
   assert.equal(result.significant, true);
   assert.deepEqual(result.impacts.map(item => item.component), [
-    'combat-assistant', 'rotation-guide', 'event-alert', 'grid-compat', 'ui-manager'
+    'essential-assistant', 'combat-assistant', 'rotation-guide', 'event-alert', 'grid-compat', 'ui-manager'
   ]);
   assert.equal(result.confidence, 'élevée');
 });
@@ -109,15 +109,17 @@ test('rotation watch creates a natural Lua 5.1 feed and writes it into the insta
   const guideDir = path.join(addonsDir, 'CoARotationGuide');
   const stormDir = path.join(addonsDir, 'CoAStormbringerHelper');
   const primalDir = path.join(addonsDir, 'CoAPrimalistHelper');
-  await Promise.all([guideDir, stormDir, primalDir].map(directory => mkdir(directory, { recursive: true })));
+  const essentialDir = path.join(addonsDir, 'CoAEssentialAssistant');
+  await Promise.all([guideDir, stormDir, primalDir, essentialDir].map(directory => mkdir(directory, { recursive: true })));
   const manager = new AddonManager({ dataDir: path.join(root, 'data'), canonicalPath: addonsDir, environmentPath: null });
   const result = await manager.writeRotationUpdateFeed(lua, feed);
   assert.equal(result.written, true);
   assert.equal(result.count, 1);
-  assert.equal(result.paths.length, 3);
+  assert.equal(result.paths.length, 4);
   assert.equal(await readFile(path.join(guideDir, 'CoARotationUpdates.lua'), 'utf8'), lua);
   assert.equal(await readFile(path.join(stormDir, 'CoAStormbringerUpdates.lua'), 'utf8'), lua);
   assert.equal(await readFile(path.join(primalDir, 'CoAPrimalistUpdates.lua'), 'utf8'), lua);
+  assert.equal(await readFile(path.join(essentialDir, 'CoAEssentialUpdates.lua'), 'utf8'), lua);
 });
 
 test('rank-by-rank changelog entries are grouped into one readable recommendation', () => {

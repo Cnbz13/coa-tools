@@ -8,7 +8,7 @@ import { ensureDir, readJson, writeJsonAtomic } from '../lib/files.js';
 import { extractZip } from '../lib/zip.js';
 
 export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
-const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'rotation-guide', 'dungeon-navigator', 'heretic-helper', 'stormbringer-helper', 'primalist-helper', 'event-alert', 'grid-compat']);
+const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'rotation-guide', 'dungeon-navigator', 'essential-assistant', 'heretic-helper', 'stormbringer-helper', 'primalist-helper', 'event-alert', 'grid-compat']);
 const USER_MANAGEABLE_COMPONENTS = new Set([...MANAGED_COMPONENTS].filter(component => component !== 'event-alert'));
 const EVENT_ALERT_COMPANION_FOLDER = 'EventAlertCoA';
 const EVENT_ALERT_LEGACY_FOLDER = 'CoAEventAlert';
@@ -119,9 +119,11 @@ export class AddonManager {
     const rotationFolder = path.join(detection.directory, 'CoARotationGuide');
     const stormbringerFolder = path.join(detection.directory, 'CoAStormbringerHelper');
     const primalistFolder = path.join(detection.directory, 'CoAPrimalistHelper');
+    const essentialFolder = path.join(detection.directory, 'CoAEssentialAssistant');
     if (await isDirectory(rotationFolder)) destinations.push(path.join(rotationFolder, 'CoARotationUpdates.lua'));
     if (await isDirectory(stormbringerFolder)) destinations.push(path.join(stormbringerFolder, 'CoAStormbringerUpdates.lua'));
     if (await isDirectory(primalistFolder)) destinations.push(path.join(primalistFolder, 'CoAPrimalistUpdates.lua'));
+    if (await isDirectory(essentialFolder)) destinations.push(path.join(essentialFolder, 'CoAEssentialUpdates.lua'));
     if (!destinations.length) return { written: false, reason: 'rotation-guide-not-installed', count: 0 };
     for (const destination of destinations) await writeFile(destination, text, 'utf8');
     return {
@@ -409,6 +411,13 @@ export class AddonManager {
         if (candidate.includes('CoARotationUpdateFeed = {')) preservedPrimalistFeed = candidate;
       } catch { /* Une ancienne version peut ne pas encore avoir de flux. */ }
     }
+    let preservedEssentialFeed = null;
+    if (component === 'essential-assistant' && local) {
+      try {
+        const candidate = await readFile(path.join(local.path, 'CoAEssentialUpdates.lua'), 'utf8');
+        if (candidate.includes('CoARotationUpdateFeed = {')) preservedEssentialFeed = candidate;
+      } catch { /* Une ancienne version peut ne pas encore avoir de flux. */ }
+    }
     const transaction = path.join(this.transactionsRoot, randomUUID());
     const archive = path.join(transaction, path.basename(artifact.file));
     const extracted = path.join(transaction, 'extracted');
@@ -444,6 +453,9 @@ export class AddonManager {
       }
       if (component === 'primalist-helper' && preservedPrimalistFeed) {
         await writeFile(path.join(destination, 'CoAPrimalistUpdates.lua'), preservedPrimalistFeed, 'utf8');
+      }
+      if (component === 'essential-assistant' && preservedEssentialFeed) {
+        await writeFile(path.join(destination, 'CoAEssentialUpdates.lua'), preservedEssentialFeed, 'utf8');
       }
       report({ step: 'enable', message: 'Activation dans les profils Ascension…', phasePercent: 91 });
       let enabledProfiles = await this.enableAddonForProfiles(detection.directory, artifact.targetFolder);

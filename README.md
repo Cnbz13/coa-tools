@@ -8,13 +8,14 @@ Suite locale sans télémétrie regroupant les outils CoA suivants :
 - **CoA UI Manager** — gestionnaire complet de positions, profils, échelle et alpha ;
 - **CoA Rotation Guide** — guide universel hors ligne avec une seule icône de combat compacte, adapté automatiquement à la classe, la spécialisation, au niveau, au spellbook et aux talents actifs ;
 - **CoA Dungeon Navigator** — véritable guide de tank hors ligne avec flèche, trace d'étage, prochaines rencontres et recalage automatique, doublé d'un collecteur de parcours ;
+- **CoA Essential Assistant** — assistant universel sans rotation : procs, ressources critiques, effets de cible et couverture de groupe, avec une identité visuelle propre à chaque classe ;
 - **CoA Stormbringer Helper** — HUD compact dédié au leveling Stormbringer, aux procs et aux trois spécialisations ;
 - **CoA Primalist Helper** — compagnon adaptatif niveau 1–60 pour les quatre spécialisations Primalist, y compris soin et tank ;
 - **CoA Addon Manager** — application Windows qui détecte Project Ascension et gère automatiquement les addons CoA.
 
 ## Artefacts installables
 
-Chaque release publie douze ZIP :
+Chaque release publie treize ZIP :
 
 - `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
 - `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans le dossier `Interface/AddOns` de Project Ascension ;
@@ -23,6 +24,7 @@ Chaque release publie douze ZIP :
 - `CoAMessageCenter-vX.Y.Z.zip` : centralise les messages des addons CoA hors du chat général ;
 - `CoARotationGuide-vX.Y.Z.zip` : affiche une icône compacte du prochain sort réellement utilisable pour toutes les classes, garde son propre bouton de minicarte avec réglages rapides, ouvre un guide de priorités ST/AOE et solo/groupe, et propose des spécialisations DPS/tank/soin datées avec leur confiance ;
 - `CoADungeonNavigator-vX.Y.Z.zip` : guide automatiquement 15 donjons déjà observés, affiche la direction et les prochaines étapes, puis continue d'apprendre les trajets sans enregistrer le chat ni le nom des autres joueurs ;
+- `CoAEssentialAssistant-vX.Y.Z.zip` : observe uniquement les procs courts, charges, ressources critiques et effets indispensables réellement présents ; couvre les 21 classes et 70 spécialisations sans proposer d’ordre de sorts ;
 - `CoAHereticHelper-v3.9.0.zip` : HUD visuel compact dédié au Cultist Heretic heal, avec diagnostic au survol, sons séparés, seuils Sang noir réglables, proc de Soin occulte et couverture membre par membre ;
 - `CoAStormbringerHelper-v1.1.0.zip` : moteur Stormbringer du niveau 1 à 60, avec détection Lightning/Maelstrom/Wind, Static, procs, summons et décisions transmises au HUD universel ;
 - `CoAPrimalistHelper-v1.1.0.zip` : moteur Primalist niveau 1–60 pour Wildwalker/Geomancy/Grovekeeper/Mountain King, Rage, Earthshaping, procs, familier, soins et décisions transmises au HUD universel ;
@@ -86,6 +88,16 @@ La préparation reste séparée de la rotation principale pour que les buffs ne 
 Les modes **Solo/Groupe** et **ST/AOE** sont sélectionnables dans la fenêtre. Les explications précises issues d’un guide sont distinguées des repères prudents déduits du tooltip, du rôle et des talents. Les soins ou défensifs contextuels ne sont plus injectés dans la boucle offensive uniquement parce qu’ils sont disponibles. Commandes : `/rotation comprendre`, `/rotation pourquoi`, `/rotation situations`, `/rotation progression`, `/rotation actus`, `/rotation scan`, `/rotation status`, `/rotation st|aoe`, `/rotation solo|groupe`, `/rotation sources`, `/rotation reset`.
 
 La veille hebdomadaire lit le changelog et les actualités officiels Ascension. À chaque ouverture du manager, le rapport est transformé en un petit fichier Lua 5.1 puis transmis au guide installé. Au prochain lancement ou `/reload`, une alerte en jeu apparaît uniquement si une note non lue correspond au personnage. L’alerte est conservatrice : elle signale le changement et garde la note officielle, mais ne réécrit jamais silencieusement une priorité non vérifiée. Le jeu 3.3.5 ne pouvant pas accéder lui-même à Internet, le manager doit avoir été ouvert au moins une fois depuis la publication du rapport.
+
+## CoA Essential Assistant
+
+L’assistant Essentiel est indépendant du Guide de Rotation. Il ne donne aucun ordre de sorts et masque par défaut l’icône de rotation en combat. Il relit automatiquement la classe, la spécialisation, le niveau, les talents et le spellbook, puis n’affiche que des informations immédiatement utiles : proc court confirmé par une aura réelle, charges, ressource proche d’un seuil important, effet essentiel posé sur la cible ou couverture de groupe déjà observée.
+
+Le filtre est volontairement strict. Nourriture, parchemins, montures, bonus d’expérience, métiers et buffs longs sont rejetés. Un mécanisme doit correspondre au profil de la spécialisation ou porter dans son tooltip une signature explicite de proc — prochain sort, lancement instantané, coût annulé, recharge réinitialisée ou charges maximales. Un clic droit permet de bannir immédiatement un faux positif ; les réglages permettent ensuite de tout réactiver.
+
+Les 21 classes ont leurs couleurs et leur disposition : ligne, colonne, arc, runes, totem, horloge, noyau technique, sang, vide ou constellation. Les quatre modules **Procs**, **Ressource**, **Effet cible** et **Couverture groupe** se déplacent séparément et possèdent chacun leur activation, échelle et alpha. Les positions sont enregistrées en profil global ou par personnage. Le panneau et son bouton autonome de minicarte restent accessibles même avec UI Manager. Commandes : `/cea`, `/cea unlock`, `/cea lock`, `/cea test`, `/cea scan`, `/cea profile`, `/cea sound`, `/cea rotation`, `/cea reset` et `/cea status`.
+
+Sur Cultist Hérétique, le suivi spécialisé existant conserve automatiquement la main afin de ne pas perdre la détection précise du troisième coup, du soin instantané et de Sang noir. Les HUD de recommandations Stormbringer et Primalist sont masqués au profit des signaux essentiels du nouveau moteur. L’addon ne cible rien et ne lance jamais de sort.
 
 ## CoA Dungeon Navigator
 

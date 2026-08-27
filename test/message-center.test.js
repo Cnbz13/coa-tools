@@ -26,7 +26,7 @@ test('CoA Message Center captures only registered addon prefixes and leaves play
   for (const required of [
     'DEFAULT_CHAT_FRAME.AddMessage = ChatInterceptor', 'originalChatAddMessage(frame, text, ...)',
     'DetectAddonMessage', 'RegisterPrefix', 'GetNumAddOns', 'GetAddOnInfo',
-    'CoA Loot Decider', 'CoA Combat Assistant', 'CoA UI Manager', 'Grid CoA', 'EventAlert CoA',
+    'CoA Loot Decider', 'CoA Combat Assistant', 'CoA UI Manager', 'Grid CoA',
     'CoA Analytics',
     'CoAMessageCenterDB.suppressChat', 'if CoAMessageCenterDB.suppressChat then return end'
   ]) assert.ok(lua.includes(required), `missing safe capture feature: ${required}`);

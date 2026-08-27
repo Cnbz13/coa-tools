@@ -30,7 +30,6 @@ local KNOWN_PREFIXES = {
     ["Grid CoA"] = "Grid CoA",
     ["Grid - Compatibilite CoA"] = "Grid CoA",
     ["Grid - Compatibilité CoA"] = "Grid CoA",
-    ["EventAlert CoA"] = "EventAlert CoA",
     ["CoA Analytics"] = "CoA Analytics",
     ["CoA Message Center"] = "CoA Message Center"
 }

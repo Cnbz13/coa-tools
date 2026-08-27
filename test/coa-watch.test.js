@@ -63,7 +63,7 @@ test('impact rules map spell, proc, dispel and interface changes to the affected
   });
   assert.equal(result.significant, true);
   assert.deepEqual(result.impacts.map(item => item.component), [
-    'essential-assistant', 'combat-assistant', 'rotation-guide', 'event-alert', 'grid-compat', 'ui-manager'
+    'essential-assistant', 'combat-assistant', 'rotation-guide', 'grid-compat', 'ui-manager'
   ]);
   assert.equal(result.confidence, 'élevée');
 });

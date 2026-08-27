@@ -259,7 +259,6 @@ $('#downloadUpdate').onclick = () => downloadUpdate();
 
 const watchComponentLabels = {
   'combat-assistant': 'Combat Assistant',
-  'event-alert': 'EventAlertCoA',
   'grid-compat': 'GridCoA',
   'ui-manager': 'UI Manager'
 };

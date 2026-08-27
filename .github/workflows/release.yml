@@ -27,8 +27,6 @@ jobs:
       - run: npm test
       - run: npm run release
       - run: node scripts/validate-manifest.mjs dist/manifest.json
-      - name: Test genuine EventAlert package end to end
-        run: node scripts/verify-eventalert-package.mjs
       - name: Test Windows package end to end
         shell: powershell
         run: .\scripts\test-windows-package.ps1 -ZipPath "dist\CoAAddonManager-v${env:RELEASE_VERSION}-Windows.zip"
@@ -54,7 +52,6 @@ jobs:
             $stormbringerHelper,
             $primalistHelper,
             "dist/GridCoA-v$env:RELEASE_VERSION.zip",
-            "dist/EventAlertCoA-v$env:RELEASE_VERSION.zip",
             'dist/SHA256SUMS.txt',
             'dist/manifest.json'
           )

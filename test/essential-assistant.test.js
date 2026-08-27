@@ -6,6 +6,7 @@ import luaparse from 'luaparse';
 const luaPromise = readFile('addons/CoAEssentialAssistant/CoAEssentialAssistant.lua', 'utf8');
 const dataPromise = readFile('addons/CoAEssentialAssistant/CoAEssentialData.lua', 'utf8');
 const tocPromise = readFile('addons/CoAEssentialAssistant/CoAEssentialAssistant.toc', 'utf8');
+const packagePromise = readFile('package.json', 'utf8').then(JSON.parse);
 
 test('Essential Assistant covers every CoA class and specialization without a rotation', async () => {
   const [lua, data] = await Promise.all([luaPromise, dataPromise]);
@@ -63,9 +64,9 @@ test('Essential Assistant delegates the exact Heretic HUD and suppresses competi
 });
 
 test('Essential Assistant is strict Lua 5.1 / Ascension 3.3.5', async () => {
-  const [lua, data, toc] = await Promise.all([luaPromise, dataPromise, tocPromise]);
+  const [lua, data, toc, pkg] = await Promise.all([luaPromise, dataPromise, tocPromise, packagePromise]);
   assert.match(toc, /^## Interface: 30300$/m);
-  assert.match(toc, /^## Version: 1\.21\.0$/m);
+  assert.match(toc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));
   assert.match(toc, /^## SavedVariables: CoAEssentialAssistantDB$/m);
   for (const forbidden of [
     'BackdropTemplate', 'SetShown', 'SetSize', 'C_Timer', 'CombatLogGetCurrentEventInfo',

@@ -1,7 +1,5 @@
 # CoA Tools
 
-> Depuis la version 1.2.1, le manager installe le **véritable EventAlert 4.3.6** pour WoW 3.3.5 depuis sa publication CurseForge, accompagné d’un chargeur de compatibilité CoA minimal. Le chargeur survit aux réparations du dossier officiel par Ascension, conserve l’interface, les sons, les options et `/ea` d’origine, et apprend automatiquement les procs et réactions `SPELL_ACTIVE` de CoA.
-
 Suite locale sans télémétrie regroupant les outils CoA suivants :
 
 - **CoA Combat Assistant** — addon WoW de recommandations visuelles et de mémoire des combats ;
@@ -15,7 +13,7 @@ Suite locale sans télémétrie regroupant les outils CoA suivants :
 
 ## Artefacts installables
 
-Chaque release publie treize ZIP :
+Chaque release publie douze ZIP :
 
 - `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
 - `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans le dossier `Interface/AddOns` de Project Ascension ;
@@ -29,21 +27,14 @@ Chaque release publie treize ZIP :
 - `CoAStormbringerHelper-v1.1.0.zip` : moteur Stormbringer du niveau 1 à 60, avec détection Lightning/Maelstrom/Wind, Static, procs, summons et décisions transmises au HUD universel ;
 - `CoAPrimalistHelper-v1.1.0.zip` : moteur Primalist niveau 1–60 pour Wildwalker/Geomancy/Grovekeeper/Mountain King, Rage, Earthshaping, procs, familier, soins et décisions transmises au HUD universel ;
 - `GridCoA-vX.Y.Z.zip` : compagnon du véritable Grid ; il détecte les dissipations apprises et réserve l’icône centrale aux seuls affaiblissements que le personnage peut retirer.
-- `EventAlertCoA-vX.Y.Z.zip` : couche de compatibilité appliquée automatiquement par le manager au véritable EventAlert 4.3.6. Le code original, sous licence « All Rights Reserved », est téléchargé séparément depuis [sa fiche CurseForge officielle](https://www.curseforge.com/wow/addons/event-alert/files/456081), puis vérifié par taille et SHA-256.
 
-Les addons et la couche EventAlert ciblent strictement le client Project Ascension / WoW 3.3.5a (`## Interface: 30300`) et Lua 5.1.
+Les addons ciblent strictement le client Project Ascension / WoW 3.3.5a (`## Interface: 30300`) et Lua 5.1.
 
 ## Performances en jeu
 
 Depuis la 1.20.1, Loot Decider met en cache les données immuables des objets, fusionne les rafales d’événements de sacs/talents et répartit les contours d’objets sur plusieurs images. Ouvrir un sac, un marchand ou une fenêtre de butin ne déclenche plus un rescan complet du spellbook et des talents. Le guide de donjon sépare aussi la flèche légère des cartes et conseils de loot plus coûteux, tandis qu’Essential Assistant temporise les auras de groupe et mémorise leurs tooltips.
 
 Ces protections réduisent les causes de gels créées par CoA Tools. Si un gel subsiste après la mise à jour, désactiver temporairement les addons Ascension tiers un par un reste utile pour identifier un autre responsable ; le manager ne peut pas corriger le client ou un addon externe sans erreur/profil précis.
-
-## EventAlert pour CoA
-
-Ce projet ne réinvente pas EventAlert et ne republie pas son code. Le manager compose localement l’archive officielle EventAlert 4.3.6 avec `EventAlertCoA.lua`. La couche prépare les tables pour les jetons de classes CoA tels que `NECROMANCER`, migre les réglages d’anciens ports Ascension, détecte les auras de proc émises par le joueur et les réactions `SPELL_ACTIVE`, puis les affiche dans les vrais frames EventAlert. Les procs appris sont conservés dans les SavedVariables d’EventAlert et apparaissent dans ses options après rechargement.
-
-Commandes complémentaires : `/ea coa`, `/ea coa learn`, `/ea coa scan`. Toutes les autres commandes `/ea` restent celles d’origine.
 
 ## CoA Combat Assistant
 
@@ -137,13 +128,13 @@ Chaque sous-dossier qui contient un fichier `.toc` est scanné réellement. Le n
 
 Une installation ou mise à jour CoA télécharge le ZIP officiel, vérifie obligatoirement sa taille et son SHA-256, contrôle son chemin d’extraction et exige un `.toc` dans le dossier cible avant remplacement. Une sauvegarde automatique précède chaque remplacement et peut être restaurée depuis l’interface.
 
-Chaque addon CoA peut être exclu des mises à jour globales et automatiques tout en restant installé et disponible pour une mise à jour manuelle. Le bouton **Désinstaller** crée d’abord une sauvegarde restaurable, retire uniquement le dossier exact de l’addon, puis l’exclut automatiquement afin qu’une mise à jour globale ne le réinstalle pas. EventAlert reste volontairement protégé de ces deux actions.
+Chaque addon CoA peut être exclu des mises à jour globales et automatiques tout en restant installé et disponible pour une mise à jour manuelle. Le bouton **Désinstaller** crée d’abord une sauvegarde restaurable, retire uniquement le dossier exact de l’addon, puis l’exclut automatiquement afin qu’une mise à jour globale ne le réinstalle pas.
 
 Les installations individuelles et la mise à jour globale sont suivies en direct : addon courant, étape, pourcentage, octets téléchargés et temps écoulé restent visibles, même après un rafraîchissement de l’interface. Un téléchargement réseau est interrompu avec une erreur explicite après deux minutes sans résultat.
 
 ## Veille hebdomadaire CoA
 
-Le manager présente les changements susceptibles d’affecter Combat Assistant, Loot Decider, EventAlertCoA, GridCoA ou UI Manager dans l’onglet **Mises à jour**. Chaque proposition indique la source, la date, les addons concernés, le niveau de confiance et la raison technique. Aucune règle d’addon n’est modifiée ou publiée automatiquement à partir d’un patch note.
+Le manager présente les changements susceptibles d’affecter Combat Assistant, Loot Decider, CoA Essential Assistant, GridCoA ou UI Manager dans l’onglet **Mises à jour**. Chaque proposition indique la source, la date, les addons concernés, le niveau de confiance et la raison technique. Aucune règle d’addon n’est modifiée ou publiée automatiquement à partir d’un patch note.
 
 La veille lit en priorité le [changelog officiel Conquest of Azeroth](https://ascension.gg/en/changelog/4), puis les [actualités officielles Ascension](https://ascension.gg/en/news/board). Elle surveille aussi la révision des [données publiques des arbres CoA](https://github.com/srhinos/coa-datamine/tree/master/data/talents/coa). Elle utilise leurs API publiques, regroupe les changements rang par rang, conserve les empreintes déjà vues dans `watch/state.json` et publie le rapport lisible dans `watch/report.json`.
 

@@ -34,7 +34,7 @@ test('global addon updates start immediately and expose component, byte and over
   assert.equal(downloading.percent, 13);
   assert.equal(downloading.bytesDone, 25);
   assert.equal(downloading.bytesTotal, 100);
-  assert.throws(() => registry.start('install', 'event-alert'), error => error.status === 409);
+  assert.throws(() => registry.start('install', 'grid-compat'), error => error.status === 409);
 
   resume();
   const completed = await eventually(() => registry.current()?.state === 'succeeded' && registry.current());

@@ -31,18 +31,7 @@ const packages = [
   { name: 'CoA Heretic Helper', component: 'heretic-helper', contentVersion: '3.9.0', platform: 'any', arch: 'any', targetFolder: 'CoAHereticHelper', installPath: 'Interface/AddOns', file: 'CoAHereticHelper-v3.9.0.zip', source: path.resolve('addons', 'CoAHereticHelper', '..'), only: 'CoAHereticHelper' },
   { name: 'CoA Stormbringer Helper', component: 'stormbringer-helper', contentVersion: '1.1.0', platform: 'any', arch: 'any', targetFolder: 'CoAStormbringerHelper', installPath: 'Interface/AddOns', file: 'CoAStormbringerHelper-v1.1.0.zip', source: path.resolve('addons', 'CoAStormbringerHelper', '..'), only: 'CoAStormbringerHelper' },
   { name: 'CoA Primalist Helper', component: 'primalist-helper', contentVersion: '1.1.0', platform: 'any', arch: 'any', targetFolder: 'CoAPrimalistHelper', installPath: 'Interface/AddOns', file: 'CoAPrimalistHelper-v1.1.0.zip', source: path.resolve('addons', 'CoAPrimalistHelper', '..'), only: 'CoAPrimalistHelper' },
-  { name: 'Grid - Compatibilité CoA', component: 'grid-compat', platform: 'any', arch: 'any', targetFolder: 'GridCoA', installPath: 'Interface/AddOns', file: `GridCoA-v${version}.zip`, source: path.resolve('addons', 'GridCoA', '..'), only: 'GridCoA' },
-  {
-    name: 'EventAlert 4.3.6 + compatibilité CoA', component: 'event-alert', platform: 'any', arch: 'any',
-    targetFolder: 'EventAlert', installPath: 'Interface/AddOns', file: `EventAlertCoA-v${version}.zip`,
-    source: path.resolve('patches', 'EventAlertCoA'),
-    upstream: {
-      name: 'EventAlert', version: '4.3.6', targetFolder: 'EventAlert', file: 'EventAlert-4.3.6.zip',
-      url: 'https://edge.forgecdn.net/files/456/081/EventAlert-4.3.6.zip',
-      sha256: '48c529fe42dedae8d7ed779f529e6cb55ba13a1d185b654804080a3bb9e4aa97', size: 27480,
-      sourceUrl: 'https://www.curseforge.com/wow/addons/event-alert/files/456081', license: 'All Rights Reserved'
-    }
-  }
+  { name: 'Grid - Compatibilité CoA', component: 'grid-compat', platform: 'any', arch: 'any', targetFolder: 'GridCoA', installPath: 'Interface/AddOns', file: `GridCoA-v${version}.zip`, source: path.resolve('addons', 'GridCoA', '..'), only: 'GridCoA' }
 ];
 
 const artifacts = [];
@@ -61,8 +50,7 @@ for (const item of packages) {
     targetFolder: item.targetFolder, installPath: item.installPath, file: item.file,
     url: `https://github.com/Cnbz13/coa-tools/releases/download/v${version}/${item.file}`,
     sha256: digest, size: (await stat(zipFile)).size,
-    ...(item.contentVersion ? { contentVersion: item.contentVersion } : {}),
-    ...(item.upstream ? { upstream: item.upstream } : {})
+    ...(item.contentVersion ? { contentVersion: item.contentVersion } : {})
   });
 }
 

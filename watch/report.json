@@ -47,16 +47,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
       "significant": true,
       "confidence": "élevée",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71714"
@@ -104,7 +99,7 @@
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
         }
       ],
-      "significant": false,
+      "significant": true,
       "confidence": "moyenne",
       "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
@@ -127,16 +122,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
       "significant": true,
       "confidence": "élevée",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71711"
@@ -164,7 +154,7 @@
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
         }
       ],
-      "significant": false,
+      "significant": true,
       "confidence": "moyenne",
       "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes. CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
@@ -219,7 +209,7 @@
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
         }
       ],
-      "significant": false,
+      "significant": true,
       "confidence": "moyenne",
       "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes. CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
@@ -242,16 +232,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
       "significant": true,
       "confidence": "élevée",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71707"
@@ -272,16 +257,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
       "significant": true,
       "confidence": "élevée",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71706"
@@ -394,7 +374,7 @@
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
         }
       ],
-      "significant": false,
+      "significant": true,
       "confidence": "moyenne",
       "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes. CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
@@ -519,7 +499,7 @@
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
         }
       ],
-      "significant": false,
+      "significant": true,
       "confidence": "moyenne",
       "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
@@ -1709,16 +1689,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
-      "significant": false,
+      "significant": true,
       "confidence": "moyenne",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71544"
@@ -1739,16 +1714,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
-      "significant": false,
+      "significant": true,
       "confidence": "moyenne",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71543"
@@ -1794,16 +1764,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
       "significant": true,
       "confidence": "élevée",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71541"
@@ -1931,7 +1896,7 @@
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
         }
       ],
-      "significant": false,
+      "significant": true,
       "confidence": "moyenne",
       "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
@@ -2034,16 +1999,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
       "significant": true,
       "confidence": "élevée",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71532"
@@ -2124,16 +2084,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
       "significant": true,
       "confidence": "élevée",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71524"
@@ -2388,16 +2343,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
       "significant": true,
       "confidence": "élevée",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71491"
@@ -2505,7 +2455,7 @@
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
         }
       ],
-      "significant": false,
+      "significant": true,
       "confidence": "moyenne",
       "reason": "CoA Loot Decider : Régénérer les 70 profils adaptatifs et vérifier les synergies de statistiques, niveaux et armes. CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
@@ -2528,16 +2478,11 @@
           "component": "rotation-guide",
           "name": "CoA Rotation Guide",
           "suggestion": "Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide."
-        },
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
         }
       ],
       "significant": true,
       "confidence": "élevée",
-      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide. EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "reason": "CoA Rotation Guide : Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.",
       "new": false,
       "rawIds": [
         "71486"
@@ -2553,16 +2498,10 @@
       "publishedAt": "2026-08-20T22:03:06",
       "updatedAt": "2026-08-20T22:04:03",
       "url": "https://ascension.gg/en/changelog/4?page=3",
-      "impacts": [
-        {
-          "component": "event-alert",
-          "name": "EventAlertCoA",
-          "suggestion": "Vérifier la détection des procs, effets, charges et durées concernées."
-        }
-      ],
-      "significant": true,
-      "confidence": "élevée",
-      "reason": "EventAlertCoA : Vérifier la détection des procs, effets, charges et durées concernées.",
+      "impacts": [],
+      "significant": false,
+      "confidence": "faible",
+      "reason": "",
       "new": false,
       "rawIds": [
         "71485"

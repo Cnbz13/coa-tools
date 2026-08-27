@@ -5,9 +5,9 @@ import { readFile } from 'node:fs/promises';
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
-test('release manifest describes every managed component and the official EventAlert source', () => {
+test('release manifest describes every managed CoA Tools component', () => {
   assert.equal(manifest.version, pkg.version);
-  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'dungeon-navigator', 'essential-assistant', 'event-alert', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'primalist-helper', 'rotation-guide', 'stormbringer-helper', 'ui-manager']);
+  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'dungeon-navigator', 'essential-assistant', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'primalist-helper', 'rotation-guide', 'stormbringer-helper', 'ui-manager']);
   for (const artifact of manifest.artifacts) {
     assert.equal(artifact.version, pkg.version);
     assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
@@ -24,12 +24,7 @@ test('release manifest describes every managed component and the official EventA
   const primalistHelper = manifest.artifacts.find(item => item.component === 'primalist-helper');
   assert.equal(primalistHelper.contentVersion, '1.1.0');
   assert.equal(primalistHelper.targetFolder, 'CoAPrimalistHelper');
-  const eventAlert = manifest.artifacts.find(item => item.component === 'event-alert');
-  assert.equal(eventAlert.targetFolder, 'EventAlert');
-  assert.equal(eventAlert.upstream.version, '4.3.6');
-  assert.equal(eventAlert.upstream.url, 'https://edge.forgecdn.net/files/456/081/EventAlert-4.3.6.zip');
-  assert.equal(eventAlert.upstream.sha256, '48c529fe42dedae8d7ed779f529e6cb55ba13a1d185b654804080a3bb9e4aa97');
-  assert.equal(eventAlert.upstream.license, 'All Rights Reserved');
+  assert.equal(manifest.artifacts.some(item => item.component === 'event-alert'), false);
 });
 
 test('Windows launcher captures Node failures and supports dynamic ports and UTF-8', async () => {
@@ -50,8 +45,7 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(command, /chcp 65001/);
   assert.match(workflow, /runs-on: windows-latest/);
   assert.match(workflow, /test-windows-package\.ps1/);
-  assert.match(workflow, /verify-eventalert-package\.mjs/);
-  assert.match(workflow, /EventAlertCoA-v\$env:RELEASE_VERSION\.zip/);
+  assert.doesNotMatch(workflow, /EventAlert/i);
   assert.match(workflow, /GridCoA-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoALootDecider-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoAMessageCenter-v\$env:RELEASE_VERSION\.zip/);
@@ -89,7 +83,7 @@ test('addon manager exposes recoverable progress for individual and global updat
   assert.match(addons, /phasePercent/);
 });
 
-test('manager can exclude or safely uninstall selected addons without changing EventAlert', async () => {
+test('manager can exclude or safely uninstall every managed addon', async () => {
   const server = await readFile('src/server.js', 'utf8');
   const app = await readFile('public/app.js', 'utf8');
   const addons = await readFile('src/core/addons.js', 'utf8');
@@ -99,7 +93,7 @@ test('manager can exclude or safely uninstall selected addons without changing E
   assert.match(app, /Une sauvegarde sera créée/);
   assert.match(addons, /excludedFromGlobalUpdates/);
   assert.match(addons, /'uninstall'/);
-  assert.match(addons, /component !== 'event-alert'/);
+  assert.doesNotMatch(addons, /EventAlert|event-alert/);
   assert.match(addons, /ne peut pas être désinstallé ici/);
 });
 
@@ -161,10 +155,4 @@ test('WoW addon metadata matches the package version', async () => {
   const primalistToc = await readFile('addons/CoAPrimalistHelper/CoAPrimalistHelper.toc', 'utf8');
   assert.match(primalistToc, /^## Version: 1\.1\.0$/m);
   assert.match(primalistToc, /^CoAPrimalistHelper\.lua$/m);
-  const compatibilityToc = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.toc', 'utf8');
-  const patch = await readFile('patches/EventAlertCoA/EventAlertCoA/EventAlertCoA.lua', 'utf8');
-  assert.match(compatibilityToc, /^## Interface: 30300$/m);
-  assert.match(compatibilityToc, /^## RequiredDeps: EventAlert$/m);
-  assert.match(compatibilityToc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));
-  assert.match(patch, new RegExp(`local COA_COMPAT_VERSION = "${pkg.version.replaceAll('.', '\\.')}"`));
 });

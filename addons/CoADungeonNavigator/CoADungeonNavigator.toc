@@ -2,7 +2,7 @@
 ## Title: CoA Dungeon Navigator
 ## Notes: Enregistre les parcours de donjon Ascension pour construire des routes fiables.
 ## Author: Cnbz13
-## Version: 1.21.0
+## Version: 1.21.1
 ## SavedVariables: CoADungeonNavigatorDB
 
 CoADungeonRoutes.lua

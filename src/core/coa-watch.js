@@ -93,11 +93,6 @@ const IMPACT_RULES = [
     suggestion: 'Relire la priorité de la spécialisation concernée et prévenir le joueur avant de changer le guide.'
   },
   {
-    component: 'event-alert', name: 'EventAlertCoA',
-    keywords: ['buff', 'debuff', 'aura', 'proc', 'trigger', 'stack', 'charges', 'duration'],
-    suggestion: 'Vérifier la détection des procs, effets, charges et durées concernées.'
-  },
-  {
     component: 'grid-compat', name: 'GridCoA',
     keywords: ['dispel', 'curse', 'magic effect', 'poison', 'disease', 'control', 'sleep', 'fear', 'stun', 'silence', 'root', 'crowd control'],
     suggestion: 'Vérifier le type de debuff et sa compatibilité avec les dispels réellement appris.'

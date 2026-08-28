@@ -115,9 +115,12 @@ test('managed addons can be excluded from global updates and safely uninstalled 
   let server;
   try {
     const combatFolder = path.join(addonsDir, 'CoACombatAssistant');
+    const profileAddons = path.join(root, 'Ascension', 'WTF', 'Account', 'TEST', 'Rexxar', 'Personnage', 'AddOns.txt');
     await mkdir(combatFolder, { recursive: true });
+    await mkdir(path.dirname(profileAddons), { recursive: true });
     await writeFile(path.join(combatFolder, 'CoACombatAssistant.toc'), '## Title: CoA Combat Assistant\n## Version: 1.0.0\n');
     await writeFile(path.join(combatFolder, 'local.txt'), 'conserver cette version');
+    await writeFile(profileAddons, 'CoACombatAssistant: enabled\n');
 
     const combatBytes = await addonZip(root, 'CoACombatAssistant', 'CoA Combat Assistant', '1.1.0');
     const uiBytes = await addonZip(root, 'CoAUIManager', 'CoA UI Manager', '1.1.0');
@@ -144,29 +147,54 @@ test('managed addons can be excluded from global updates and safely uninstalled 
     const manager = new AddonManager(options);
 
     let inventory = await manager.setGlobalUpdateExclusion('combat-assistant', true);
-    assert.equal(inventory.managed.find(item => item.component === 'combat-assistant').excludedFromGlobalUpdates, true);
+    const excluded = inventory.managed.find(item => item.component === 'combat-assistant');
+    assert.equal(excluded.excludedFromGlobalUpdates, true);
+    assert.equal(excluded.installationBlocked, true);
+    assert.deepEqual(
+      JSON.parse(await readFile(path.join(addonsDir, '.coa-disabled-addons.json'), 'utf8')).excludedComponents,
+      ['combat-assistant']
+    );
+    await assert.rejects(manager.install('combat-assistant'), /désinstallé durablement/);
     await assert.rejects(manager.setGlobalUpdateExclusion('composant-inconnu', true), /reste inchangé/);
 
     const restartedManager = new AddonManager(options);
     inventory = await restartedManager.inventory();
     assert.equal(inventory.managed.find(item => item.component === 'combat-assistant').excludedFromGlobalUpdates, true);
 
+    const managerAfterDataReset = new AddonManager({ ...options, dataDir: path.join(root, 'fresh-manager-data') });
+    inventory = await managerAfterDataReset.inventory();
+    assert.equal(inventory.managed.find(item => item.component === 'combat-assistant').installationBlocked, true);
+
     const updated = await restartedManager.updateAll();
     assert.deepEqual(updated.updated, ['ui-manager']);
     assert.equal(await readFile(path.join(combatFolder, 'local.txt'), 'utf8'), 'conserver cette version');
 
-    const uninstalled = await restartedManager.uninstall('combat-assistant');
+    const uninstalled = await managerAfterDataReset.uninstall('combat-assistant');
     assert.ok(uninstalled.backup);
+    assert.equal(uninstalled.disabledProfiles, 1);
     assert.equal(await stat(combatFolder).then(() => true, () => false), false);
+    assert.match(await readFile(profileAddons, 'utf8'), /^CoACombatAssistant: disabled$/m);
     const combatAfterRemoval = uninstalled.inventory.managed.find(item => item.component === 'combat-assistant');
     assert.equal(combatAfterRemoval.installed, false);
     assert.equal(combatAfterRemoval.excludedFromGlobalUpdates, true);
+    assert.equal(combatAfterRemoval.installationBlocked, true);
     assert.equal(combatAfterRemoval.canRollback, true);
 
-    await restartedManager.rollback('combat-assistant', uninstalled.backup);
-    assert.equal(await readFile(path.join(combatFolder, 'local.txt'), 'utf8'), 'conserver cette version');
-    inventory = await restartedManager.setGlobalUpdateExclusion('combat-assistant', false);
+    const afterRefresh = new AddonManager({ ...options, dataDir: path.join(root, 'another-fresh-data') });
+    const afterRefreshInventory = await afterRefresh.inventory();
+    assert.equal(afterRefreshInventory.managed.find(item => item.component === 'combat-assistant').installationBlocked, true);
+    assert.deepEqual((await afterRefresh.updateAll()).updated, []);
+    await assert.rejects(managerAfterDataReset.rollback('combat-assistant', uninstalled.backup), /désinstallé durablement/);
+    assert.equal(await stat(combatFolder).then(() => true, () => false), false);
+
+    inventory = await managerAfterDataReset.setGlobalUpdateExclusion('combat-assistant', false);
     assert.equal(inventory.managed.find(item => item.component === 'combat-assistant').excludedFromGlobalUpdates, false);
+    assert.deepEqual(
+      JSON.parse(await readFile(path.join(addonsDir, '.coa-disabled-addons.json'), 'utf8')).excludedComponents,
+      []
+    );
+    await managerAfterDataReset.rollback('combat-assistant', uninstalled.backup);
+    assert.equal(await readFile(path.join(combatFolder, 'local.txt'), 'utf8'), 'conserver cette version');
   } finally {
     if (server) await new Promise(resolve => server.close(resolve));
     await rm(root, { recursive: true, force: true });

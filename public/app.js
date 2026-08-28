@@ -43,15 +43,15 @@ function renderAddons() {
   $('#addonScanSummary').textContent = inventory.exists ? `${inventory.localCount} addons avec fichier .toc détectés.` : 'Sélectionnez votre dossier Interface\\AddOns dans la section avancée.';
   $('#manifestStatus').textContent = inventory.remoteError ? (inventory.remoteCached ? `Manifest v${inventory.remoteVersion} en cache` : `Manifest indisponible : ${inventory.remoteError}`) : `Manifest GitHub v${inventory.remoteVersion}`;
   $('#managedAddonList').innerHTML = inventory.managed.length ? inventory.managed.map(item => `
-    <article class="managed-addon ${item.installed ? 'installed' : ''} ${item.excludedFromGlobalUpdates ? 'excluded' : ''}">
-      <div class="managed-top"><span class="badge coa">${item.excludedFromGlobalUpdates ? 'EXCLU DES MAJ' : 'COA GÉRÉ'}</span><span class="state-dot">${item.installed ? 'Installé' : 'Absent'}</span></div>
+    <article class="managed-addon ${item.installed ? 'installed' : ''} ${item.installationBlocked ? 'excluded' : ''}">
+      <div class="managed-top"><span class="badge coa">${item.installationBlocked ? (item.installed ? 'MAJ BLOQUÉES' : 'DÉSINSTALLÉ DURABLEMENT') : 'COA GÉRÉ'}</span><span class="state-dot">${item.installed ? 'Installé' : 'Absent'}</span></div>
       <h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.notes || 'Addon officiel CoA distribué depuis GitHub.')}</p>
       <div class="version-row"><span>Locale <b>${escapeHtml(item.localVersion || '—')}</b></span><span>Distante <b>${escapeHtml(item.remoteVersion)}</b></span></div>
       <div class="button-row">
-        <button class="primary" data-install="${escapeAttribute(item.component)}">${actionLabels[item.action]}</button>
-        ${item.userManageable ? `<button data-exclusion="${escapeAttribute(item.component)}" data-excluded="${item.excludedFromGlobalUpdates}">${item.excludedFromGlobalUpdates ? 'Réinclure aux MAJ' : 'Exclure des MAJ'}</button>` : ''}
+        ${item.installationBlocked ? '' : `<button class="primary" data-install="${escapeAttribute(item.component)}">${actionLabels[item.action]}</button>`}
+        ${item.userManageable ? `<button data-exclusion="${escapeAttribute(item.component)}" data-excluded="${item.excludedFromGlobalUpdates}">${item.excludedFromGlobalUpdates ? (item.installed ? 'Réautoriser les MAJ' : 'Réactiver l’installation') : 'Exclure des MAJ'}</button>` : ''}
         ${item.userManageable && item.installed ? `<button class="danger" data-uninstall="${escapeAttribute(item.component)}">Désinstaller</button>` : ''}
-        ${item.canRollback ? `<button data-rollback="${escapeAttribute(item.component)}">Restaurer</button>` : ''}
+        ${item.canRollback && !item.installationBlocked ? `<button data-rollback="${escapeAttribute(item.component)}">Restaurer</button>` : ''}
       </div>
     </article>`).join('') : '<article class="empty-card">Les composants CoA seront affichés dès que le manifest GitHub sera accessible.</article>';
   renderRegularAddons();
@@ -69,13 +69,13 @@ async function toggleGlobalUpdateExclusion(button) {
       method: 'PUT', body: JSON.stringify({ excluded })
     });
     renderAddons();
-    toast(excluded ? 'Addon exclu des mises à jour globales' : 'Addon réintégré aux mises à jour globales');
+    toast(excluded ? 'Installation et mises à jour bloquées durablement' : 'Installation et mises à jour réactivées');
   } catch (error) { renderAddons(); toast(error.message); }
 }
 function confirmAddonUninstall(button) {
   const item = addonInventory.managed.find(addon => addon.component === button.dataset.uninstall);
   if (!item) return;
-  if (!confirm(`Désinstaller ${item.name} ?\n\nUne sauvegarde sera créée et l’addon sera exclu des mises à jour globales pour éviter sa réinstallation.`)) return;
+  if (!confirm(`Désinstaller ${item.name} ?\n\nUne sauvegarde sera créée. L’addon sera désactivé pour tous les personnages et son installation restera bloquée après les rafraîchissements et mises à jour du manager.`)) return;
   startAddonOperation(button, { action: 'uninstall', component: item.component });
 }
 function renderRegularAddons() {

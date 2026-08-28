@@ -130,7 +130,7 @@ Chaque sous-dossier qui contient un fichier `.toc` est scanné réellement. Le n
 
 Une installation ou mise à jour CoA télécharge le ZIP officiel, vérifie obligatoirement sa taille et son SHA-256, contrôle son chemin d’extraction et exige un `.toc` dans le dossier cible avant remplacement. Une sauvegarde automatique précède chaque remplacement et peut être restaurée depuis l’interface.
 
-Chaque addon CoA peut être exclu des mises à jour globales et automatiques tout en restant installé et disponible pour une mise à jour manuelle. Le bouton **Désinstaller** crée d’abord une sauvegarde restaurable, retire uniquement le dossier exact de l’addon, puis l’exclut automatiquement afin qu’une mise à jour globale ne le réinstalle pas.
+Chaque addon CoA peut être exclu des mises à jour globales et automatiques tout en restant installé. Le bouton **Désinstaller** crée d’abord une sauvegarde restaurable, le désactive dans les profils de tous les personnages, retire uniquement son dossier exact, puis bloque aussi les installations manuelles. Ce choix est mémorisé à deux endroits — dans les données du manager et dans `Interface\AddOns\.coa-disabled-addons.json` — afin qu’un rafraîchissement, une mise à jour du manager ou la perte d’un seul réglage ne le réinstalle jamais. Le bouton **Réactiver l’installation** est la seule action qui l’autorise de nouveau.
 
 Les installations individuelles et la mise à jour globale sont suivies en direct : addon courant, étape, pourcentage, octets téléchargés et temps écoulé restent visibles, même après un rafraîchissement de l’interface. Un téléchargement réseau est interrompu avec une erreur explicite après deux minutes sans résultat.
 

@@ -91,7 +91,13 @@ test('manager can exclude or safely uninstall every managed addon', async () => 
   assert.match(app, /data-exclusion=/);
   assert.match(app, /data-uninstall=/);
   assert.match(app, /Une sauvegarde sera créée/);
+  assert.match(app, /DÉSINSTALLÉ DURABLEMENT/);
+  assert.match(app, /Réactiver l’installation/);
+  assert.match(app, /item\.installationBlocked \? ''/);
   assert.match(addons, /excludedFromGlobalUpdates/);
+  assert.match(addons, /\.coa-disabled-addons\.json/);
+  assert.match(addons, /disableAddonForProfiles/);
+  assert.match(addons, /installationBlocked/);
   assert.match(addons, /'uninstall'/);
   assert.doesNotMatch(addons, /EventAlert|event-alert/);
   assert.match(addons, /ne peut pas être désinstallé ici/);

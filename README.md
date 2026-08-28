@@ -116,6 +116,8 @@ Les 70 profils de spécialisation servent de base, puis sont affinés localement
 
 Les ajustements sont volontairement bornés : un talent renforce uniquement une statistique déjà autorisée par le profil de spécialisation. Il ne peut jamais réactiver une famille interdite ni remplacer un poids réglé manuellement. Un dernier profil fiable est mémorisé par personnage et spécialisation pour couvrir les quelques secondes où l’API de talents peut être vide pendant la connexion.
 
+Depuis la v1.22.0, une barrière d’adéquation précède le score brut : les familles d’armure documentées des 21 classes, la cohérence des statistiques principales et l’utilité réelle de l’objet sont vérifiées avant toute décision automatique. Une pièce hors famille ou classée `MAUVAIS` ne peut plus devenir un faux NEED simplement grâce à son niveau ou à une grosse statistique secondaire ; les objets hybrides réellement utiles restent évaluables et les cas ambigus restent manuels.
+
 Commandes complémentaires : `/cld talents` affiche l’arbre, le nombre de talents et de sorts détectés ainsi que la confiance ; `/cld explain` liste les talents qui influencent le stuff et les ajustements appliqués. `/cld scan` force une nouvelle détection, `/cld gear` ouvre la comparaison visuelle triable par gain ou emplacement et `/cld history` ouvre l’historique détaillé des décisions.
 
 Les coffres verrouillés proposés dans une fenêtre de jet constituent une exception aux objets non équipables : Loot Decider choisit **NEED** lorsqu’il est disponible, sinon **CUPIDITÉ**, au lieu de les passer. La règle est active par défaut et peut être inversée avec `/cld chests` ou `/cld coffres`.

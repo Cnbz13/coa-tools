@@ -2,7 +2,7 @@
 ## Title: CoA Message Center
 ## Notes: Regroupe les messages des addons dans une fenetre separee du chat.
 ## Author: Cnbz13
-## Version: 1.21.1
+## Version: 1.22.0
 ## SavedVariables: CoAMessageCenterDB
 
 CoAMessageCenter.lua

@@ -164,6 +164,28 @@ local EQUIP_SLOTS = {
     INVTYPE_TABARD = { 19 }
 }
 
+-- GetItemInfoInstant utilise les sous-classes d'armure classiques :
+-- 1 tissu, 2 cuir, 3 maille, 4 plaque. Les capes, chemises et boucliers ne
+-- doivent pas etre confondus avec la famille d'armure du personnage.
+local ARMOR_SUBCLASS_NAMES = {
+    [1] = "TISSU",
+    [2] = "CUIR",
+    [3] = "MAILLE",
+    [4] = "PLAQUE"
+}
+
+local BODY_ARMOR_EQUIP_LOCS = {
+    INVTYPE_HEAD = true,
+    INVTYPE_SHOULDER = true,
+    INVTYPE_CHEST = true,
+    INVTYPE_ROBE = true,
+    INVTYPE_WAIST = true,
+    INVTYPE_LEGS = true,
+    INVTYPE_FEET = true,
+    INVTYPE_WRIST = true,
+    INVTYPE_HAND = true
+}
+
 -- Le Pyromancien exige un gain nettement plus visible avant de NEED.
 -- Les autres classes utilisent le seuil global prudent de 5%.
 local DEFAULT_CLASS_THRESHOLDS = {
@@ -229,7 +251,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     if CoALootDeciderDB.needLockedChests == nil then CoALootDeciderDB.needLockedChests = true end
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.21.1-performance"
+    CoALootDeciderDB.version = "1.22.0-universal-fit"
 end
 
 local function ReadItemStats(itemLink)
@@ -271,6 +293,44 @@ local function ReadWeaponSpeed(itemLink)
     return nil
 end
 
+-- GetItemInfoInstant n'est pas une API WotLK d'origine. Ascension peut la
+-- fournir, mais le moteur ne doit pas dependre de ce backport pour reconnaitre
+-- tissu/cuir/maille/plaque. GetItemInfo expose deja le sous-type localise : on
+-- l'utilise comme repli, y compris sur un client francais.
+local function ArmorSubclassFromText(itemType, itemSubType, equipLoc)
+    if not BODY_ARMOR_EQUIP_LOCS[equipLoc] then return nil end
+
+    local localizedGlobals = {
+        [1] = "ITEM_SUBCLASS_ARMOR_CLOTH",
+        [2] = "ITEM_SUBCLASS_ARMOR_LEATHER",
+        [3] = "ITEM_SUBCLASS_ARMOR_MAIL",
+        [4] = "ITEM_SUBCLASS_ARMOR_PLATE"
+    }
+    local subTypeLower = Lower(itemSubType)
+    local subClassID, globalName
+    for subClassID, globalName in pairs(localizedGlobals) do
+        local localized = _G and _G[globalName] or nil
+        if localized and localized ~= "" and subTypeLower == Lower(localized) then
+            return subClassID
+        end
+    end
+
+    local text = Lower((itemType or "") .. " " .. (itemSubType or ""))
+    local aliases = {
+        [1] = { "cloth", "tissu" },
+        [2] = { "leather", "cuir" },
+        [3] = { "mail", "maille" },
+        [4] = { "plate", "plaque" }
+    }
+    local _, token
+    for subClassID = 1, 4 do
+        for _, token in ipairs(aliases[subClassID]) do
+            if string.find(text, token, 1, true) then return subClassID end
+        end
+    end
+    return nil
+end
+
 local function ItemData(itemLink)
     if not itemLink or not GetItemInfo then return nil end
     local cacheKey = tostring(itemLink)
@@ -285,6 +345,10 @@ local function ItemData(itemLink)
             classID = tonumber(resolvedClassID)
             subClassID = tonumber(resolvedSubClassID)
         end
+    end
+    if not subClassID then
+        subClassID = ArmorSubclassFromText(itemType, itemSubType, equipLoc)
+        if subClassID and not classID then classID = 4 end
     end
 
     local isWeapon = equipLoc == "INVTYPE_2HWEAPON"
@@ -608,6 +672,66 @@ local function FindPublicPreset(specialization)
     return nil
 end
 
+local function FindArmorRuleIn(tableValue, requestedKey)
+    if type(tableValue) ~= "table" or not requestedKey then return nil end
+    if tableValue[requestedKey] then return tableValue[requestedKey] end
+    local key, value
+    for key, value in pairs(tableValue) do
+        if Lower(key) == Lower(requestedKey) then return value end
+    end
+    return nil
+end
+
+local function ResolveArmorRule(specialization, presetKey)
+    if type(CoALootProfiles) ~= "table" or not specialization then return nil end
+
+    local requestedSpec = presetKey or SpecializationProfileKey(specialization)
+    local classRaw = FindArmorRuleIn(CoALootProfiles.armorRules, specialization.className)
+    local specRaw = FindArmorRuleIn(CoALootProfiles.armorBySpec, requestedSpec)
+    if type(classRaw) ~= "table" and type(specRaw) ~= "table" then return nil end
+
+    classRaw = type(classRaw) == "table" and classRaw or {}
+    specRaw = type(specRaw) == "table" and specRaw or {}
+
+    local allowed = {}
+    local _, subClassID
+    for _, subClassID in ipairs(specRaw.allowed or classRaw.allowed or {}) do
+        subClassID = tonumber(subClassID)
+        if subClassID then allowed[subClassID] = true end
+    end
+    if not next(allowed) then return nil end
+
+    local preferred = {}
+    for _, subClassID in ipairs(specRaw.preferred or classRaw.preferred or {}) do
+        subClassID = tonumber(subClassID)
+        if subClassID and allowed[subClassID] then preferred[subClassID] = true end
+    end
+
+    -- Une classe mono-armure a implicitement cette famille en preference.
+    if not next(preferred) then
+        local count, only = 0, nil
+        for subClassID in pairs(allowed) do count, only = count + 1, subClassID end
+        if count == 1 then preferred[only] = true end
+    end
+
+    local label = tostring(specRaw.label or classRaw.label or "NON DOCUMENTEE")
+    local preferredLabel = specRaw.preferredLabel or classRaw.preferredLabel
+    local displayLabel = label
+    if preferredLabel and tostring(preferredLabel) ~= label then
+        displayLabel = label .. " ; pref " .. tostring(preferredLabel)
+    end
+
+    return {
+        allowed = allowed,
+        preferred = preferred,
+        label = label,
+        preferredLabel = preferredLabel and tostring(preferredLabel) or nil,
+        displayLabel = displayLabel,
+        source = tostring(CoALootProfiles.armorSource or "profil CoA"),
+        sourceDate = tostring(CoALootProfiles.armorSourceDate or "")
+    }
+end
+
 local function PublicWeights(specialization)
     local preset, weaponRule, presetKey = FindPublicPreset(specialization)
     if not preset then return nil end
@@ -790,6 +914,7 @@ local function ScanEquipment()
         weightSource = weightSource,
         presetKey = presetKey,
         weaponRule = weaponRule,
+        armorRule = ResolveArmorRule(specialization, presetKey),
         adaptive = adaptive,
         level = PlayerLevel(),
         isCultistHeretic = presetKey == "Cultist:Heretic",
@@ -864,8 +989,49 @@ local function FitTier(score)
     return "MAUVAIS"
 end
 
+local function ArmorCompatibility(data)
+    if not data or not profile or not profile.armorRule then return true end
+    if data.classID ~= 4 or not BODY_ARMOR_EQUIP_LOCS[data.equipLoc] then return true end
+
+    local subClassID = tonumber(data.subClassID)
+    if not subClassID or not ARMOR_SUBCLASS_NAMES[subClassID] then
+        -- Le client n'a pas encore fourni le sous-type : ne jamais fabriquer
+        -- une incompatibilite a partir d'une information inconnue.
+        return true
+    end
+    if profile.armorRule.allowed[subClassID] then return true end
+
+    local actual = ARMOR_SUBCLASS_NAMES[subClassID] or tostring(data.itemSubType or "?")
+    return false, "armure " .. actual .. " hors profil pour "
+        .. tostring(profile.className) .. " - " .. tostring(profile.specName)
+        .. " ; attendu : " .. tostring(profile.armorRule.label)
+end
+
+local function PrimaryFitScore(data)
+    if not data or not profile or not profile.weights then return nil end
+    local maxWeight = 0
+    local _, key
+    for _, key in ipairs(PRIMARY_STATS) do
+        maxWeight = math.max(maxWeight, math.max(0, tonumber(profile.weights[key]) or 0))
+    end
+    if maxWeight <= 0 then return nil end
+
+    local total, useful = 0, 0
+    for _, key in ipairs(PRIMARY_STATS) do
+        local value = math.max(0, StatValue(data.stats, key))
+        if value > 0 then
+            total = total + value
+            useful = useful + value * math.min(1, math.max(0, tonumber(profile.weights[key]) or 0) / maxWeight)
+        end
+    end
+    if total <= 0 then return nil end
+    return Round(100 * useful / total, 0)
+end
+
 local function FitScore(data)
     if not data or not profile or not profile.weights then return 0 end
+    local armorCompatible = ArmorCompatibility(data)
+    if not armorCompatible then return 0 end
     local weapon = IsWeaponEquipLoc(data.equipLoc)
     local maxWeight = 0
     local _, key
@@ -889,6 +1055,20 @@ local function FitScore(data)
     end
     if totalBudget <= 0 then return 0 end
     local score = 100 * usefulBudget / totalBudget
+
+    if data.classID == 4 and BODY_ARMOR_EQUIP_LOCS[data.equipLoc]
+        and profile.armorRule and next(profile.armorRule.preferred or {})
+    then
+        local subClassID = tonumber(data.subClassID)
+        if subClassID and profile.armorRule.allowed[subClassID]
+            and not profile.armorRule.preferred[subClassID]
+        then
+            -- Une famille autorisee mais non preferee reste possible sur CoA ;
+            -- elle ne doit simplement pas battre trop facilement l'itemisation
+            -- naturelle de la specialisation.
+            score = score * 0.85
+        end
+    end
 
     if profile.isCultistHeretic then
         if data.classID == 4 then
@@ -923,7 +1103,9 @@ local function RequiredUpgradeForFit(fitScore)
         if fitScore >= 70 then return baseThreshold end
         if fitScore >= 55 then return math.max(baseThreshold, 5) end
         if fitScore >= 35 then return math.max(baseThreshold, 10) end
-        return math.max(baseThreshold, 20)
+        -- Un objet classe MAUVAIS ne devient plus un NEED parce que son score
+        -- brut ou son ilvl est tres eleve. Il reste visible pour jugement manuel.
+        return 999
     end
     if fitScore >= 85 then return baseThreshold end
     if fitScore >= 70 then return math.max(baseThreshold, 8) end
@@ -977,6 +1159,9 @@ local function CompatibilityProblem(data)
         return profile and profile.error or "profil CoA non detecte"
     end
 
+    local armorCompatible, armorProblem = ArmorCompatibility(data)
+    if not armorCompatible then return armorProblem end
+
     if profile.isCultistHeretic then
         if data.equipLoc == "INVTYPE_WEAPON"
             or data.equipLoc == "INVTYPE_WEAPONMAINHAND"
@@ -1021,10 +1206,32 @@ local function CompatibilityProblem(data)
         return nil
     end
 
+    -- Une stat "poubelle" sur un objet mixte ne rend pas tout l'objet
+    -- incompatible. On rejette seulement un objet dont TOUT le budget primaire
+    -- est hors profil et qui n'apporte aucune puissance directe utile.
     local _, key
+    local primaryTotal, primaryUseful = 0, 0
     for _, key in ipairs(PRIMARY_STATS) do
-        if StatValue(data.stats, key) > 0 and (profile.weights[key] or 0) <= 0 then
-            return (DISPLAY_STATS[key] or key) .. " interdite pour " .. profile.className .. " - " .. profile.specName
+        local value = math.max(0, StatValue(data.stats, key))
+        if value > 0 then
+            primaryTotal = primaryTotal + value
+            if (profile.weights[key] or 0) > 0 then primaryUseful = primaryUseful + value end
+        end
+    end
+    if primaryTotal > 0 and primaryUseful <= 0 then
+        local usefulDirect = 0
+        local directKeys = {
+            "ITEM_MOD_SPELL_POWER_SHORT", "ITEM_MOD_HEALING_DONE_SHORT",
+            "ITEM_MOD_ATTACK_POWER_SHORT", "ITEM_MOD_RANGED_ATTACK_POWER_SHORT",
+            "ITEM_MOD_DAMAGE_PER_SECOND_SHORT"
+        }
+        for _, key in ipairs(directKeys) do
+            if (profile.weights[key] or 0) > 0 then
+                usefulDirect = usefulDirect + math.max(0, StatValue(data.stats, key))
+            end
+        end
+        if usefulDirect <= 0 then
+            return "aucune statistique principale utile pour " .. profile.className .. " - " .. profile.specName
         end
     end
 
@@ -1209,8 +1416,10 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
     local fitScore = FitScore(candidate)
     local currentFitScore = currentData and FitScore(currentData) or 0
     local effectiveThreshold = RequiredUpgradeForFit(fitScore)
-    local minimum = math.max(1, currentScore * (effectiveThreshold / 100))
-    local need = currentScore <= 0 and candidateScore > 0 or delta >= minimum
+    local fitBlocked = effectiveThreshold >= 999
+    local minimum = fitBlocked and math.huge or math.max(1, currentScore * (effectiveThreshold / 100))
+    local need = not fitBlocked
+        and ((currentScore <= 0 and candidateScore > 0) or delta >= minimum)
     local manualReason = comparisonWarning
     if not manualReason and candidate.equipLoc == "INVTYPE_TRINKET" then
         manualReason = "bijou : effet non chiffrable"
@@ -1222,6 +1431,9 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
     local reason
     if manualReason then
         reason = manualReason .. " : verification manuelle recommandee"
+    elseif fitBlocked then
+        reason = "adequation " .. fitScore .. "/100 " .. FitTier(fitScore)
+            .. " : objet hors profil, jamais NEED automatique"
     elseif currentScore <= 0 and candidateScore > 0 then
         reason = "aucun meilleur objet possede ; adequation " .. fitScore .. "/100"
     elseif need then
@@ -1250,6 +1462,9 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
         fitScore = fitScore,
         currentFitScore = currentFitScore,
         fitTier = FitTier(fitScore),
+        primaryFitScore = PrimaryFitScore(candidate),
+        armorRuleLabel = profile.armorRule and profile.armorRule.displayLabel or nil,
+        fitBlocked = fitBlocked,
         reason = reason,
         manual = manualReason and true or false,
         confidence = manualReason and "moyenne" or "haute"
@@ -1275,6 +1490,9 @@ CoALootDeciderAPI = {
     GetAdaptiveBuild = function() return profile and profile.adaptive or nil end,
     GetDisplayStats = function() return DISPLAY_STATS end,
     ScoreItem = ScoreItem,
+    FitScore = FitScore,
+    ArmorCompatibility = ArmorCompatibility,
+    PrimaryFitScore = PrimaryFitScore,
     Round = Round
 }
 
@@ -1571,6 +1789,7 @@ local function ProfileSummary()
         .. " | physique=" .. (profile.physical and "oui" or "non")
         .. ", caster=" .. (profile.caster and "oui" or "non")
         .. ", primaire=" .. tostring(profile.primarySource or "inconnue")
+        .. ", armure=" .. tostring(profile.armorRule and profile.armorRule.displayLabel or "non documentee")
         .. ", poids=" .. tostring(profile.weightSource or "inconnu")
         .. " | " .. table.concat(values, ", ")
         .. " | " .. adaptiveSummary

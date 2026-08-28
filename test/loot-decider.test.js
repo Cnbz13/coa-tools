@@ -108,6 +108,40 @@ test('CoA Loot Decider ships data-driven profiles for every current CoA speciali
     'arbitrary item-level points must not override sourced EP weights');
 });
 
+test('CoA Loot Decider blocks universally bad fits and enforces documented armor families', async () => {
+  const lua = await readFile(luaPath, 'utf8');
+  const profiles = await readFile(profilesPath, 'utf8');
+  const advisor = await readFile(advisorPath, 'utf8');
+  const armorSection = profiles.match(/armorRules = \{([\s\S]*?)\n\s*\},\n\s*armorBySpec = \{/m)?.[1] ?? '';
+  const armorRows = armorSection.match(/^\s*\["[^"]+"\]\s*=\s*\{\s*allowed=/gm) ?? [];
+
+  assert.equal(armorRows.length, 21, 'every current CoA class must have one reviewed armor rule');
+  for (const required of [
+    '["Knight of Xoroth"] = { allowed={4}, label="PLAQUE" }',
+    '["Bloodmage:Sanguine"] = { allowed={1,2}, label="TISSU/CUIR" }',
+    '["Cultist:Heretic"] = { preferred={4}, preferredLabel="PLAQUE" }',
+    'armorSourceDate = "2026-08-28"'
+  ]) assert.ok(profiles.includes(required), `missing armor profile guard: ${required}`);
+
+  for (const required of [
+    'BODY_ARMOR_EQUIP_LOCS', 'ARMOR_SUBCLASS_NAMES', 'ArmorSubclassFromText',
+    'ITEM_SUBCLASS_ARMOR_CLOTH', 'ITEM_SUBCLASS_ARMOR_LEATHER',
+    'ITEM_SUBCLASS_ARMOR_MAIL', 'ITEM_SUBCLASS_ARMOR_PLATE',
+    'ResolveArmorRule', 'ArmorCompatibility', 'PrimaryFitScore',
+    'fitBlocked = effectiveThreshold >= 999', 'objet hors profil, jamais NEED automatique'
+  ]) assert.ok(lua.includes(required), `missing universal fit guard: ${required}`);
+
+  assert.match(lua, /if not subClassID then[\s\S]+ArmorSubclassFromText\(itemType, itemSubType, equipLoc\)/,
+    'localized GetItemInfo data must remain a fallback when Ascension lacks GetItemInfoInstant');
+  assert.match(lua, /if primaryTotal > 0 and primaryUseful <= 0[\s\S]+usefulDirect[\s\S]+aucune statistique principale utile/,
+    'mixed items must only be rejected when no primary or direct power stat is useful');
+  assert.match(lua, /if level < 60[\s\S]+if fitScore >= 35[\s\S]+return 999/,
+    'a BAD fit must never become an automatic NEED during leveling');
+  for (const required of ['Armure attendue', 'Adequation', 'Affinite stat principale']) {
+    assert.ok(advisor.includes(required), `missing fit diagnostic in tooltip: ${required}`);
+  }
+});
+
 test('Heretic and weapon-dependent profiles account for weapon speed without Retail APIs', async () => {
   const lua = await readFile(luaPath, 'utf8');
   const profiles = await readFile(profilesPath, 'utf8');

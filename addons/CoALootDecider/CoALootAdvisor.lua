@@ -310,6 +310,10 @@ local function AddTooltipAnalysis(tooltip)
     elseif not analysis.candidateScore then
         tooltip:AddLine("INCOMPATIBLE", 1.00, 0.20, 0.20)
         tooltip:AddLine(analysis.reason or "Comparaison impossible", 1.00, 0.55, 0.55, true)
+        if profile and profile.armorRule then
+            tooltip:AddDoubleLine("Armure attendue", tostring(profile.armorRule.label),
+                0.75, 0.75, 0.75, 0.95, 0.95, 0.95)
+        end
     elseif analysis.manual then
         tooltip:AddDoubleLine("VERIFICATION MANUELLE", ShortPercent(analysis.percent),
             1.00, 0.75, 0.10, 1.00, 0.75, 0.10)
@@ -342,6 +346,17 @@ local function AddTooltipAnalysis(tooltip)
     end
 
     if analysis.candidateScore then
+        tooltip:AddDoubleLine("Adequation", tostring(analysis.fitScore or 0) .. "/100 "
+                .. tostring(analysis.fitTier or ""),
+            0.70, 0.82, 1.00, 0.85, 0.90, 1.00)
+        if analysis.armorRuleLabel then
+            tooltip:AddDoubleLine("Armure attendue", tostring(analysis.armorRuleLabel),
+                0.75, 0.75, 0.75, 0.95, 0.95, 0.95)
+        end
+        if analysis.primaryFitScore ~= nil and tonumber(analysis.primaryFitScore) < 55 then
+            tooltip:AddDoubleLine("Affinite stat principale", tostring(analysis.primaryFitScore) .. "/100",
+                0.75, 0.75, 0.75, 1.00, 0.75, 0.10)
+        end
         local differences = WeightedStatDifferences(analysis)
         local parts = {}
         local index, stat

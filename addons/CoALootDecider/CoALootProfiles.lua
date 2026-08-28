@@ -85,6 +85,58 @@ CoALootProfiles = {
         ["Runemaster:Glyphic"] = { int=0.239, spi=0.33, sp=1, crit=0.69, haste=0.6, spellpen=0.01 },
         ["Runemaster:Riftblade"] = { str=1, agi=1.643, int=0.144, ap=1, sp=0.25, crit=0.2, haste=0.6, expertise=0.5, wdps=14 }
     },
+    -- Familles d'armure d'itemisation CoA.
+    -- Les regles de classe couvrent les 21 classes. Les variantes par specialisation
+    -- ne sont epinglees que lorsque la documentation actuelle distingue clairement
+    -- la famille d'armure ; sinon l'addon reste sur la famille autorisee de la classe
+    -- au lieu d'inventer une restriction.
+    armorSource = "Ascension + CoA class references",
+    armorSourceDate = "2026-08-28",
+    armorRules = {
+        ["Barbarian"] = { allowed={2}, label="CUIR" },
+        ["Bloodmage"] = { allowed={2}, label="CUIR" },
+        ["Chronomancer"] = { allowed={1}, label="TISSU" },
+        ["Cultist"] = { allowed={1,4}, label="TISSU/PLAQUE" },
+        ["Felsworn"] = { allowed={2}, label="CUIR" },
+        ["Guardian"] = { allowed={4}, label="PLAQUE" },
+        ["Knight of Xoroth"] = { allowed={4}, label="PLAQUE" },
+        ["Necromancer"] = { allowed={1}, label="TISSU" },
+        ["Primalist"] = { allowed={4}, label="PLAQUE" },
+        ["Pyromancer"] = { allowed={1}, label="TISSU" },
+        ["Ranger"] = { allowed={2}, label="CUIR" },
+        ["Reaper"] = { allowed={4}, label="PLAQUE" },
+        ["Runemaster"] = { allowed={1}, label="TISSU" },
+        ["Starcaller"] = { allowed={3,4}, label="MAILLE/PLAQUE" },
+        ["Stormbringer"] = { allowed={1}, label="TISSU" },
+        ["Sun Cleric"] = { allowed={1,4}, label="TISSU/PLAQUE" },
+        ["Templar"] = { allowed={3}, label="MAILLE" },
+        ["Tinker"] = { allowed={2,3}, label="CUIR/MAILLE" },
+        ["Venomancer"] = { allowed={2,3}, label="CUIR/MAILLE" },
+        ["Witch Doctor"] = { allowed={2}, label="CUIR" },
+        ["Witch Hunter"] = { allowed={3}, label="MAILLE" }
+    },
+    armorBySpec = {
+        -- Sur les classes multi-armures, ces valeurs sont des preferences
+        -- d'itemisation et non des interdictions : la famille autorisee de classe
+        -- reste prioritaire pour eviter les faux negatifs sur des objets CoA hybrides.
+        -- Sanguine avait deja une logique explicite cuir/tissu dans le moteur
+        -- historique. On la conserve comme exception documentee afin que la
+        -- nouvelle barriere universelle d'armure ne cree pas de regression.
+        ["Bloodmage:Sanguine"] = { allowed={1,2}, label="TISSU/CUIR" },
+
+        ["Cultist:Heretic"] = { preferred={4}, preferredLabel="PLAQUE" },
+        ["Cultist:Godblade"] = { preferred={4}, preferredLabel="PLAQUE" },
+        ["Cultist:Corruption"] = { preferred={1}, preferredLabel="TISSU" },
+        ["Cultist:Dreadnought"] = { preferred={4}, preferredLabel="PLAQUE" },
+
+        ["Sun Cleric:Piety"] = { preferred={1}, preferredLabel="TISSU" },
+        ["Sun Cleric:Blessings"] = { preferred={1}, preferredLabel="TISSU" },
+        ["Sun Cleric:Seraphim"] = { preferred={4}, preferredLabel="PLAQUE" },
+        ["Sun Cleric:Valkyrie"] = { preferred={4}, preferredLabel="PLAQUE" },
+
+        ["Tinker:Mechanics"] = { preferred={3}, preferredLabel="MAILLE" },
+        ["Venomancer:Fortitude"] = { preferred={3}, preferredLabel="MAILLE" }
+    },
     weaponRules = {
         ["Cultist:Heretic"] = { preferTwoHand = true, speed = "slow", speedWeight = 12 },
         ["Knight of Xoroth:Hellfire"] = { preferTwoHand = true, speed = "slow", speedWeight = 8 },

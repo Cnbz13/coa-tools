@@ -4,7 +4,7 @@
 
 local ADDON_NAME = "CoAEssentialAssistant"
 local DATA = CoAEssentialData or { themes = {}, profiles = {}, aliases = {}, procSemantics = {}, noise = {} }
-local VERSION = "1.21.1"
+local VERSION = "1.22.0"
 local floor = math.floor
 local max = math.max
 local min = math.min

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 const file = process.argv[2] || 'manifest.json';
 const manifest = JSON.parse(await readFile(file, 'utf8'));
 const errors = [];
+const warmaneComponents = new Set(['addon-manager', 'warmane-ui-manager', 'warmane-loot-decider']);
 if (manifest.schemaVersion !== 1) errors.push('schemaVersion must be 1');
 if (manifest.name !== 'CoA Tools') errors.push('name must be CoA Tools');
 if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(manifest.version || '')) errors.push('invalid semantic version');
@@ -11,8 +12,9 @@ if (Number.isNaN(Date.parse(manifest.publishedAt))) errors.push('invalid publish
 if (!Array.isArray(manifest.artifacts)) errors.push('artifacts must be an array');
 for (const [index, artifact] of (manifest.artifacts || []).entries()) {
   if (!artifact.name || !artifact.component) errors.push(`artifact ${index}: missing identity`);
+  if (!warmaneComponents.has(artifact.component)) errors.push(`artifact ${index}: unsupported component`);
   if (artifact.version !== manifest.version) errors.push(`artifact ${index}: version mismatch`);
-  if (!Array.isArray(artifact.gameFlavors) || !artifact.gameFlavors.length || artifact.gameFlavors.some(item => !['ascension', 'warmane'].includes(item))) errors.push(`artifact ${index}: invalid game flavors`);
+  if (!Array.isArray(artifact.gameFlavors) || !artifact.gameFlavors.length || artifact.gameFlavors.some(item => item !== 'warmane')) errors.push(`artifact ${index}: invalid game flavors`);
   if (artifact.contentVersion && !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(artifact.contentVersion)) errors.push(`artifact ${index}: invalid content version`);
   if (!/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '')) errors.push(`artifact ${index}: invalid target folder`);
   if (!/^[a-f0-9]{64}$/.test(artifact.sha256 || '')) errors.push(`artifact ${index}: invalid SHA-256`);

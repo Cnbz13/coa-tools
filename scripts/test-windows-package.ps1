@@ -11,7 +11,7 @@ $profileRoot = Join-Path $qaRoot 'Local AppData With Spaces'
 $oldLocalAppData = $env:LOCALAPPDATA
 $oldNoBrowser = $env:COA_NO_BROWSER
 $oldNonInteractive = $env:COA_NONINTERACTIVE
-$oldAddonsDir = $env:COA_ADDONS_DIR
+$oldAddonsDir = $env:WARMANE_ADDONS_DIR
 $cmdProcess = $null
 $nodePid = $null
 $portJob = $null
@@ -50,11 +50,11 @@ try {
     $env:LOCALAPPDATA = $profileRoot
     $env:COA_NO_BROWSER = '1'
     $env:COA_NONINTERACTIVE = '1'
-    $fixtureAddons = Join-Path $qaRoot 'Ascension Game With Spaces\Interface\AddOns'
+    $fixtureAddons = Join-Path $qaRoot 'Warmane Game With Spaces\Interface\AddOns'
     $fixture = Join-Path $fixtureAddons 'E2EFixture'
     New-Item -ItemType Directory -Path $fixture -Force | Out-Null
     [IO.File]::WriteAllText((Join-Path $fixture 'E2EFixture.toc'), "## Title: E2E Fixture`n## Version: 1.0.0`n## Notes: Windows package scan`n", [Text.UTF8Encoding]::new($false))
-    $env:COA_ADDONS_DIR = $fixtureAddons
+    $env:WARMANE_ADDONS_DIR = $fixtureAddons
     $portJob = Start-Job -ScriptBlock {
         $listener = New-Object Net.Sockets.TcpListener([Net.IPAddress]::Loopback, 4173)
         try { $listener.Start(); while ($true) { Start-Sleep -Seconds 1 } }
@@ -122,6 +122,6 @@ finally {
     $env:LOCALAPPDATA = $oldLocalAppData
     $env:COA_NO_BROWSER = $oldNoBrowser
     $env:COA_NONINTERACTIVE = $oldNonInteractive
-    $env:COA_ADDONS_DIR = $oldAddonsDir
+    $env:WARMANE_ADDONS_DIR = $oldAddonsDir
     if (Test-Path -LiteralPath $qaRoot) { Remove-Item -LiteralPath $qaRoot -Recurse -Force -ErrorAction SilentlyContinue }
 }

@@ -36,24 +36,10 @@ jobs:
         shell: pwsh
         run: |
           $tag = "v$env:RELEASE_VERSION"
-          $hereticHelper = (Get-ChildItem "dist/CoAHereticHelper-v*.zip" | Select-Object -First 1).FullName
-          $stormbringerHelper = (Get-ChildItem "dist/CoAStormbringerHelper-v*.zip" | Select-Object -First 1).FullName
-          $primalistHelper = (Get-ChildItem "dist/CoAPrimalistHelper-v*.zip" | Select-Object -First 1).FullName
           $assets = @(
             "dist/CoAAddonManager-v$env:RELEASE_VERSION-Windows.zip",
-            "dist/CoACombatAssistant-v$env:RELEASE_VERSION.zip",
-            "dist/CoAUIManager-v$env:RELEASE_VERSION.zip",
-            "dist/CoALootDecider-v$env:RELEASE_VERSION.zip",
             "dist/CoAUIManager-Warmane-v$env:RELEASE_VERSION.zip",
             "dist/CoALootDecider-Warmane-v$env:RELEASE_VERSION.zip",
-            "dist/CoAMessageCenter-v$env:RELEASE_VERSION.zip",
-            "dist/CoARotationGuide-v$env:RELEASE_VERSION.zip",
-            "dist/CoADungeonNavigator-v$env:RELEASE_VERSION.zip",
-            "dist/CoAEssentialAssistant-v$env:RELEASE_VERSION.zip",
-            $hereticHelper,
-            $stormbringerHelper,
-            $primalistHelper,
-            "dist/GridCoA-v$env:RELEASE_VERSION.zip",
             'dist/SHA256SUMS.txt',
             'dist/manifest.json'
           )

@@ -9,8 +9,7 @@ const profilesPath = 'addons/CoALootDecider/CoALootProfiles.lua';
 const talentDataPath = 'addons/CoALootDecider/CoALootTalentData.lua';
 const adaptationPath = 'addons/CoALootDecider/CoALootAdaptation.lua';
 const advisorPath = 'addons/CoALootDecider/CoALootAdvisor.lua';
-const packageVersion = JSON.parse(await readFile('package.json', 'utf8')).version;
-const escapedPackageVersion = packageVersion.replaceAll('.', '\\.');
+const escapedPackageVersion = '1\\.23\\.0';
 
 test('CoA Loot Decider targets Ascension 3.3.5 and parses as Lua 5.1', async () => {
   const toc = await readFile(tocPath, 'utf8');

@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { CombatAssistant } from './core/combat.js';
 import { AddonManager } from './core/addons.js';
 import { AddonOperationRegistry } from './core/addon-operations.js';
-import { CoaWatchService } from './core/coa-watch.js';
 import { UiManager } from './core/ui-manager.js';
 import { Updater } from './core/updater.js';
 import { UpdateMonitor } from './core/update-monitor.js';
@@ -23,15 +22,9 @@ const combat = new CombatAssistant();
 const addons = new AddonManager({
   dataDir,
   manifestUrl,
-  environmentPath: process.env.COA_ADDONS_DIR,
-  warmaneEnvironmentPath: process.env.WARMANE_ADDONS_DIR
+  environmentPath: process.env.WARMANE_ADDONS_DIR
 });
 const addonOperations = new AddonOperationRegistry(addons);
-const coaWatch = new CoaWatchService({
-  dataDir,
-  reportUrl: process.env.COA_WATCH_REPORT,
-  gameFeedWriter: (luaContents, feed) => addons.writeRotationUpdateFeed(luaContents, feed)
-});
 const ui = new UiManager(dataDir);
 const updater = new Updater({ currentVersion: pkg.version, manifestUrl, stagingDir: path.join(root, '.updates') });
 const updateMonitor = new UpdateMonitor({ updater, ui, dataDir });
@@ -54,7 +47,6 @@ async function api(request, response, pathname) {
   if (request.method === 'PUT' && pathname === '/api/ui') return json(response, 200, await ui.update(await body(request)));
   if (request.method === 'GET' && pathname === '/api/addons') return json(response, 200, await addons.inventory());
   if (request.method === 'PUT' && pathname === '/api/addons/path') return json(response, 200, await addons.setDirectory((await body(request)).path));
-  if (request.method === 'PUT' && pathname === '/api/addons/game-flavor') return json(response, 200, await addons.setGameFlavor((await body(request)).gameFlavor));
   if (request.method === 'POST' && pathname === '/api/addons/select-path') {
     const current = await addons.detectDirectory();
     const selected = await selectWindowsDirectory(current.directory);
@@ -83,8 +75,6 @@ async function api(request, response, pathname) {
   }
   if (request.method === 'GET' && pathname === '/api/updates/check') return json(response, 200, await updater.check());
   if (request.method === 'POST' && pathname === '/api/updates/download') return json(response, 200, await updater.downloadLatest());
-  if (request.method === 'GET' && pathname === '/api/watch') return json(response, 200, await coaWatch.report());
-  if (request.method === 'POST' && pathname === '/api/watch/check') return json(response, 200, await coaWatch.check());
   return json(response, 404, { error: 'Not found' });
 }
 

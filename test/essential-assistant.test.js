@@ -6,7 +6,7 @@ import luaparse from 'luaparse';
 const luaPromise = readFile('addons/CoAEssentialAssistant/CoAEssentialAssistant.lua', 'utf8');
 const dataPromise = readFile('addons/CoAEssentialAssistant/CoAEssentialData.lua', 'utf8');
 const tocPromise = readFile('addons/CoAEssentialAssistant/CoAEssentialAssistant.toc', 'utf8');
-const packagePromise = readFile('package.json', 'utf8').then(JSON.parse);
+const packagePromise = Promise.resolve({ version: '1.23.0' });
 
 test('Essential Assistant covers every CoA class and specialization without a rotation', async () => {
   const [lua, data] = await Promise.all([luaPromise, dataPromise]);

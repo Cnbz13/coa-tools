@@ -5,26 +5,17 @@ import { readFile } from 'node:fs/promises';
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
-test('release manifest describes every managed CoA Tools component', () => {
+test('release manifest publishes only the Warmane manager and addons', () => {
   assert.equal(manifest.version, pkg.version);
-  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'dungeon-navigator', 'essential-assistant', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'primalist-helper', 'rotation-guide', 'stormbringer-helper', 'ui-manager', 'warmane-loot-decider', 'warmane-ui-manager']);
+  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'warmane-loot-decider', 'warmane-ui-manager']);
   for (const artifact of manifest.artifacts) {
     assert.equal(artifact.version, pkg.version);
     assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
     assert.notEqual(artifact.sha256, '0'.repeat(64));
     assert.equal(artifact.url.endsWith(`/${artifact.file}`), true);
     assert.ok(artifact.targetFolder);
-    assert.ok(Array.isArray(artifact.gameFlavors) && artifact.gameFlavors.length);
+    assert.deepEqual(artifact.gameFlavors, ['warmane']);
   }
-  const hereticHelper = manifest.artifacts.find(item => item.component === 'heretic-helper');
-  assert.equal(hereticHelper.contentVersion, '3.9.0');
-  assert.equal(hereticHelper.targetFolder, 'CoAHereticHelper');
-  const stormbringerHelper = manifest.artifacts.find(item => item.component === 'stormbringer-helper');
-  assert.equal(stormbringerHelper.contentVersion, '1.1.0');
-  assert.equal(stormbringerHelper.targetFolder, 'CoAStormbringerHelper');
-  const primalistHelper = manifest.artifacts.find(item => item.component === 'primalist-helper');
-  assert.equal(primalistHelper.contentVersion, '1.1.0');
-  assert.equal(primalistHelper.targetFolder, 'CoAPrimalistHelper');
   assert.equal(manifest.artifacts.some(item => item.component === 'event-alert'), false);
 });
 
@@ -47,17 +38,9 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.match(workflow, /runs-on: windows-latest/);
   assert.match(workflow, /test-windows-package\.ps1/);
   assert.doesNotMatch(workflow, /EventAlert/i);
-  assert.match(workflow, /GridCoA-v\$env:RELEASE_VERSION\.zip/);
-  assert.match(workflow, /CoALootDecider-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoAUIManager-Warmane-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoALootDecider-Warmane-v\$env:RELEASE_VERSION\.zip/);
-  assert.match(workflow, /CoAMessageCenter-v\$env:RELEASE_VERSION\.zip/);
-  assert.match(workflow, /CoARotationGuide-v\$env:RELEASE_VERSION\.zip/);
-  assert.match(workflow, /CoADungeonNavigator-v\$env:RELEASE_VERSION\.zip/);
-  assert.match(workflow, /CoAEssentialAssistant-v\$env:RELEASE_VERSION\.zip/);
-  assert.match(workflow, /CoAHereticHelper-v\*\.zip/);
-  assert.match(workflow, /CoAStormbringerHelper-v\*\.zip/);
-  assert.match(workflow, /CoAPrimalistHelper-v\*\.zip/);
+  assert.doesNotMatch(workflow, /CoACombatAssistant|GridCoA|CoARotationGuide|CoADungeonNavigator/);
 });
 
 test('Windows AddOns picker is owned and forced to the foreground', async () => {
@@ -124,44 +107,19 @@ test('manager checks hourly, alerts Windows and can update addons automatically'
   assert.match(monitor, /System\.Windows\.Forms\.MessageBox/);
 });
 
-test('addon manager exposes sourced CoA watch recommendations without automatic addon edits', async () => {
+test('Warmane manager does not expose or inject the archived Ascension watch', async () => {
   const server = await readFile('src/server.js', 'utf8');
-  const addons = await readFile('src/core/addons.js', 'utf8');
   const app = await readFile('public/app.js', 'utf8');
   const html = await readFile('public/index.html', 'utf8');
-  assert.match(server, /pathname === '\/api\/watch'/);
-  assert.match(server, /pathname === '\/api\/watch\/check'/);
-  assert.match(server, /gameFeedWriter: \(luaContents, feed\) => addons\.writeRotationUpdateFeed/);
-  assert.match(addons, /async writeRotationUpdateFeed\(luaContents, feed = \{\}\)/);
-  assert.match(addons, /CoAStormbringerUpdates\.lua/);
-  assert.match(addons, /preservedStormbringerFeed/);
-  assert.match(addons, /CoAPrimalistUpdates\.lua/);
-  assert.match(addons, /preservedPrimalistFeed/);
-  assert.match(addons, /CoAEssentialUpdates\.lua/);
-  assert.match(addons, /preservedEssentialFeed/);
-  assert.match(addons, /component === 'essential-assistant' && preservedEssentialFeed/);
-  assert.match(addons, /component === 'rotation-guide' && preservedRotationFeed/);
-  assert.match(app, /transmis au Guide de Rotation et aux assistants de classe installés/);
-  assert.match(app, /loadCoaWatch/);
-  assert.match(app, /Les recommandations restent soumises à validation/);
-  assert.match(html, /id="checkCoaWatch"/);
-  assert.match(html, /aucune logique d’addon n’est modifiée automatiquement/);
+  assert.doesNotMatch(server, /\/api\/watch|CoaWatchService|COA_WATCH_REPORT/);
+  assert.doesNotMatch(app, /loadCoaWatch|checkCoaWatch|watchRecommendations/);
+  assert.doesNotMatch(html, /Project Ascension|checkCoaWatch|watchRecommendations/);
 });
 
-test('WoW addon metadata matches the package version', async () => {
-  for (const name of ['CoACombatAssistant', 'CoAUIManager', 'CoALootDecider', 'CoAMessageCenter', 'CoARotationGuide', 'CoADungeonNavigator', 'CoAEssentialAssistant', 'GridCoA']) {
-    const toc = await readFile(`addons/${name}/${name}.toc`, 'utf8');
-    assert.match(toc, /^## Interface: \d+/m);
+test('published Warmane addon metadata matches the package version', async () => {
+  for (const name of ['CoAUIManager', 'CoALootDecider']) {
+    const toc = await readFile(`warmane-addons/${name}/${name}.toc`, 'utf8');
+    assert.match(toc, /^## Interface: 30300$/m);
     assert.match(toc, new RegExp(`^## Version: ${pkg.version.replaceAll('.', '\\.')}$`, 'm'));
-    assert.match(toc, new RegExp(`^${name}\\.lua$`, 'm'));
   }
-  const hereticToc = await readFile('addons/CoAHereticHelper/CoAHereticHelper.toc', 'utf8');
-  assert.match(hereticToc, /^## Version: 3\.9\.0$/m);
-  assert.match(hereticToc, /^CoAHereticHelper\.lua$/m);
-  const stormToc = await readFile('addons/CoAStormbringerHelper/CoAStormbringerHelper.toc', 'utf8');
-  assert.match(stormToc, /^## Version: 1\.1\.0$/m);
-  assert.match(stormToc, /^CoAStormbringerHelper\.lua$/m);
-  const primalistToc = await readFile('addons/CoAPrimalistHelper/CoAPrimalistHelper.toc', 'utf8');
-  assert.match(primalistToc, /^## Version: 1\.1\.0$/m);
-  assert.match(primalistToc, /^CoAPrimalistHelper\.lua$/m);
 });

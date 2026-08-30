@@ -6,8 +6,7 @@ import luaparse from 'luaparse';
 const luaPromise = readFile('addons/CoARotationGuide/CoARotationGuide.lua', 'utf8');
 const dataPromise = readFile('addons/CoARotationGuide/CoARotationData.lua', 'utf8');
 const progressionPromise = readFile('addons/CoARotationGuide/CoAProgressionData.lua', 'utf8');
-const packageVersion = JSON.parse(await readFile('package.json', 'utf8')).version;
-const escapedPackageVersion = packageVersion.replaceAll('.', '\\.');
+const escapedPackageVersion = '1\\.23\\.0';
 
 test('Rotation Guide embeds all CoA class/spec profiles and dated sources', async () => {
   const data = await dataPromise;

@@ -7,10 +7,7 @@ import { pipeline } from 'node:stream/promises';
 import { ensureDir, readJson, writeJsonAtomic } from '../lib/files.js';
 import { extractZip } from '../lib/zip.js';
 
-export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
 export const WARMANE_ADDONS = 'C:\\Warmane\\Interface\\AddOns';
-export const GAME_FLAVORS = new Set(['ascension', 'warmane']);
-const DEFAULT_GAME_FLAVOR = 'ascension';
 const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'rotation-guide', 'dungeon-navigator', 'essential-assistant', 'heretic-helper', 'stormbringer-helper', 'primalist-helper', 'grid-compat', 'warmane-ui-manager', 'warmane-loot-decider']);
 const USER_MANAGEABLE_COMPONENTS = new Set(MANAGED_COMPONENTS);
 const DURABLE_EXCLUSIONS_FILE = '.coa-disabled-addons.json';
@@ -27,14 +24,12 @@ function cleanWowText(value = '') {
   return value.trim().replace(/\|c[0-9a-f]{8}/gi, '').replace(/\|r/gi, '');
 }
 
-function gameLabel(gameFlavor) {
-  return gameFlavor === 'warmane' ? 'Warmane Icecrown' : 'Project Ascension';
-}
+function gameLabel() { return 'Warmane Icecrown'; }
 
 function artifactSupportsGame(artifact, gameFlavor) {
   const flavors = Array.isArray(artifact?.gameFlavors) && artifact.gameFlavors.length
     ? artifact.gameFlavors
-    : ['ascension'];
+    : ['warmane'];
   return flavors.includes(gameFlavor);
 }
 
@@ -68,20 +63,19 @@ export function compareAddonVersions(left, right) {
 
 export class AddonManager {
   constructor({
-    dataDir, manifestUrl, canonicalPath = ASCENSION_ADDONS, candidates = [],
-    environmentPath = process.env.COA_ADDONS_DIR, warmanePath = WARMANE_ADDONS,
-    warmaneCandidates = [], warmaneEnvironmentPath = process.env.WARMANE_ADDONS_DIR,
+    dataDir, manifestUrl, canonicalPath = WARMANE_ADDONS, candidates = [],
+    environmentPath = process.env.WARMANE_ADDONS_DIR, warmanePath = null,
+    warmaneCandidates = [], warmaneEnvironmentPath = null,
     downloadPolicy
   } = {}) {
     if (!dataDir) throw new Error('dataDir is required');
     this.dataDir = path.resolve(dataDir);
     this.manifestUrl = manifestUrl;
-    this.canonicalPath = path.resolve(canonicalPath);
-    this.environmentPath = environmentPath ? path.resolve(environmentPath) : null;
-    this.candidates = candidates.map(item => path.resolve(item));
-    this.warmanePath = path.resolve(warmanePath);
-    this.warmaneEnvironmentPath = warmaneEnvironmentPath ? path.resolve(warmaneEnvironmentPath) : null;
-    this.warmaneCandidates = warmaneCandidates.map(item => path.resolve(item));
+    this.canonicalPath = path.resolve(warmanePath || canonicalPath);
+    this.environmentPath = (warmaneEnvironmentPath || environmentPath)
+      ? path.resolve(warmaneEnvironmentPath || environmentPath)
+      : null;
+    this.candidates = [...candidates, ...warmaneCandidates].map(item => path.resolve(item));
     this.settingsFile = path.join(this.dataDir, 'addon-settings.json');
     this.cachedManifestFile = path.join(this.dataDir, 'remote-manifest.json');
     this.backupsRoot = path.join(this.dataDir, 'backups');
@@ -90,42 +84,31 @@ export class AddonManager {
     this.operation = Promise.resolve();
   }
 
-  async detectDirectory(requestedFlavor = null) {
+  async detectDirectory() {
     const settings = await this.getSettings();
-    const gameFlavor = GAME_FLAVORS.has(requestedFlavor) ? requestedFlavor : settings.gameFlavor;
-    const isWarmane = gameFlavor === 'warmane';
-    const savedPath = settings.installations[gameFlavor];
-    const environmentPath = isWarmane ? this.warmaneEnvironmentPath : this.environmentPath;
-    const canonicalPath = isWarmane ? this.warmanePath : this.canonicalPath;
-    const standard = (isWarmane ? [
+    const savedPath = settings.addonsDir;
+    const standard = [
       savedPath,
-      environmentPath,
-      canonicalPath,
-      ...this.warmaneCandidates,
+      this.environmentPath,
+      this.canonicalPath,
+      ...this.candidates,
       'C:\\Games\\Warmane\\Interface\\AddOns',
       'C:\\Warmane WoW 3.3.5a\\Interface\\AddOns',
       'C:\\Program Files\\Warmane\\Interface\\AddOns',
       'C:\\Program Files (x86)\\Warmane\\Interface\\AddOns'
-    ] : [
-      savedPath,
-      environmentPath,
-      canonicalPath,
-      ...this.candidates,
-      'C:\\Program Files\\Ascension Launcher\\resources\\ascension-live\\Interface\\AddOns',
-      'C:\\Program Files (x86)\\Ascension Launcher\\resources\\ascension-live\\Interface\\AddOns'
-    ]).filter(Boolean).map(item => path.resolve(item));
+    ].filter(Boolean).map(item => path.resolve(item));
     const unique = [...new Set(standard.map(item => item.toLowerCase()))];
     for (const lower of unique) {
       const directory = standard.find(item => item.toLowerCase() === lower);
       if (await isDirectory(directory)) {
         const source = directory === savedPath ? 'saved'
-          : directory === environmentPath ? 'environment'
-            : directory.toLowerCase() === canonicalPath.toLowerCase() ? (isWarmane ? 'warmane' : 'project-ascension')
+          : directory === this.environmentPath ? 'environment'
+            : directory.toLowerCase() === this.canonicalPath.toLowerCase() ? 'warmane'
               : 'detected';
-        return { directory, exists: true, source, gameFlavor };
+        return { directory, exists: true, source, gameFlavor: 'warmane' };
       }
     }
-    return { directory: savedPath || canonicalPath, exists: false, source: 'missing', gameFlavor };
+    return { directory: savedPath || this.canonicalPath, exists: false, source: 'missing', gameFlavor: 'warmane' };
   }
 
   async setDirectory(directory) {
@@ -134,19 +117,7 @@ export class AddonManager {
     const resolved = path.resolve(selected);
     if (!(await isDirectory(resolved))) throw new Error('Le dossier AddOns sélectionné est introuvable');
     const settings = await this.getSettings();
-    const installations = { ...settings.installations, [settings.gameFlavor]: resolved };
-    await writeJsonAtomic(this.settingsFile, {
-      ...settings, installations,
-      ...(settings.gameFlavor === 'ascension' ? { addonsDir: resolved } : {}),
-      savedAt: new Date().toISOString()
-    });
-    return this.inventory();
-  }
-
-  async setGameFlavor(gameFlavor) {
-    if (!GAME_FLAVORS.has(gameFlavor)) throw new Error('Jeu non pris en charge');
-    const settings = await this.getSettings();
-    await writeJsonAtomic(this.settingsFile, { ...settings, gameFlavor, savedAt: new Date().toISOString() });
+    await writeJsonAtomic(this.settingsFile, { ...settings, addonsDir: resolved, savedAt: new Date().toISOString() });
     return this.inventory();
   }
 
@@ -155,39 +126,16 @@ export class AddonManager {
     if (!text.startsWith('-- Généré par CoA Addon Manager') || !text.includes('CoARotationUpdateFeed = {')) {
       throw new Error('Flux de mises à jour CoA invalide');
     }
-    const detection = await this.detectDirectory();
-    if (detection.gameFlavor !== 'ascension') return { written: false, reason: 'ascension-not-selected', count: 0 };
-    if (!detection.exists) return { written: false, reason: 'addons-directory-missing', count: 0 };
-    const destinations = [];
-    const rotationFolder = path.join(detection.directory, 'CoARotationGuide');
-    const stormbringerFolder = path.join(detection.directory, 'CoAStormbringerHelper');
-    const primalistFolder = path.join(detection.directory, 'CoAPrimalistHelper');
-    const essentialFolder = path.join(detection.directory, 'CoAEssentialAssistant');
-    if (await isDirectory(rotationFolder)) destinations.push(path.join(rotationFolder, 'CoARotationUpdates.lua'));
-    if (await isDirectory(stormbringerFolder)) destinations.push(path.join(stormbringerFolder, 'CoAStormbringerUpdates.lua'));
-    if (await isDirectory(primalistFolder)) destinations.push(path.join(primalistFolder, 'CoAPrimalistUpdates.lua'));
-    if (await isDirectory(essentialFolder)) destinations.push(path.join(essentialFolder, 'CoAEssentialUpdates.lua'));
-    if (!destinations.length) return { written: false, reason: 'rotation-guide-not-installed', count: 0 };
-    for (const destination of destinations) await writeFile(destination, text, 'utf8');
-    return {
-      written: true,
-      path: destinations[0],
-      paths: destinations,
-      count: Array.isArray(feed.items) ? feed.items.length : 0,
-      generatedAt: feed.generatedAt || null
-    };
+    return { written: false, reason: 'warmane-only', count: 0 };
   }
 
   async getSettings() {
     const settings = await readJson(this.settingsFile, {});
-    const gameFlavor = GAME_FLAVORS.has(settings.gameFlavor) ? settings.gameFlavor : DEFAULT_GAME_FLAVOR;
+    const legacyWarmanePath = settings.installations?.warmane || null;
+    const { installations: _legacyInstallations, gameFlavor: _legacyGameFlavor, ...singleGameSettings } = settings;
     return {
-      ...settings,
-      gameFlavor,
-      installations: {
-        ascension: settings.installations?.ascension || settings.addonsDir || null,
-        warmane: settings.installations?.warmane || null
-      },
+      ...singleGameSettings,
+      addonsDir: settings.addonsDir || legacyWarmanePath,
       excludedComponents: Array.isArray(settings.excludedComponents)
         ? [...new Set(settings.excludedComponents.filter(component => USER_MANAGEABLE_COMPONENTS.has(component)))]
         : []

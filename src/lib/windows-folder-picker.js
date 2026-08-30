@@ -19,7 +19,7 @@ $owner.Size = New-Object System.Drawing.Size(1, 1)
 $owner.Opacity = 0
 
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.Description = 'Sélectionnez le dossier Interface\\AddOns de Project Ascension'
+$dialog.Description = 'Sélectionnez le dossier Interface\\AddOns de Warmane'
 $dialog.ShowNewFolderButton = $false
 if (Test-Path -LiteralPath '${initial}' -PathType Container) {
   $dialog.SelectedPath = '${initial}'

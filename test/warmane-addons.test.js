@@ -57,15 +57,11 @@ test('Warmane UI Manager hides only gameplay spell failures and keeps the settin
   assert.doesNotMatch(ui, /ScriptErrors|scriptErrors|Sound_EnableSFX/);
 });
 
-test('manager remembers separate Ascension and Warmane installations and filters artifacts', async () => {
+test('manager migrates to one remembered Warmane installation and filters legacy artifacts', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'coa-games-'));
   try {
-    const ascension = path.join(root, 'Ascension', 'Interface', 'AddOns');
     const warmane = path.join(root, 'Warmane', 'Interface', 'AddOns');
-    await mkdir(ascension, { recursive: true });
     await mkdir(warmane, { recursive: true });
-    await mkdir(path.join(ascension, 'AscensionFixture'));
-    await writeFile(path.join(ascension, 'AscensionFixture', 'AscensionFixture.toc'), '## Title: Ascension Fixture\n## Version: 1\n');
     await mkdir(path.join(warmane, 'WarmaneFixture'));
     await writeFile(path.join(warmane, 'WarmaneFixture', 'WarmaneFixture.toc'), '## Title: Warmane Fixture\n## Version: 1\n');
     const artifact = (component, targetFolder, gameFlavor) => ({
@@ -77,25 +73,29 @@ test('manager remembers separate Ascension and Warmane installations and filters
       artifacts: [artifact('ui-manager', 'CoAUIManager', 'ascension'), artifact('warmane-ui-manager', 'CoAUIManager', 'warmane')]
     };
     const options = {
-      dataDir: path.join(root, 'data'), canonicalPath: ascension, warmanePath: warmane,
-      environmentPath: null, warmaneEnvironmentPath: null,
+      dataDir: path.join(root, 'data'), canonicalPath: path.join(root, 'missing'),
+      environmentPath: null,
       manifestUrl: `data:application/json,${encodeURIComponent(JSON.stringify(manifest))}`
     };
+    await mkdir(options.dataDir, { recursive: true });
+    await writeFile(path.join(options.dataDir, 'addon-settings.json'), JSON.stringify({
+      gameFlavor: 'ascension', installations: { ascension: path.join(root, 'old'), warmane }
+    }));
     const manager = new AddonManager(options);
-    let inventory = await manager.inventory();
-    assert.equal(inventory.gameFlavor, 'ascension');
-    assert.equal(inventory.addonsDir, ascension);
-    assert.deepEqual(inventory.managed.map(item => item.component), ['ui-manager']);
-    assert.equal(inventory.regular[0].title, 'Ascension Fixture');
-
-    inventory = await manager.setGameFlavor('warmane');
+    const inventory = await manager.inventory();
     assert.equal(inventory.gameFlavor, 'warmane');
     assert.equal(inventory.addonsDir, warmane);
     assert.deepEqual(inventory.managed.map(item => item.component), ['warmane-ui-manager']);
     assert.equal(inventory.regular[0].title, 'Warmane Fixture');
 
+    await manager.setDirectory(warmane);
+    const normalizedSettings = JSON.parse(await readFile(path.join(options.dataDir, 'addon-settings.json'), 'utf8'));
+    assert.equal(normalizedSettings.addonsDir, warmane);
+    assert.equal('installations' in normalizedSettings, false);
+    assert.equal('gameFlavor' in normalizedSettings, false);
+
     const restarted = new AddonManager(options);
-    assert.equal((await restarted.inventory()).gameFlavor, 'warmane');
+    assert.equal((await restarted.inventory()).addonsDir, warmane);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -151,7 +151,6 @@ test('manager installs the real Warmane editions with SHA-256 and enables charac
       warmanePath: addonsDir, environmentPath: null, warmaneEnvironmentPath: null,
       manifestUrl: `${origin}/manifest.json`, downloadPolicy: url => url.origin === origin
     });
-    await manager.setGameFlavor('warmane');
     const result = await manager.updateAll();
     assert.deepEqual(result.updated, ['warmane-ui-manager', 'warmane-loot-decider']);
     assert.match(await readFile(path.join(addonsDir, 'CoAUIManager', 'CoAUIManager.toc'), 'utf8'), /^## Interface: 30300$/m);

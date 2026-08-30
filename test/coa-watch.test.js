@@ -86,7 +86,7 @@ test('Primalist patch notes are routed to the dedicated helper', () => {
   assert.ok(result.impacts.some(item => item.component === 'primalist-helper'));
 });
 
-test('rotation watch creates a natural Lua 5.1 feed and writes it into the installed guide', async () => {
+test('archived CoA watch data is never injected into a Warmane installation', async () => {
   const item = classifyImpact({
     id: '900', sourceId: 'ascension-coa-changelog', sourceType: 'official',
     title: 'Changement CoA du 2026/08/24',
@@ -113,13 +113,7 @@ test('rotation watch creates a natural Lua 5.1 feed and writes it into the insta
   await Promise.all([guideDir, stormDir, primalDir, essentialDir].map(directory => mkdir(directory, { recursive: true })));
   const manager = new AddonManager({ dataDir: path.join(root, 'data'), canonicalPath: addonsDir, environmentPath: null });
   const result = await manager.writeRotationUpdateFeed(lua, feed);
-  assert.equal(result.written, true);
-  assert.equal(result.count, 1);
-  assert.equal(result.paths.length, 4);
-  assert.equal(await readFile(path.join(guideDir, 'CoARotationUpdates.lua'), 'utf8'), lua);
-  assert.equal(await readFile(path.join(stormDir, 'CoAStormbringerUpdates.lua'), 'utf8'), lua);
-  assert.equal(await readFile(path.join(primalDir, 'CoAPrimalistUpdates.lua'), 'utf8'), lua);
-  assert.equal(await readFile(path.join(essentialDir, 'CoAEssentialUpdates.lua'), 'utf8'), lua);
+  assert.deepEqual(result, { written: false, reason: 'warmane-only', count: 0 });
 });
 
 test('rank-by-rank changelog entries are grouped into one readable recommendation', () => {
@@ -168,10 +162,6 @@ test('weekly watch persists fingerprints and never proposes the same publication
   assert.equal(state.lastCheckedAt, '2026-08-16T20:00:00.000Z');
 });
 
-test('weekly GitHub workflow runs the watch, tests it, and commits only watch state', async () => {
-  const workflow = await readFile('.github/workflows/coa-watch.yml', 'utf8');
-  assert.match(workflow, /schedule:/);
-  assert.match(workflow, /npm run watch:coa/);
-  assert.match(workflow, /npm test/);
-  assert.match(workflow, /git add watch\/state\.json watch\/report\.json/);
+test('archived Ascension watch no longer has a scheduled GitHub workflow', async () => {
+  await assert.rejects(readFile('.github/workflows/coa-watch.yml', 'utf8'));
 });

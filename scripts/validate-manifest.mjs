@@ -12,6 +12,7 @@ if (!Array.isArray(manifest.artifacts)) errors.push('artifacts must be an array'
 for (const [index, artifact] of (manifest.artifacts || []).entries()) {
   if (!artifact.name || !artifact.component) errors.push(`artifact ${index}: missing identity`);
   if (artifact.version !== manifest.version) errors.push(`artifact ${index}: version mismatch`);
+  if (!Array.isArray(artifact.gameFlavors) || !artifact.gameFlavors.length || artifact.gameFlavors.some(item => !['ascension', 'warmane'].includes(item))) errors.push(`artifact ${index}: invalid game flavors`);
   if (artifact.contentVersion && !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(artifact.contentVersion)) errors.push(`artifact ${index}: invalid content version`);
   if (!/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '')) errors.push(`artifact ${index}: invalid target folder`);
   if (!/^[a-f0-9]{64}$/.test(artifact.sha256 || '')) errors.push(`artifact ${index}: invalid SHA-256`);

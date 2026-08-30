@@ -17,11 +17,12 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "component", "version", "platform", "arch", "targetFolder", "installPath", "file", "url", "sha256", "size"],
+        "required": ["name", "component", "version", "gameFlavors", "platform", "arch", "targetFolder", "installPath", "file", "url", "sha256", "size"],
         "properties": {
           "name": { "type": "string", "minLength": 1 },
-          "component": { "enum": ["addon-manager", "combat-assistant", "ui-manager", "loot-decider", "message-center", "rotation-guide", "dungeon-navigator", "essential-assistant", "heretic-helper", "stormbringer-helper", "primalist-helper", "grid-compat"] },
+          "component": { "enum": ["addon-manager", "combat-assistant", "ui-manager", "loot-decider", "message-center", "rotation-guide", "dungeon-navigator", "essential-assistant", "heretic-helper", "stormbringer-helper", "primalist-helper", "grid-compat", "warmane-ui-manager", "warmane-loot-decider"] },
           "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+          "gameFlavors": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["ascension", "warmane"] } },
           "contentVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
           "platform": { "enum": ["win32", "linux", "darwin", "any"] },
           "arch": { "enum": ["x64", "arm64", "any"] },

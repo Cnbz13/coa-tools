@@ -36,15 +36,20 @@ $('#addEvent').onclick = async () => { const label = prompt('Nom de l’événem
 const actionLabels = { install: 'Installer', update: 'Mettre à jour', reinstall: 'Réinstaller' };
 function renderAddons() {
   const inventory = addonInventory;
+  const isWarmane = inventory.gameFlavor === 'warmane';
+  $('#gameFlavor').value = inventory.gameFlavor;
+  $('#gameEyebrow').textContent = (inventory.gameLabel || (isWarmane ? 'Warmane Icecrown' : 'Project Ascension')).toUpperCase();
+  $('#installedGameEyebrow').textContent = `INSTALLATION ${isWarmane ? 'WARMANE' : 'ASCENSION'}`;
+  $('#addonPathHelp').textContent = `Utilisez cette option uniquement si ${inventory.gameLabel || 'le jeu'} n’est pas détecté automatiquement.`;
   $('#addonPathLabel').textContent = inventory.addonsDir;
   $('#addonPath').value = inventory.addonsDir;
-  $('#addonDetection').textContent = inventory.exists ? (inventory.detectionSource === 'project-ascension' ? 'DÉTECTÉ AUTOMATIQUEMENT' : 'DOSSIER MÉMORISÉ') : 'DOSSIER INTROUVABLE';
+  $('#addonDetection').textContent = inventory.exists ? (['project-ascension', 'warmane', 'environment', 'detected'].includes(inventory.detectionSource) ? 'DÉTECTÉ AUTOMATIQUEMENT' : 'DOSSIER MÉMORISÉ') : 'DOSSIER INTROUVABLE';
   $('#addonDetection').classList.toggle('warning', !inventory.exists);
   $('#addonScanSummary').textContent = inventory.exists ? `${inventory.localCount} addons avec fichier .toc détectés.` : 'Sélectionnez votre dossier Interface\\AddOns dans la section avancée.';
   $('#manifestStatus').textContent = inventory.remoteError ? (inventory.remoteCached ? `Manifest v${inventory.remoteVersion} en cache` : `Manifest indisponible : ${inventory.remoteError}`) : `Manifest GitHub v${inventory.remoteVersion}`;
   $('#managedAddonList').innerHTML = inventory.managed.length ? inventory.managed.map(item => `
     <article class="managed-addon ${item.installed ? 'installed' : ''} ${item.installationBlocked ? 'excluded' : ''}">
-      <div class="managed-top"><span class="badge coa">${item.installationBlocked ? (item.installed ? 'MAJ BLOQUÉES' : 'DÉSINSTALLÉ DURABLEMENT') : 'COA GÉRÉ'}</span><span class="state-dot">${item.installed ? 'Installé' : 'Absent'}</span></div>
+      <div class="managed-top"><span class="badge coa">${item.installationBlocked ? (item.installed ? 'MAJ BLOQUÉES' : 'DÉSINSTALLÉ DURABLEMENT') : 'GÉRÉ ET VÉRIFIÉ'}</span><span class="state-dot">${item.installed ? 'Installé' : 'Absent'}</span></div>
       <h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.notes || 'Addon officiel CoA distribué depuis GitHub.')}</p>
       <div class="version-row"><span>Locale <b>${escapeHtml(item.localVersion || '—')}</b></span><span>Distante <b>${escapeHtml(item.remoteVersion)}</b></span></div>
       <div class="button-row">
@@ -53,7 +58,7 @@ function renderAddons() {
         ${item.userManageable && item.installed ? `<button class="danger" data-uninstall="${escapeAttribute(item.component)}">Désinstaller</button>` : ''}
         ${item.canRollback && !item.installationBlocked ? `<button data-rollback="${escapeAttribute(item.component)}">Restaurer</button>` : ''}
       </div>
-    </article>`).join('') : '<article class="empty-card">Les composants CoA seront affichés dès que le manifest GitHub sera accessible.</article>';
+    </article>`).join('') : '<article class="empty-card">Les addons compatibles seront affichés dès que le manifeste GitHub sera accessible.</article>';
   renderRegularAddons();
   document.querySelectorAll('[data-install]').forEach(button => button.onclick = () => startAddonOperation(button, { action: 'install', component: button.dataset.install }));
   document.querySelectorAll('[data-rollback]').forEach(button => button.onclick = () => runImmediateAddonOperation(button, `/api/addons/managed/${encodeURIComponent(button.dataset.rollback)}/rollback`, 'Restauration'));
@@ -81,7 +86,9 @@ function confirmAddonUninstall(button) {
 function renderRegularAddons() {
   const query = $('#addonSearch').value.trim().toLocaleLowerCase('fr');
   const items = addonInventory.regular.filter(item => `${item.title} ${item.folder} ${item.notes}`.toLocaleLowerCase('fr').includes(query));
-  $('#ascensionAddonList').innerHTML = items.length ? items.map(item => `<article class="addon"><div><div><span class="badge ascension">ASCENSION</span> <b>${escapeHtml(item.title)}</b></div><small>${escapeHtml(item.folder)} · ${escapeHtml(item.version)}</small>${item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ''}</div></article>`).join('') : `<article class="empty-card">${addonInventory.exists ? 'Aucun addon ne correspond au filtre.' : 'Aucun dossier AddOns disponible.'}</article>`;
+  const flavor = addonInventory.gameFlavor === 'warmane' ? 'WARMANE' : 'ASCENSION';
+  const badgeClass = addonInventory.gameFlavor === 'warmane' ? 'warmane' : 'ascension';
+  $('#ascensionAddonList').innerHTML = items.length ? items.map(item => `<article class="addon"><div><div><span class="badge ${badgeClass}">${flavor}</span> <b>${escapeHtml(item.title)}</b></div><small>${escapeHtml(item.folder)} · ${escapeHtml(item.version)}</small>${item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ''}</div></article>`).join('') : `<article class="empty-card">${addonInventory.exists ? 'Aucun addon ne correspond au filtre.' : 'Aucun dossier AddOns disponible.'}</article>`;
 }
 async function loadAddons() {
   try { addonInventory = await api('/api/addons'); renderAddons(); }
@@ -131,7 +138,7 @@ function renderAddonProgress() {
     : addonOperation.step;
   $('#addonProgressBytes').textContent = Number.isFinite(addonOperation.bytesDone) && Number.isFinite(addonOperation.bytesTotal)
     ? `${formatBytes(addonOperation.bytesDone)} / ${formatBytes(addonOperation.bytesTotal)}` : '';
-  document.querySelectorAll('[data-install], [data-rollback], [data-exclusion], [data-uninstall], #updateAllAddons').forEach(button => { button.disabled = active; });
+  document.querySelectorAll('[data-install], [data-rollback], [data-exclusion], [data-uninstall], #updateAllAddons, #gameFlavor').forEach(button => { button.disabled = active; });
 }
 async function pollAddonOperation() {
   clearTimeout(addonPollTimer);
@@ -180,6 +187,22 @@ async function resumeAddonOperation() {
 }
 $('#refreshAddons').onclick = loadAddons;
 $('#addonSearch').oninput = () => addonInventory && renderRegularAddons();
+$('#gameFlavor').onchange = async event => {
+  const select = event.currentTarget;
+  select.disabled = true;
+  try {
+    addonInventory = await api('/api/addons/game-flavor', {
+      method: 'PUT', body: JSON.stringify({ gameFlavor: select.value })
+    });
+    renderAddons();
+    toast(`${addonInventory.gameLabel} sélectionné`);
+  } catch (error) {
+    if (addonInventory) select.value = addonInventory.gameFlavor;
+    toast(error.message);
+  } finally {
+    select.disabled = false;
+  }
+};
 $('#saveAddonPath').onclick = async () => { try { addonInventory = await api('/api/addons/path', { method: 'PUT', body: JSON.stringify({ path: $('#addonPath').value }) }); renderAddons(); toast('Dossier AddOns mémorisé'); } catch (error) { toast(error.message); } };
 $('#browseAddonPath').onclick = async event => {
   const button = event.currentTarget;

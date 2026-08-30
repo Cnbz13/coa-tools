@@ -7,13 +7,14 @@ const manifest = JSON.parse(await readFile('manifest.json', 'utf8'));
 
 test('release manifest describes every managed CoA Tools component', () => {
   assert.equal(manifest.version, pkg.version);
-  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'dungeon-navigator', 'essential-assistant', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'primalist-helper', 'rotation-guide', 'stormbringer-helper', 'ui-manager']);
+  assert.deepEqual(manifest.artifacts.map(item => item.component).sort(), ['addon-manager', 'combat-assistant', 'dungeon-navigator', 'essential-assistant', 'grid-compat', 'heretic-helper', 'loot-decider', 'message-center', 'primalist-helper', 'rotation-guide', 'stormbringer-helper', 'ui-manager', 'warmane-loot-decider', 'warmane-ui-manager']);
   for (const artifact of manifest.artifacts) {
     assert.equal(artifact.version, pkg.version);
     assert.match(artifact.sha256, /^[a-f0-9]{64}$/);
     assert.notEqual(artifact.sha256, '0'.repeat(64));
     assert.equal(artifact.url.endsWith(`/${artifact.file}`), true);
     assert.ok(artifact.targetFolder);
+    assert.ok(Array.isArray(artifact.gameFlavors) && artifact.gameFlavors.length);
   }
   const hereticHelper = manifest.artifacts.find(item => item.component === 'heretic-helper');
   assert.equal(hereticHelper.contentVersion, '3.9.0');
@@ -48,6 +49,8 @@ test('Windows launcher captures Node failures and supports dynamic ports and UTF
   assert.doesNotMatch(workflow, /EventAlert/i);
   assert.match(workflow, /GridCoA-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoALootDecider-v\$env:RELEASE_VERSION\.zip/);
+  assert.match(workflow, /CoAUIManager-Warmane-v\$env:RELEASE_VERSION\.zip/);
+  assert.match(workflow, /CoALootDecider-Warmane-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoAMessageCenter-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoARotationGuide-v\$env:RELEASE_VERSION\.zip/);
   assert.match(workflow, /CoADungeonNavigator-v\$env:RELEASE_VERSION\.zip/);

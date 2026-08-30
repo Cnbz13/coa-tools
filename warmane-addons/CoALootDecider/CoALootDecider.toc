@@ -1,0 +1,10 @@
+## Interface: 30300
+## Title: Loot Decider - Warmane
+## Notes: Compare équipement, sacs, banque, marchands et butin avec les classes et talents WotLK 3.3.5a.
+## Author: Cnbz13
+## Version: 1.23.0
+## SavedVariables: CoALootDeciderDB
+
+CoALootProfiles.lua
+CoALootDecider.lua
+CoALootAdvisor.lua

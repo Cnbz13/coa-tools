@@ -2,126 +2,154 @@
   "$schema": "./schemas/manifest.schema.json",
   "schemaVersion": 1,
   "name": "CoA Tools",
-  "version": "1.22.1",
+  "version": "1.23.0",
   "channel": "stable",
-  "publishedAt": "2026-08-28T22:49:43.604Z",
+  "publishedAt": "2026-08-30T11:39:21.024Z",
   "minimumNodeVersion": "24.14.0",
-  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.22.1",
+  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.23.0",
   "artifacts": [
     {
       "name": "CoA Addon Manager for Windows",
       "component": "addon-manager",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "win32",
       "arch": "x64",
+      "gameFlavors": [
+        "ascension",
+        "warmane"
+      ],
       "targetFolder": "CoAAddonManager",
       "installPath": ".",
-      "file": "CoAAddonManager-v1.22.1-Windows.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoAAddonManager-v1.22.1-Windows.zip",
-      "sha256": "c3778564defb43aee73876a1488dd030acc8c7ac5de54a0b64c984893ed64faf",
-      "size": 146393
+      "file": "CoAAddonManager-v1.23.0-Windows.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoAAddonManager-v1.23.0-Windows.zip",
+      "sha256": "72448e545d8dea8d972a5e5403f0ee641974a64500be9c1961784ce949e8cdeb",
+      "size": 151409
     },
     {
       "name": "CoA Combat Assistant",
       "component": "combat-assistant",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "CoACombatAssistant",
       "installPath": "Interface/AddOns",
-      "file": "CoACombatAssistant-v1.22.1.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoACombatAssistant-v1.22.1.zip",
-      "sha256": "d91e424ac51b014dcecb9a8bac53e3cc31af2dd9d75fafef54294215a0b270fe",
+      "file": "CoACombatAssistant-v1.23.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoACombatAssistant-v1.23.0.zip",
+      "sha256": "4a9d0fe3229dfb2d1aa1db738de57d2ed52098b6e0d38f3f615945f49dbb32dc",
       "size": 58988
     },
     {
       "name": "CoA UI Manager",
       "component": "ui-manager",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "CoAUIManager",
       "installPath": "Interface/AddOns",
-      "file": "CoAUIManager-v1.22.1.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoAUIManager-v1.22.1.zip",
-      "sha256": "c92d57e8421919c6e0ca30470d4a3b52cf602d6ad077a31fa5cdae9b4e90291c",
+      "file": "CoAUIManager-v1.23.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoAUIManager-v1.23.0.zip",
+      "sha256": "09e7fb1db7cb07988e38c5fb6cfd1e27f166671c256919d6c997283f3d5d16bf",
       "size": 34548
     },
     {
       "name": "CoA Loot Decider",
       "component": "loot-decider",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "CoALootDecider",
       "installPath": "Interface/AddOns",
-      "file": "CoALootDecider-v1.22.1.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoALootDecider-v1.22.1.zip",
-      "sha256": "a34101be8d5948376e169399c8ca92cebb4011af500ec25d86b1cc3e7233ca2f",
+      "file": "CoALootDecider-v1.23.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoALootDecider-v1.23.0.zip",
+      "sha256": "1ec21972c316e46fb61b3e6481cbc878cbe8fba68ce0a426a41b711c352e682a",
       "size": 599176
     },
     {
       "name": "CoA Message Center",
       "component": "message-center",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "CoAMessageCenter",
       "installPath": "Interface/AddOns",
-      "file": "CoAMessageCenter-v1.22.1.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoAMessageCenter-v1.22.1.zip",
-      "sha256": "3b9b0cfa47cf2c3fab989252046e13f4bcb53ab19630c4ec240fa344d8ef2ea7",
+      "file": "CoAMessageCenter-v1.23.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoAMessageCenter-v1.23.0.zip",
+      "sha256": "5e88c04bc6f0afa5165a64797968007a8ef5092de11459b5cc320f8e502a2121",
       "size": 19897
     },
     {
       "name": "CoA Rotation Guide",
       "component": "rotation-guide",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "CoARotationGuide",
       "installPath": "Interface/AddOns",
-      "file": "CoARotationGuide-v1.22.1.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoARotationGuide-v1.22.1.zip",
-      "sha256": "3fb146aedbf5465c3cb275a8bf3efe1ec6c50b81979b963d3c2be9b742acd812",
+      "file": "CoARotationGuide-v1.23.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoARotationGuide-v1.23.0.zip",
+      "sha256": "c48281a24bb09b105539ddda2f4d606ad1d64bfcbcf50264acd4ea60fb5dd925",
       "size": 190267
     },
     {
       "name": "CoA Dungeon Navigator",
       "component": "dungeon-navigator",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "CoADungeonNavigator",
       "installPath": "Interface/AddOns",
-      "file": "CoADungeonNavigator-v1.22.1.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoADungeonNavigator-v1.22.1.zip",
-      "sha256": "076355660fe21efccec151c545f7d186b62bdd18b5f87f120da853e9fbb48d9b",
+      "file": "CoADungeonNavigator-v1.23.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoADungeonNavigator-v1.23.0.zip",
+      "sha256": "d0354c61bd9b27e22fc38beb1b574f9cea2b4795efbfc943ffc31cc32415b211",
       "size": 405697
     },
     {
       "name": "CoA Essential Assistant",
       "component": "essential-assistant",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "CoAEssentialAssistant",
       "installPath": "Interface/AddOns",
-      "file": "CoAEssentialAssistant-v1.22.1.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoAEssentialAssistant-v1.22.1.zip",
-      "sha256": "e175c22bd874c8c9498367a39fe0b239d7d1c9e69c03b7345ac17103c7310e53",
+      "file": "CoAEssentialAssistant-v1.23.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoAEssentialAssistant-v1.23.0.zip",
+      "sha256": "61b41dc1f058206a0e8e5e736d44a0c6a4b23d8e8df01a3ad604193d3f604e9a",
       "size": 81573
     },
     {
       "name": "CoA Heretic Helper",
       "component": "heretic-helper",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "CoAHereticHelper",
       "installPath": "Interface/AddOns",
       "file": "CoAHereticHelper-v3.9.0.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoAHereticHelper-v3.9.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoAHereticHelper-v3.9.0.zip",
       "sha256": "498f535224b427fd9779fae2121604194a280e3d53e4ba76978263dffc6f9991",
       "size": 73090,
       "contentVersion": "3.9.0"
@@ -129,13 +157,16 @@
     {
       "name": "CoA Stormbringer Helper",
       "component": "stormbringer-helper",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "CoAStormbringerHelper",
       "installPath": "Interface/AddOns",
       "file": "CoAStormbringerHelper-v1.1.0.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoAStormbringerHelper-v1.1.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoAStormbringerHelper-v1.1.0.zip",
       "sha256": "7b0eb62666a2a25b8afc16dd1b20355a31e3c7fc09a425d6dc0dd0daa5e6a49c",
       "size": 59428,
       "contentVersion": "1.1.0"
@@ -143,13 +174,16 @@
     {
       "name": "CoA Primalist Helper",
       "component": "primalist-helper",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "CoAPrimalistHelper",
       "installPath": "Interface/AddOns",
       "file": "CoAPrimalistHelper-v1.1.0.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/CoAPrimalistHelper-v1.1.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoAPrimalistHelper-v1.1.0.zip",
       "sha256": "a52f554f17fec312cbae5b1b6a42072e62c6390d15eb0012ef64a2ff12542829",
       "size": 65466,
       "contentVersion": "1.1.0"
@@ -157,15 +191,50 @@
     {
       "name": "Grid - Compatibilité CoA",
       "component": "grid-compat",
-      "version": "1.22.1",
+      "version": "1.23.0",
       "platform": "any",
       "arch": "any",
+      "gameFlavors": [
+        "ascension"
+      ],
       "targetFolder": "GridCoA",
       "installPath": "Interface/AddOns",
-      "file": "GridCoA-v1.22.1.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.22.1/GridCoA-v1.22.1.zip",
-      "sha256": "53087fd4dfab04e777c8b2c01ca6a66dc2c87be87308ec957540bd666c396c1a",
+      "file": "GridCoA-v1.23.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/GridCoA-v1.23.0.zip",
+      "sha256": "237c2a0487c7ad6152a4909fdccbca0b49f37cc09b2b0ed1b451430f2a4da7a6",
       "size": 24340
+    },
+    {
+      "name": "UI Manager - Warmane",
+      "component": "warmane-ui-manager",
+      "version": "1.23.0",
+      "platform": "any",
+      "arch": "any",
+      "gameFlavors": [
+        "warmane"
+      ],
+      "targetFolder": "CoAUIManager",
+      "installPath": "Interface/AddOns",
+      "file": "CoAUIManager-Warmane-v1.23.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoAUIManager-Warmane-v1.23.0.zip",
+      "sha256": "279e6bbd62947e4c06cc4d9da3ea09c964167a0b07f8d8256df11ee8950ec782",
+      "size": 30927
+    },
+    {
+      "name": "Loot Decider - Warmane",
+      "component": "warmane-loot-decider",
+      "version": "1.23.0",
+      "platform": "any",
+      "arch": "any",
+      "gameFlavors": [
+        "warmane"
+      ],
+      "targetFolder": "CoALootDecider",
+      "installPath": "Interface/AddOns",
+      "file": "CoALootDecider-Warmane-v1.23.0.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.0/CoALootDecider-Warmane-v1.23.0.zip",
+      "sha256": "1ff3cc08531070f9fa6c644b39e3b539a16058c65a686ee051da323737c90dfc",
+      "size": 138045
     }
   ]
 }

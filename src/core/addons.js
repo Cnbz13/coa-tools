@@ -8,7 +8,10 @@ import { ensureDir, readJson, writeJsonAtomic } from '../lib/files.js';
 import { extractZip } from '../lib/zip.js';
 
 export const ASCENSION_ADDONS = 'C:\\Ascension\\Launcher\\resources\\ascension-live\\Interface\\AddOns';
-const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'rotation-guide', 'dungeon-navigator', 'essential-assistant', 'heretic-helper', 'stormbringer-helper', 'primalist-helper', 'grid-compat']);
+export const WARMANE_ADDONS = 'C:\\Warmane\\Interface\\AddOns';
+export const GAME_FLAVORS = new Set(['ascension', 'warmane']);
+const DEFAULT_GAME_FLAVOR = 'ascension';
+const MANAGED_COMPONENTS = new Set(['combat-assistant', 'ui-manager', 'loot-decider', 'message-center', 'rotation-guide', 'dungeon-navigator', 'essential-assistant', 'heretic-helper', 'stormbringer-helper', 'primalist-helper', 'grid-compat', 'warmane-ui-manager', 'warmane-loot-decider']);
 const USER_MANAGEABLE_COMPONENTS = new Set(MANAGED_COMPONENTS);
 const DURABLE_EXCLUSIONS_FILE = '.coa-disabled-addons.json';
 
@@ -22,6 +25,17 @@ async function isDirectory(directory) {
 
 function cleanWowText(value = '') {
   return value.trim().replace(/\|c[0-9a-f]{8}/gi, '').replace(/\|r/gi, '');
+}
+
+function gameLabel(gameFlavor) {
+  return gameFlavor === 'warmane' ? 'Warmane Icecrown' : 'Project Ascension';
+}
+
+function artifactSupportsGame(artifact, gameFlavor) {
+  const flavors = Array.isArray(artifact?.gameFlavors) && artifact.gameFlavors.length
+    ? artifact.gameFlavors
+    : ['ascension'];
+  return flavors.includes(gameFlavor);
 }
 
 export function parseToc(contents, folder, tocFile = '') {
@@ -53,13 +67,21 @@ export function compareAddonVersions(left, right) {
 }
 
 export class AddonManager {
-  constructor({ dataDir, manifestUrl, canonicalPath = ASCENSION_ADDONS, candidates = [], environmentPath = process.env.COA_ADDONS_DIR, downloadPolicy } = {}) {
+  constructor({
+    dataDir, manifestUrl, canonicalPath = ASCENSION_ADDONS, candidates = [],
+    environmentPath = process.env.COA_ADDONS_DIR, warmanePath = WARMANE_ADDONS,
+    warmaneCandidates = [], warmaneEnvironmentPath = process.env.WARMANE_ADDONS_DIR,
+    downloadPolicy
+  } = {}) {
     if (!dataDir) throw new Error('dataDir is required');
     this.dataDir = path.resolve(dataDir);
     this.manifestUrl = manifestUrl;
     this.canonicalPath = path.resolve(canonicalPath);
     this.environmentPath = environmentPath ? path.resolve(environmentPath) : null;
     this.candidates = candidates.map(item => path.resolve(item));
+    this.warmanePath = path.resolve(warmanePath);
+    this.warmaneEnvironmentPath = warmaneEnvironmentPath ? path.resolve(warmaneEnvironmentPath) : null;
+    this.warmaneCandidates = warmaneCandidates.map(item => path.resolve(item));
     this.settingsFile = path.join(this.dataDir, 'addon-settings.json');
     this.cachedManifestFile = path.join(this.dataDir, 'remote-manifest.json');
     this.backupsRoot = path.join(this.dataDir, 'backups');
@@ -68,25 +90,42 @@ export class AddonManager {
     this.operation = Promise.resolve();
   }
 
-  async detectDirectory() {
+  async detectDirectory(requestedFlavor = null) {
     const settings = await this.getSettings();
-    const standard = [
-      settings.addonsDir,
-      this.environmentPath,
-      this.canonicalPath,
+    const gameFlavor = GAME_FLAVORS.has(requestedFlavor) ? requestedFlavor : settings.gameFlavor;
+    const isWarmane = gameFlavor === 'warmane';
+    const savedPath = settings.installations[gameFlavor];
+    const environmentPath = isWarmane ? this.warmaneEnvironmentPath : this.environmentPath;
+    const canonicalPath = isWarmane ? this.warmanePath : this.canonicalPath;
+    const standard = (isWarmane ? [
+      savedPath,
+      environmentPath,
+      canonicalPath,
+      ...this.warmaneCandidates,
+      'C:\\Games\\Warmane\\Interface\\AddOns',
+      'C:\\Warmane WoW 3.3.5a\\Interface\\AddOns',
+      'C:\\Program Files\\Warmane\\Interface\\AddOns',
+      'C:\\Program Files (x86)\\Warmane\\Interface\\AddOns'
+    ] : [
+      savedPath,
+      environmentPath,
+      canonicalPath,
       ...this.candidates,
       'C:\\Program Files\\Ascension Launcher\\resources\\ascension-live\\Interface\\AddOns',
       'C:\\Program Files (x86)\\Ascension Launcher\\resources\\ascension-live\\Interface\\AddOns'
-    ].filter(Boolean).map(item => path.resolve(item));
+    ]).filter(Boolean).map(item => path.resolve(item));
     const unique = [...new Set(standard.map(item => item.toLowerCase()))];
     for (const lower of unique) {
       const directory = standard.find(item => item.toLowerCase() === lower);
       if (await isDirectory(directory)) {
-        const source = directory === settings.addonsDir ? 'saved' : directory === this.environmentPath ? 'environment' : directory.toLowerCase() === this.canonicalPath.toLowerCase() ? 'project-ascension' : 'detected';
-        return { directory, exists: true, source };
+        const source = directory === savedPath ? 'saved'
+          : directory === environmentPath ? 'environment'
+            : directory.toLowerCase() === canonicalPath.toLowerCase() ? (isWarmane ? 'warmane' : 'project-ascension')
+              : 'detected';
+        return { directory, exists: true, source, gameFlavor };
       }
     }
-    return { directory: settings.addonsDir || this.canonicalPath, exists: false, source: 'missing' };
+    return { directory: savedPath || canonicalPath, exists: false, source: 'missing', gameFlavor };
   }
 
   async setDirectory(directory) {
@@ -95,7 +134,19 @@ export class AddonManager {
     const resolved = path.resolve(selected);
     if (!(await isDirectory(resolved))) throw new Error('Le dossier AddOns sélectionné est introuvable');
     const settings = await this.getSettings();
-    await writeJsonAtomic(this.settingsFile, { ...settings, addonsDir: resolved, savedAt: new Date().toISOString() });
+    const installations = { ...settings.installations, [settings.gameFlavor]: resolved };
+    await writeJsonAtomic(this.settingsFile, {
+      ...settings, installations,
+      ...(settings.gameFlavor === 'ascension' ? { addonsDir: resolved } : {}),
+      savedAt: new Date().toISOString()
+    });
+    return this.inventory();
+  }
+
+  async setGameFlavor(gameFlavor) {
+    if (!GAME_FLAVORS.has(gameFlavor)) throw new Error('Jeu non pris en charge');
+    const settings = await this.getSettings();
+    await writeJsonAtomic(this.settingsFile, { ...settings, gameFlavor, savedAt: new Date().toISOString() });
     return this.inventory();
   }
 
@@ -105,6 +156,7 @@ export class AddonManager {
       throw new Error('Flux de mises à jour CoA invalide');
     }
     const detection = await this.detectDirectory();
+    if (detection.gameFlavor !== 'ascension') return { written: false, reason: 'ascension-not-selected', count: 0 };
     if (!detection.exists) return { written: false, reason: 'addons-directory-missing', count: 0 };
     const destinations = [];
     const rotationFolder = path.join(detection.directory, 'CoARotationGuide');
@@ -128,8 +180,14 @@ export class AddonManager {
 
   async getSettings() {
     const settings = await readJson(this.settingsFile, {});
+    const gameFlavor = GAME_FLAVORS.has(settings.gameFlavor) ? settings.gameFlavor : DEFAULT_GAME_FLAVOR;
     return {
       ...settings,
+      gameFlavor,
+      installations: {
+        ascension: settings.installations?.ascension || settings.addonsDir || null,
+        warmane: settings.installations?.warmane || null
+      },
       excludedComponents: Array.isArray(settings.excludedComponents)
         ? [...new Set(settings.excludedComponents.filter(component => USER_MANAGEABLE_COMPONENTS.has(component)))]
         : []
@@ -243,7 +301,7 @@ export class AddonManager {
     const detection = await this.detectDirectory();
     const local = detection.exists ? await this.scan(detection.directory) : [];
     const { manifest, cached, error } = await this.getManifest();
-    const managedArtifacts = (manifest?.artifacts || []).filter(item => MANAGED_COMPONENTS.has(item.component));
+    const managedArtifacts = (manifest?.artifacts || []).filter(item => MANAGED_COMPONENTS.has(item.component) && artifactSupportsGame(item, detection.gameFlavor));
     const excludedComponents = await this.getExcludedComponents(detection.exists ? detection.directory : null);
     const managedFolders = new Set(managedArtifacts.map(item => item.targetFolder.toLowerCase()));
     const managed = [];
@@ -264,9 +322,10 @@ export class AddonManager {
         latestBackup: backups[0] || null
       });
     }
-    const regular = local.filter(item => !managedFolders.has(item.folder.toLowerCase())).map(item => ({ ...item, kind: 'ascension' }));
+    const regular = local.filter(item => !managedFolders.has(item.folder.toLowerCase())).map(item => ({ ...item, kind: detection.gameFlavor }));
     return {
       addonsDir: detection.directory, exists: detection.exists, detectionSource: detection.source,
+      gameFlavor: detection.gameFlavor, gameLabel: gameLabel(detection.gameFlavor),
       scannedAt: new Date().toISOString(), localCount: local.length, regular, managed,
       remoteVersion: manifest?.version || null, remoteCached: cached, remoteError: error
     };
@@ -389,17 +448,17 @@ export class AddonManager {
   install(component, onProgress) { return this.runExclusive(() => this.installNow(component, onProgress)); }
   async installNow(component, onProgress = null, includeInventory = true) {
     const report = update => { if (onProgress) onProgress({ component, ...update }); };
-    report({ step: 'detect', message: 'Détection du dossier Project Ascension…', phasePercent: 2 });
     if (!MANAGED_COMPONENTS.has(component)) throw new Error('Composant CoA inconnu');
     const detection = await this.detectDirectory();
-    if (!detection.exists) throw new Error('Aucun dossier Project Ascension AddOns détecté');
+    report({ step: 'detect', message: `Détection du dossier ${gameLabel(detection.gameFlavor)}…`, phasePercent: 2 });
+    if (!detection.exists) throw new Error(`Aucun dossier ${gameLabel(detection.gameFlavor)} AddOns détecté`);
     const excludedComponents = await this.getExcludedComponents(detection.directory);
     if (excludedComponents.has(component)) {
       throw new Error('Cet addon est désinstallé durablement. Utilisez « Réactiver l’installation » avant de l’installer.');
     }
     report({ step: 'manifest', message: 'Lecture du manifeste GitHub…', phasePercent: 5 });
     const { manifest } = await this.getManifest();
-    const artifact = manifest?.artifacts?.find(item => item.component === component);
+    const artifact = manifest?.artifacts?.find(item => item.component === component && artifactSupportsGame(item, detection.gameFlavor));
     if (!artifact) throw new Error('Artefact distant introuvable dans le manifeste');
     if (!/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '')) throw new Error('Nom de dossier cible invalide');
     if (component === 'grid-compat' && !(await isDirectory(path.join(detection.directory, 'Grid')))) {
@@ -473,7 +532,7 @@ export class AddonManager {
       if (component === 'essential-assistant' && preservedEssentialFeed) {
         await writeFile(path.join(destination, 'CoAEssentialUpdates.lua'), preservedEssentialFeed, 'utf8');
       }
-      report({ step: 'enable', message: 'Activation dans les profils Ascension…', phasePercent: 91 });
+      report({ step: 'enable', message: `Activation dans les profils ${gameLabel(detection.gameFlavor)}…`, phasePercent: 91 });
       let enabledProfiles = await this.enableAddonForProfiles(detection.directory, artifact.targetFolder);
       if (component === 'grid-compat') enabledProfiles += await this.enableAddonForProfiles(detection.directory, 'Grid');
       report({ step: 'rescan', message: 'Contrôle final de l’installation…', phasePercent: 96 });
@@ -487,7 +546,7 @@ export class AddonManager {
   async rollbackNow(component, backupId) {
     if (!MANAGED_COMPONENTS.has(component)) throw new Error('Composant CoA inconnu');
     const detection = await this.detectDirectory();
-    if (!detection.exists) throw new Error('Aucun dossier Project Ascension AddOns détecté');
+    if (!detection.exists) throw new Error(`Aucun dossier ${gameLabel(detection.gameFlavor)} AddOns détecté`);
     const excludedComponents = await this.getExcludedComponents(detection.directory);
     if (excludedComponents.has(component)) {
       throw new Error('Cet addon est désinstallé durablement. Réactivez son installation avant de restaurer un backup.');
@@ -508,12 +567,12 @@ export class AddonManager {
   async uninstallNow(component, onProgress = null) {
     const report = update => { if (onProgress) onProgress({ component, ...update }); };
     if (!USER_MANAGEABLE_COMPONENTS.has(component)) throw new Error('Cet addon reste inchangé et ne peut pas être désinstallé ici');
-    report({ step: 'detect', message: 'Détection du dossier Project Ascension…', phasePercent: 5 });
     const detection = await this.detectDirectory();
-    if (!detection.exists) throw new Error('Aucun dossier Project Ascension AddOns détecté');
+    report({ step: 'detect', message: `Détection du dossier ${gameLabel(detection.gameFlavor)}…`, phasePercent: 5 });
+    if (!detection.exists) throw new Error(`Aucun dossier ${gameLabel(detection.gameFlavor)} AddOns détecté`);
     report({ step: 'manifest', message: 'Identification exacte de l’addon géré…', phasePercent: 12 });
     const { manifest } = await this.getManifest();
-    const artifact = manifest?.artifacts?.find(item => item.component === component);
+    const artifact = manifest?.artifacts?.find(item => item.component === component && artifactSupportsGame(item, detection.gameFlavor));
     if (!artifact || !/^[A-Za-z0-9._-]+$/.test(artifact.targetFolder || '')) throw new Error('Addon géré introuvable dans le manifeste');
     const addonsRoot = path.resolve(detection.directory);
     const destination = path.resolve(addonsRoot, artifact.targetFolder);

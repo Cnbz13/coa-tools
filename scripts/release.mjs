@@ -20,7 +20,7 @@ await cp('packaging/windows', managerRoot, { recursive: true });
 await writeFile(path.join(managerRoot, 'package.json'), `${JSON.stringify({ ...pkg, version }, null, 2)}\n`);
 
 const packages = [
-  { name: 'CoA Addon Manager for Windows', component: 'addon-manager', platform: 'win32', arch: 'x64', targetFolder: 'CoAAddonManager', installPath: '.', file: `CoAAddonManager-v${version}-Windows.zip`, source: path.join(stage, 'manager') },
+  { name: 'CoA Addon Manager for Windows', component: 'addon-manager', gameFlavors: ['ascension', 'warmane'], platform: 'win32', arch: 'x64', targetFolder: 'CoAAddonManager', installPath: '.', file: `CoAAddonManager-v${version}-Windows.zip`, source: path.join(stage, 'manager') },
   { name: 'CoA Combat Assistant', component: 'combat-assistant', platform: 'any', arch: 'any', targetFolder: 'CoACombatAssistant', installPath: 'Interface/AddOns', file: `CoACombatAssistant-v${version}.zip`, source: path.resolve('addons', 'CoACombatAssistant', '..') , only: 'CoACombatAssistant' },
   { name: 'CoA UI Manager', component: 'ui-manager', platform: 'any', arch: 'any', targetFolder: 'CoAUIManager', installPath: 'Interface/AddOns', file: `CoAUIManager-v${version}.zip`, source: path.resolve('addons', 'CoAUIManager', '..'), only: 'CoAUIManager' },
   { name: 'CoA Loot Decider', component: 'loot-decider', platform: 'any', arch: 'any', targetFolder: 'CoALootDecider', installPath: 'Interface/AddOns', file: `CoALootDecider-v${version}.zip`, source: path.resolve('addons', 'CoALootDecider', '..'), only: 'CoALootDecider' },
@@ -31,7 +31,9 @@ const packages = [
   { name: 'CoA Heretic Helper', component: 'heretic-helper', contentVersion: '3.9.0', platform: 'any', arch: 'any', targetFolder: 'CoAHereticHelper', installPath: 'Interface/AddOns', file: 'CoAHereticHelper-v3.9.0.zip', source: path.resolve('addons', 'CoAHereticHelper', '..'), only: 'CoAHereticHelper' },
   { name: 'CoA Stormbringer Helper', component: 'stormbringer-helper', contentVersion: '1.1.0', platform: 'any', arch: 'any', targetFolder: 'CoAStormbringerHelper', installPath: 'Interface/AddOns', file: 'CoAStormbringerHelper-v1.1.0.zip', source: path.resolve('addons', 'CoAStormbringerHelper', '..'), only: 'CoAStormbringerHelper' },
   { name: 'CoA Primalist Helper', component: 'primalist-helper', contentVersion: '1.1.0', platform: 'any', arch: 'any', targetFolder: 'CoAPrimalistHelper', installPath: 'Interface/AddOns', file: 'CoAPrimalistHelper-v1.1.0.zip', source: path.resolve('addons', 'CoAPrimalistHelper', '..'), only: 'CoAPrimalistHelper' },
-  { name: 'Grid - Compatibilité CoA', component: 'grid-compat', platform: 'any', arch: 'any', targetFolder: 'GridCoA', installPath: 'Interface/AddOns', file: `GridCoA-v${version}.zip`, source: path.resolve('addons', 'GridCoA', '..'), only: 'GridCoA' }
+  { name: 'Grid - Compatibilité CoA', component: 'grid-compat', platform: 'any', arch: 'any', targetFolder: 'GridCoA', installPath: 'Interface/AddOns', file: `GridCoA-v${version}.zip`, source: path.resolve('addons', 'GridCoA', '..'), only: 'GridCoA' },
+  { name: 'UI Manager - Warmane', component: 'warmane-ui-manager', gameFlavors: ['warmane'], platform: 'any', arch: 'any', targetFolder: 'CoAUIManager', installPath: 'Interface/AddOns', file: `CoAUIManager-Warmane-v${version}.zip`, source: path.resolve('warmane-addons', 'CoAUIManager', '..'), only: 'CoAUIManager' },
+  { name: 'Loot Decider - Warmane', component: 'warmane-loot-decider', gameFlavors: ['warmane'], platform: 'any', arch: 'any', targetFolder: 'CoALootDecider', installPath: 'Interface/AddOns', file: `CoALootDecider-Warmane-v${version}.zip`, source: path.resolve('warmane-addons', 'CoALootDecider', '..'), only: 'CoALootDecider' }
 ];
 
 const artifacts = [];
@@ -47,6 +49,7 @@ for (const item of packages) {
   const digest = createHash('sha256').update(bytes).digest('hex');
   artifacts.push({
     name: item.name, component: item.component, version, platform: item.platform, arch: item.arch,
+    gameFlavors: item.gameFlavors || ['ascension'],
     targetFolder: item.targetFolder, installPath: item.installPath, file: item.file,
     url: `https://github.com/Cnbz13/coa-tools/releases/download/v${version}/${item.file}`,
     sha256: digest, size: (await stat(zipFile)).size,
@@ -57,7 +60,7 @@ for (const item of packages) {
 const manifest = {
   $schema: './schemas/manifest.schema.json',
   schemaVersion: 1, name: 'CoA Tools', version, channel: process.env.RELEASE_CHANNEL || 'stable',
-  publishedAt: process.env.RELEASE_DATE || '2026-08-26T00:00:00.000Z', minimumNodeVersion: '24.14.0',
+  publishedAt: process.env.RELEASE_DATE || new Date().toISOString(), minimumNodeVersion: '24.14.0',
   releaseUrl: `https://github.com/Cnbz13/coa-tools/releases/tag/v${version}`, artifacts
 };
 const manifestText = `${JSON.stringify(manifest, null, 2)}\n`;

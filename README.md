@@ -9,11 +9,11 @@ Suite locale sans télémétrie regroupant les outils CoA suivants :
 - **CoA Essential Assistant** — assistant universel sans rotation : procs, ressources critiques, effets de cible et couverture de groupe, avec une identité visuelle propre à chaque classe ;
 - **CoA Stormbringer Helper** — HUD compact dédié au leveling Stormbringer, aux procs et aux trois spécialisations ;
 - **CoA Primalist Helper** — compagnon adaptatif niveau 1–60 pour les quatre spécialisations Primalist, y compris soin et tank ;
-- **CoA Addon Manager** — application Windows qui détecte Project Ascension et gère automatiquement les addons CoA.
+- **CoA Addon Manager** — application Windows multi-jeu qui mémorise séparément Project Ascension et Warmane Icecrown, puis ne propose que les addons compatibles.
 
 ## Artefacts installables
 
-Chaque release publie douze ZIP :
+Chaque release publie quatorze ZIP :
 
 - `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
 - `CoACombatAssistant-vX.Y.Z.zip` : extrayez le dossier `CoACombatAssistant` dans le dossier `Interface/AddOns` de Project Ascension ;
@@ -27,8 +27,18 @@ Chaque release publie douze ZIP :
 - `CoAStormbringerHelper-v1.1.0.zip` : moteur Stormbringer du niveau 1 à 60, avec détection Lightning/Maelstrom/Wind, Static, procs, summons et décisions transmises au HUD universel ;
 - `CoAPrimalistHelper-v1.1.0.zip` : moteur Primalist niveau 1–60 pour Wildwalker/Geomancy/Grovekeeper/Mountain King, Rage, Earthshaping, procs, familier, soins et décisions transmises au HUD universel ;
 - `GridCoA-vX.Y.Z.zip` : compagnon du véritable Grid ; il détecte les dissipations apprises et réserve l’icône centrale aux seuls affaiblissements que le personnage peut retirer.
+- `CoAUIManager-Warmane-vX.Y.Z.zip` : édition Warmane Icecrown du gestionnaire de positions, profils, échelle et alpha. Elle peut aussi masquer séparément le son vocal et les messages rouges d’échec de sorts sans cacher les erreurs Lua ;
+- `CoALootDecider-Warmane-vX.Y.Z.zip` : édition Warmane WotLK couvrant les dix classes et leurs arbres de talents, avec variantes Feral tank/DPS et Blood tank/DPS, comparaison des sacs, banque, marchands, butin et tooltips.
 
-Les addons ciblent strictement le client Project Ascension / WoW 3.3.5a (`## Interface: 30300`) et Lua 5.1.
+Les addons ciblent strictement leurs clients WoW 3.3.5a (`## Interface: 30300`) et Lua 5.1. Les éditions Ascension et Warmane sont empaquetées séparément afin de ne jamais mélanger leurs classes, talents ou règles de stuff.
+
+## Éditions Warmane Icecrown
+
+Dans l’onglet **Addon Manager**, choisissez **Warmane Icecrown**. Le manager détecte les emplacements usuels ou permet de sélectionner une fois le dossier qui contient `Interface\AddOns`; ce chemin reste mémorisé indépendamment du chemin Ascension. Seuls **UI Manager - Warmane** et **Loot Decider - Warmane** sont alors proposés.
+
+UI Manager conserve `/cui unlock`, les profils global/personnage, les frames personnalisées, le bouton de minicarte et l’anti-reset hors combat. Le panneau contient deux réglages distincts pour le son d’échec et les messages rouges ; `/cui quiet on|off` bascule les deux ensemble.
+
+Loot Decider détermine la classe et l’arbre actif avec les API talents WotLK, s’adapte au niveau d’armure disponible avant/après le niveau 40 et compare aussi les objets des PNJ, de la banque et des sacs. Les spécialisations ambiguës se règlent avec `/cld role tank|dps|auto`. Par prudence, les conseils visuels sont actifs dès l’installation mais les jets NEED/PASS automatiques doivent être explicitement activés avec `/cld auto`.
 
 ## Performances en jeu
 
@@ -122,9 +132,9 @@ Commandes complémentaires : `/cld talents` affiche l’arbre, le nombre de tale
 
 Les coffres verrouillés proposés dans une fenêtre de jet constituent une exception aux objets non équipables : Loot Decider choisit **NEED** lorsqu’il est disponible, sinon **CUPIDITÉ**, au lieu de les passer. La règle est active par défaut et peut être inversée avec `/cld chests` ou `/cld coffres`.
 
-## Gestion automatique des addons Ascension
+## Gestion automatique des addons Ascension et Warmane
 
-Le manager privilégie automatiquement `C:\Ascension\Launcher\resources\ascension-live\Interface\AddOns`, puis le dernier chemin choisi et les installations usuelles. La configuration avancée permet de sélectionner et mémoriser un autre dossier `Interface\AddOns`.
+Le manager privilégie automatiquement `C:\Ascension\Launcher\resources\ascension-live\Interface\AddOns` pour Ascension et recherche les installations usuelles de Warmane. Un sélecteur change de jeu sans perdre le chemin de l’autre installation. La configuration avancée permet de sélectionner et mémoriser n’importe quel dossier `Interface\AddOns`.
 
 Chaque sous-dossier qui contient un fichier `.toc` est scanné réellement. Le nom du dossier ainsi que les champs `Title`, `Version` et `Notes` sont affichés. Les addons Ascension existants restent distincts de CoA Combat Assistant et CoA UI Manager, qui sont toujours proposés depuis le manifeste GitHub.
 
@@ -182,7 +192,7 @@ Pour publier :
 1. Mettre à jour `version` dans `package.json`, `package-lock.json`, `manifest.json` et les métadonnées `.toc`.
 2. Exécuter `npm run release` et reporter les tailles et SHA-256 obtenus dans le manifeste versionné.
 3. Pousser le commit puis le tag correspondant.
-4. Le workflow `Release` teste, crée les dix ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
+4. Le workflow `Release` teste, crée les quatorze ZIP puis publie les ZIP, `SHA256SUMS.txt` et `manifest.json`.
 
 Le workflow peut aussi être lancé manuellement avec une version. Le client utilise par défaut le manifeste de la dernière release ; `COA_UPDATE_MANIFEST` permet de cibler un autre canal. `COA_WATCH_REPORT` permet de remplacer l’URL du rapport de veille.
 

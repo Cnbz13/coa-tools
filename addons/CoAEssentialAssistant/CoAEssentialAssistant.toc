@@ -2,7 +2,7 @@
 ## Title: CoA Essential Assistant
 ## Notes: Assistant visuel universel de procs, ressources et mecanismes essentiels, sans rotation ni automatisation.
 ## Author: Cnbz13
-## Version: 1.22.1
+## Version: 1.23.0
 ## SavedVariables: CoAEssentialAssistantDB
 
 CoAEssentialData.lua

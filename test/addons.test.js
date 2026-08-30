@@ -211,7 +211,7 @@ test('a manually selected AddOns path is remembered when standard detection fail
     await assert.rejects(first.setDirectory(''), /Sélectionnez un dossier/);
     await first.setDirectory(selected);
     const second = new AddonManager(options);
-    assert.deepEqual(await second.detectDirectory(), { directory: selected, exists: true, source: 'saved' });
+    assert.deepEqual(await second.detectDirectory(), { directory: selected, exists: true, source: 'saved', gameFlavor: 'ascension' });
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -225,9 +225,9 @@ test('a manually selected AddOns path overrides another valid Ascension installa
     await mkdir(selected, { recursive: true });
     const manager = new AddonManager({ dataDir, canonicalPath: canonical, environmentPath: null, manifestUrl: 'http://127.0.0.1:1/manifest.json' });
 
-    assert.deepEqual(await manager.detectDirectory(), { directory: canonical, exists: true, source: 'project-ascension' });
+    assert.deepEqual(await manager.detectDirectory(), { directory: canonical, exists: true, source: 'project-ascension', gameFlavor: 'ascension' });
     await manager.setDirectory(selected);
-    assert.deepEqual(await manager.detectDirectory(), { directory: selected, exists: true, source: 'saved' });
+    assert.deepEqual(await manager.detectDirectory(), { directory: selected, exists: true, source: 'saved', gameFlavor: 'ascension' });
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 

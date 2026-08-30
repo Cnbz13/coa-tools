@@ -20,7 +20,12 @@ const manifestUrl = process.env.COA_UPDATE_MANIFEST || 'https://github.com/Cnbz1
 await ensureDir(dataDir);
 
 const combat = new CombatAssistant();
-const addons = new AddonManager({ dataDir, manifestUrl, environmentPath: process.env.COA_ADDONS_DIR });
+const addons = new AddonManager({
+  dataDir,
+  manifestUrl,
+  environmentPath: process.env.COA_ADDONS_DIR,
+  warmaneEnvironmentPath: process.env.WARMANE_ADDONS_DIR
+});
 const addonOperations = new AddonOperationRegistry(addons);
 const coaWatch = new CoaWatchService({
   dataDir,
@@ -49,6 +54,7 @@ async function api(request, response, pathname) {
   if (request.method === 'PUT' && pathname === '/api/ui') return json(response, 200, await ui.update(await body(request)));
   if (request.method === 'GET' && pathname === '/api/addons') return json(response, 200, await addons.inventory());
   if (request.method === 'PUT' && pathname === '/api/addons/path') return json(response, 200, await addons.setDirectory((await body(request)).path));
+  if (request.method === 'PUT' && pathname === '/api/addons/game-flavor') return json(response, 200, await addons.setGameFlavor((await body(request)).gameFlavor));
   if (request.method === 'POST' && pathname === '/api/addons/select-path') {
     const current = await addons.detectDirectory();
     const selected = await selectWindowsDirectory(current.directory);

@@ -16,7 +16,7 @@ Chaque nouvelle release publie trois ZIP :
 
 - `CoAAddonManager-vX.Y.Z-Windows.zip` : extrayez le dossier puis double-cliquez sur `CoAAddonManager.cmd`. Au premier lancement, le bootstrap Windows télécharge le moteur Node.js officiel, vérifie son SHA-256 et ouvre le gestionnaire. Si `4173` est occupé, un port libre est choisi automatiquement ;
 - `CoAUIManager-Warmane-vX.Y.Z.zip` : édition Warmane Icecrown du gestionnaire de positions, profils, échelle et alpha. Elle peut aussi masquer séparément le son vocal et les messages rouges d’échec de sorts sans cacher les erreurs Lua ;
-- `CoALootDecider-Warmane-vX.Y.Z.zip` : édition Warmane WotLK couvrant les dix classes et leurs arbres de talents, avec variantes Feral tank/DPS et Blood tank/DPS, comparaison des sacs, banque, marchands, butin et tooltips.
+- `CoALootDecider-Warmane-vX.Y.Z.zip` : édition Warmane WotLK couvrant les dix classes et leurs arbres de talents, avec variantes Feral tank/DPS et Blood tank/DPS, comparaison de l'équipement, de la capacité des sacs, de la banque, des marchands et du butin. Les tooltips expliquent le verdict ; maintenir `MAJ` affiche le calcul détaillé.
 
 Les deux addons ciblent strictement WoW 3.3.5a (`## Interface: 30300`) et Lua 5.1.
 

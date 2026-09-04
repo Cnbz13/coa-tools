@@ -162,7 +162,11 @@ local EQUIP_SLOTS = {
     INVTYPE_RANGEDRIGHT = { 18 },
     INVTYPE_THROWN = { 18 },
     INVTYPE_RELIC = { 18 },
-    INVTYPE_TABARD = { 19 }
+    INVTYPE_TABARD = { 19 },
+    -- Les quatre sacs équipés sont de vrais emplacements d'inventaire en
+    -- 3.3.5a. Ils utilisent une logique de capacité dédiée, pas le score de
+    -- statistiques de l'équipement.
+    INVTYPE_BAG = { 20, 21, 22, 23 }
 }
 
 -- GetItemInfoInstant utilise les sous-classes d'armure classiques :
@@ -259,7 +263,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     if CoALootDeciderDB.needLockedChests == nil then CoALootDeciderDB.needLockedChests = true end
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.23.1-warmane-wotlk"
+    CoALootDeciderDB.version = "1.23.2-warmane-wotlk"
 end
 
 local function ReadItemStats(itemLink)
@@ -299,6 +303,42 @@ local function ReadWeaponSpeed(itemLink)
     end
     weaponScanner:Hide()
     return nil
+end
+
+local bagScanner = CreateFrame("GameTooltip", "CoALootDeciderBagScanner", nil, "GameTooltipTemplate")
+bagScanner:SetOwner(UIParent, "ANCHOR_NONE")
+local bagCapacityCache = {}
+
+-- WotLK ne fournit pas la capacité d'un sac non équipé via GetItemInfo.
+-- Le tooltip, lui, contient toujours "16 Slot Bag" (ou son équivalent
+-- français). Le parseur reste volontairement court et indépendant de Retail.
+local function ReadBagCapacity(itemLink)
+    if not itemLink then return nil end
+    if bagCapacityCache[itemLink] ~= nil then
+        return bagCapacityCache[itemLink] ~= false and bagCapacityCache[itemLink] or nil
+    end
+    bagScanner:ClearLines()
+    if not pcall(bagScanner.SetHyperlink, bagScanner, itemLink) then
+        bagScanner:Hide()
+        return nil
+    end
+    local capacity = nil
+    local line
+    for line = 1, bagScanner:NumLines() do
+        local left = _G["CoALootDeciderBagScannerTextLeft" .. line]
+        local right = _G["CoALootDeciderBagScannerTextRight" .. line]
+        local text = Lower((left and left:GetText() or "") .. " " .. (right and right:GetText() or ""))
+        local value = string.match(text, "(%d+)%s+slot")
+            or string.match(text, "sac%s+[^%d]*(%d+)%s+emplacement")
+            or string.match(text, "(%d+)%s+emplacement")
+        if value then
+            capacity = tonumber(value)
+            break
+        end
+    end
+    bagScanner:Hide()
+    bagCapacityCache[itemLink] = capacity or false
+    return capacity
 end
 
 -- GetItemInfoInstant n'est pas une API WotLK d'origine. Ascension peut la
@@ -380,7 +420,8 @@ local function ItemData(itemLink)
         equipLoc = equipLoc,
         texture = texture,
         stats = ReadItemStats(link or itemLink),
-        weaponSpeed = isWeapon and ReadWeaponSpeed(link or itemLink) or nil
+        weaponSpeed = isWeapon and ReadWeaponSpeed(link or itemLink) or nil,
+        bagCapacity = equipLoc == "INVTYPE_BAG" and ReadBagCapacity(link or itemLink) or nil
     }
     -- GetItemStats et les scanners de tooltip sont parmi les appels les plus
     -- couteux du client 3.3.5. Les donnees d'un lien complet sont immuables :
@@ -852,7 +893,7 @@ local function ScanEquipment()
     local equippedStats = {}
     local items = {}
     local slot
-    for slot = 1, 19 do
+    for slot = 1, 23 do
         local link = GetInventoryItemLink and GetInventoryItemLink("player", slot) or nil
         if link then
             local data = ItemData(link)
@@ -1275,15 +1316,157 @@ local function EquipFamily(equipLoc)
     return equipLoc
 end
 
+local function BagFamily(data)
+    if not data or data.equipLoc ~= "INVTYPE_BAG" then return nil end
+    local subClassID = tonumber(data.subClassID)
+    if subClassID == 0 then return "GENERAL" end
+    if subClassID then return "SPECIAL:" .. tostring(subClassID) end
+    local subtype = Lower(data.itemSubType)
+    if subtype == "bag" or subtype == "sac" or subtype == "container" or subtype == "conteneur" then
+        return "GENERAL"
+    end
+    if subtype ~= "" then return "SPECIAL:" .. subtype end
+    return nil
+end
+
+-- Détermine le plus petit sac qui resterait dans le meilleur ensemble que le
+-- personnage possède déjà. Les sacs de réserve sont pris en compte : on ne
+-- NEED donc pas un 18 places si quatre sacs de 20 places attendent déjà dans
+-- l'inventaire. Un exemplaire survolé dans le sac peut être exclu du calcul.
+local function BagBaselineFor(candidate, excludeOwnedCopy)
+    local family = BagFamily(candidate)
+    if family ~= "GENERAL" then
+        return nil, nil, nil, nil, "sac spécialisé : choix manuel conseillé"
+    end
+
+    local replaceableSlots = 0
+    local owned = {}
+    local slot
+    for slot = 20, 23 do
+        local data = profile.items[slot]
+        if not data then
+            replaceableSlots = replaceableSlots + 1
+        elseif BagFamily(data) == family then
+            replaceableSlots = replaceableSlots + 1
+            table.insert(owned, {
+                capacity = tonumber(data.bagCapacity) or 0,
+                link = data.link,
+                data = data,
+                source = "equipe"
+            })
+        end
+    end
+    if replaceableSlots <= 0 then
+        return nil, nil, nil, nil, "aucun emplacement de sac général remplaçable"
+    end
+
+    local skippedCandidate = false
+    local _, data
+    for _, data in ipairs(profile.bagItems or {}) do
+        if BagFamily(data) == family then
+            if excludeOwnedCopy and not skippedCandidate and data.link == candidate.link then
+                skippedCandidate = true
+            else
+                table.insert(owned, {
+                    capacity = tonumber(data.bagCapacity) or 0,
+                    link = data.link,
+                    data = data,
+                    source = "sac"
+                })
+            end
+        end
+    end
+    table.sort(owned, function(a, b) return (a.capacity or 0) > (b.capacity or 0) end)
+    local baseline = owned[replaceableSlots]
+    if baseline then
+        return baseline.capacity or 0, baseline.link, baseline.data, baseline.source
+    end
+    return 0, nil, nil, "emplacement vide"
+end
+
+local function AnalyzeBag(candidate, excludeOwnedCopy)
+    local capacity = tonumber(candidate and candidate.bagCapacity)
+    if not capacity or capacity <= 0 then
+        return {
+            need = false,
+            candidate = candidate,
+            reason = "capacité du sac introuvable : vérification manuelle recommandée",
+            confidence = "basse",
+            manual = true,
+            bagUpgrade = true,
+            nonEquipable = false
+        }
+    end
+
+    local currentCapacity, currentLink, currentData, currentSource, problem =
+        BagBaselineFor(candidate, excludeOwnedCopy)
+    if currentCapacity == nil then
+        return {
+            need = false,
+            candidate = candidate,
+            candidateScore = capacity,
+            reason = problem or "comparaison de sac impossible",
+            confidence = "moyenne",
+            manual = true,
+            bagUpgrade = true,
+            bagCapacity = capacity,
+            nonEquipable = false
+        }
+    end
+
+    local gain = capacity - currentCapacity
+    local percent = currentCapacity > 0 and (gain / currentCapacity * 100) or (capacity > 0 and 100 or 0)
+    local need = gain > 0
+    local reason
+    if need then
+        reason = "+" .. tostring(gain) .. " emplacement(s) : " .. tostring(capacity)
+            .. " contre " .. tostring(currentCapacity) .. " pour ton plus petit sac utile"
+    elseif gain == 0 then
+        reason = "même capacité que ton ensemble actuel : " .. tostring(capacity) .. " emplacements"
+    else
+        reason = tostring(math.abs(gain)) .. " emplacement(s) de moins que ton ensemble actuel"
+    end
+    return {
+        need = need,
+        candidate = candidate,
+        candidateScore = capacity,
+        currentScore = currentCapacity,
+        currentLevel = currentData and currentData.itemLevel or 0,
+        currentLink = currentLink,
+        currentSource = currentSource,
+        currentStats = {},
+        percent = percent,
+        threshold = 0,
+        effectiveThreshold = 0,
+        thresholdSource = "capacité de sac",
+        fitScore = 100,
+        currentFitScore = currentData and 100 or 0,
+        fitTier = "PRATIQUE",
+        fitBlocked = false,
+        reason = reason,
+        manual = false,
+        confidence = "haute",
+        bagUpgrade = true,
+        bagCapacity = capacity,
+        currentBagCapacity = currentCapacity,
+        slotGain = gain,
+        nonEquipable = false
+    }
+end
+
 local function SameOwnedSlot(candidate, owned)
     return candidate and owned and EquipFamily(candidate.equipLoc) == EquipFamily(owned.equipLoc)
 end
 
 local function OwnedBaselineFor(candidate, equippedScore, equippedLevel, equippedLink, equippedData, excludeOwnedCopy)
     local pool = {}
+    local skippedOwnedCopy = false
     local function AddOwned(data, source)
         if not data or not SameOwnedSlot(candidate, data) then return end
-        if excludeOwnedCopy and data.link == candidate.link and source == "sac" then return end
+        if excludeOwnedCopy and not skippedOwnedCopy and data.link == candidate.link and source == "sac" then
+            skippedOwnedCopy = true
+            return
+        end
         table.insert(pool, { data = data, score = ScoreItem(data), source = source })
     end
 
@@ -1392,6 +1575,9 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
             nonEquipable = true,
             lockedChest = true,
         }
+    end
+    if candidate.equipLoc == "INVTYPE_BAG" then
+        return AnalyzeBag(candidate, excludeOwnedCopy)
     end
     if not EQUIP_SLOTS[candidate.equipLoc] then
         return {
@@ -1505,6 +1691,7 @@ CoALootDeciderAPI = {
     FitScore = FitScore,
     ArmorCompatibility = ArmorCompatibility,
     PrimaryFitScore = PrimaryFitScore,
+    ReadBagCapacity = ReadBagCapacity,
     Round = Round
 }
 
@@ -1828,6 +2015,7 @@ local function PrintHelp()
     Chat("/cld talents - talents, spellbook et confiance detectes")
     Chat("/cld explain - explique les ajustements adaptatifs")
     Chat("/cld gear - meilleurs objets des sacs, banque et marchand")
+    Chat("Survole un objet et maintiens MAJ pour voir pourquoi il est meilleur ou moins bon")
     Chat("/cld visuals - active/desactive les contours et tooltips")
     Chat("/cld downgrades - affiche/masque les objets moins bons")
     Chat("/cld chests - NEED les coffres verrouillés, CUPIDITÉ si NEED est indisponible")

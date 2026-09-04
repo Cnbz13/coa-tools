@@ -48,6 +48,34 @@ test('Warmane Loot Decider covers every WotLK class and talent tree', async () =
   assert.match(profiles, /Blood DPS/);
 });
 
+test('Warmane Loot Decider evaluates bag capacity and explains item choices in tooltips', async () => {
+  const engine = await readFile('warmane-addons/CoALootDecider/CoALootDecider.lua', 'utf8');
+  const advisor = await readFile('warmane-addons/CoALootDecider/CoALootAdvisor.lua', 'utf8');
+
+  for (const required of [
+    'INVTYPE_BAG = { 20, 21, 22, 23 }', 'CoALootDeciderBagScanner',
+    'ReadBagCapacity', 'BagFamily', 'BagBaselineFor', 'AnalyzeBag',
+    'for slot = 1, 23 do', 'profile.bagItems', 'slotGain = gain',
+    'capacité du sac introuvable', 'sac spécialisé : choix manuel conseillé'
+  ]) assert.ok(engine.includes(required), `missing bag-upgrade feature: ${required}`);
+
+  assert.match(engine, /if candidate\.equipLoc == "INVTYPE_BAG" then\s+return AnalyzeBag\(candidate, excludeOwnedCopy\)/,
+    'bags must be evaluated before the generic equipment scorer');
+  assert.match(engine, /replaceableSlots[\s\S]+profile\.bagItems[\s\S]+owned\[replaceableSlots\]/,
+    'the baseline must account for equipped bags, empty slots and spare bags already owned');
+  assert.match(engine, /excludeOwnedCopy and not skippedCandidate/,
+    'hovering an owned bag must exclude exactly that copy from its own comparison');
+  assert.match(engine, /excludeOwnedCopy and not skippedOwnedCopy[\s\S]+skippedOwnedCopy = true/,
+    'owned equipment comparisons must also exclude one matching copy, not every duplicate');
+
+  for (const required of [
+    'INVTYPE_BAG = "Sac"', 'SAC PLUS GRAND', 'Capacité', 'slotGain',
+    'Ce qui change :', 'Pourquoi :', 'Maintiens MAJ', 'Détail du calcul',
+    'Non valorisé pour ta spé', 'Gain nécessaire pour NEED',
+    'TooltipOwnedBagItem', 'focus.bag', 'focus.slot', 'IsShiftKeyDown', 'CoALootAdvisorDetailed'
+  ]) assert.ok(advisor.includes(required), `missing detailed tooltip feature: ${required}`);
+});
+
 test('Warmane UI Manager hides only gameplay spell failures and keeps the setting reversible', async () => {
   const ui = await readFile('warmane-addons/CoAUIManager/CoAUIManager.lua', 'utf8');
   assert.match(ui, /Sound_EnableErrorSpeech/);

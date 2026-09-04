@@ -52,7 +52,8 @@ local SLOT_NAMES = {
     INVTYPE_RANGED = "Distance",
     INVTYPE_RANGEDRIGHT = "Distance",
     INVTYPE_THROWN = "Arme de jet",
-    INVTYPE_RELIC = "Relique"
+    INVTYPE_RELIC = "Relique",
+    INVTYPE_BAG = "Sac"
 }
 
 local SLOT_ORDER = {
@@ -62,7 +63,7 @@ local SLOT_ORDER = {
     "INVTYPE_TRINKET", "INVTYPE_2HWEAPON", "INVTYPE_WEAPONMAINHAND",
     "INVTYPE_WEAPON", "INVTYPE_WEAPONOFFHAND", "INVTYPE_SHIELD",
     "INVTYPE_HOLDABLE", "INVTYPE_RANGED", "INVTYPE_RANGEDRIGHT",
-    "INVTYPE_THROWN", "INVTYPE_RELIC"
+    "INVTYPE_THROWN", "INVTYPE_RELIC", "INVTYPE_BAG"
 }
 
 local SLOT_RANK = {}
@@ -181,7 +182,9 @@ local function PaintButton(button, link, excludeOwnedCopy)
     if analysis.manual then
         SetOverlayState(overlay, "?", "", 1.00, 0.75, 0.10)
     elseif analysis.need then
-        SetOverlayState(overlay, "+", ShortPercent(analysis.percent), 0.15, 1.00, 0.25)
+        local badge = analysis.bagUpgrade and ("+" .. tostring(analysis.slotGain or 0))
+            or ShortPercent(analysis.percent)
+        SetOverlayState(overlay, "+", badge, 0.15, 1.00, 0.25)
     elseif (tonumber(analysis.percent) or 0) > 0 then
         SetOverlayState(overlay, "~", ShortPercent(analysis.percent), 1.00, 0.75, 0.10)
     elseif EnsureSettings().showDowngrades and (tonumber(analysis.percent) or 0) < -0.5 then
@@ -264,6 +267,8 @@ local function WeightedStatDifferences(analysis)
                     key = key,
                     name = display[key] or key,
                     value = difference,
+                    weight = weight,
+                    weighted = difference * weight,
                     impact = math.abs(difference * weight)
                 })
             end
@@ -273,15 +278,45 @@ local function WeightedStatDifferences(analysis)
     return result
 end
 
+local function IgnoredCandidateStats(analysis)
+    local result = {}
+    local profile = api.GetProfile()
+    local display = api.GetDisplayStats()
+    if not profile or not profile.weights or not analysis or not analysis.candidate then return result end
+    local key, value
+    for key, value in pairs(analysis.candidate.stats or {}) do
+        value = tonumber(value) or 0
+        if value > 0 and (tonumber(profile.weights[key]) or 0) <= 0 then
+            table.insert(result, (display[key] or key) .. " " .. tostring(value))
+        end
+    end
+    table.sort(result)
+    return result
+end
+
+local function TooltipOwnedBagItem(link)
+    if not link or type(GetMouseFocus) ~= "function" then return false end
+    local focus = GetMouseFocus()
+    if not focus or not focus.GetID or not focus.GetParent then return false end
+    local parent = focus:GetParent()
+    local bag = focus.bag or (parent and parent.GetID and parent:GetID() or nil)
+    local slot = focus.slot or focus:GetID()
+    if bag == nil or slot == nil or type(GetContainerItemLink) ~= "function" then return false end
+    local ok, focusedLink = pcall(GetContainerItemLink, bag, slot)
+    return ok and focusedLink == link
+end
+
 local function AddTooltipAnalysis(tooltip)
     local settings = EnsureSettings()
     if not settings.enabled or not settings.tooltip then return end
     if tooltip.CoALootAdvisorBusy then return end
 
     local _, link = tooltip:GetItem()
-    if not link or tooltip.CoALootAdvisorLink == link then return end
+    local detailed = type(IsShiftKeyDown) == "function" and IsShiftKeyDown() or false
+    if not link or (tooltip.CoALootAdvisorLink == link
+        and tooltip.CoALootAdvisorDetailed == detailed) then return end
     tooltip.CoALootAdvisorBusy = true
-    local analysis = Analyze(link)
+    local analysis = Analyze(link, TooltipOwnedBagItem(link))
     if not analysis then
         tooltip.CoALootAdvisorBusy = false
         return
@@ -307,6 +342,18 @@ local function AddTooltipAnalysis(tooltip)
         local verdict = analysis.need and "À RÉCUPÉRER" or "RÈGLE COFFRE DÉSACTIVÉE"
         tooltip:AddLine(verdict, analysis.need and 0.20 or 1.00, analysis.need and 1.00 or 0.35, 0.35)
         tooltip:AddLine(analysis.reason or "Coffre verrouillé", 0.65, 0.82, 1.00, true)
+    elseif analysis.manual then
+        tooltip:AddDoubleLine("VERIFICATION MANUELLE", ShortPercent(analysis.percent),
+            1.00, 0.75, 0.10, 1.00, 0.75, 0.10)
+        tooltip:AddLine(analysis.reason or "Effet non chiffre", 1.00, 0.82, 0.35, true)
+    elseif analysis.bagUpgrade and analysis.candidateScore then
+        local gain = tonumber(analysis.slotGain) or 0
+        local verdict = gain > 0 and "SAC PLUS GRAND" or (gain == 0 and "CAPACITÉ IDENTIQUE" or "SAC PLUS PETIT")
+        local red, green, blue = gain > 0 and 0.20 or 1.00, gain > 0 and 1.00 or 0.55, gain > 0 and 0.30 or 0.25
+        tooltip:AddDoubleLine(verdict, (gain > 0 and "+" or "") .. tostring(gain) .. " place(s)",
+            red, green, blue, red, green, blue)
+        tooltip:AddDoubleLine("Capacité", tostring(analysis.bagCapacity or 0)
+            .. " contre " .. tostring(analysis.currentBagCapacity or 0), 0.80, 0.85, 0.95, 1, 1, 1)
     elseif not analysis.candidateScore then
         tooltip:AddLine("INCOMPATIBLE", 1.00, 0.20, 0.20)
         tooltip:AddLine(analysis.reason or "Comparaison impossible", 1.00, 0.55, 0.55, true)
@@ -314,10 +361,6 @@ local function AddTooltipAnalysis(tooltip)
             tooltip:AddDoubleLine("Armure attendue", tostring(profile.armorRule.label),
                 0.75, 0.75, 0.75, 0.95, 0.95, 0.95)
         end
-    elseif analysis.manual then
-        tooltip:AddDoubleLine("VERIFICATION MANUELLE", ShortPercent(analysis.percent),
-            1.00, 0.75, 0.10, 1.00, 0.75, 0.10)
-        tooltip:AddLine(analysis.reason or "Effet non chiffre", 1.00, 0.82, 0.35, true)
     else
         local positive = analysis.need
         local partial = not positive and (tonumber(analysis.percent) or 0) > 0
@@ -341,11 +384,14 @@ local function AddTooltipAnalysis(tooltip)
 
     if analysis.currentLink then
         tooltip:AddLine("Remplace : " .. analysis.currentLink, 0.75, 0.75, 0.75)
+    elseif analysis.bagUpgrade and analysis.candidateScore and not analysis.manual
+        and tonumber(analysis.currentBagCapacity) == 0 then
+        tooltip:AddLine("Remplit un emplacement de sac disponible", 0.20, 1.00, 0.30)
     elseif analysis.candidateScore then
         tooltip:AddLine("Emplacement actuellement vide", 0.20, 1.00, 0.30)
     end
 
-    if analysis.candidateScore then
+    if analysis.candidateScore and not analysis.bagUpgrade then
         tooltip:AddDoubleLine("Adequation", tostring(analysis.fitScore or 0) .. "/100 "
                 .. tostring(analysis.fitTier or ""),
             0.70, 0.82, 1.00, 0.85, 0.90, 1.00)
@@ -365,11 +411,47 @@ local function AddTooltipAnalysis(tooltip)
             local prefix = stat.value > 0 and "+" or ""
             table.insert(parts, prefix .. stat.value .. " " .. stat.name)
         end
-        if #parts > 0 then tooltip:AddLine(table.concat(parts, "  "), 0.82, 0.82, 0.82, true) end
+        if #parts > 0 then
+            tooltip:AddLine("Ce qui change : " .. table.concat(parts, "  "), 0.82, 0.82, 0.82, true)
+        end
+        tooltip:AddLine("Pourquoi : " .. tostring(analysis.reason or "comparaison par statistiques utiles"),
+            0.65, 0.88, 1.00, true)
         tooltip:AddLine("Confiance : " .. tostring(analysis.confidence or "inconnue"), 0.55, 0.75, 0.90)
+
+        if detailed then
+            tooltip:AddLine(" ")
+            tooltip:AddLine("Détail du calcul", 1.00, 0.82, 0.20)
+            local detailIndex, stat
+            for detailIndex, stat in ipairs(differences) do
+                if detailIndex > 6 then break end
+                local prefix = stat.value > 0 and "+" or ""
+                local weightedPrefix = stat.weighted > 0 and "+" or ""
+                tooltip:AddDoubleLine(prefix .. stat.value .. " " .. stat.name,
+                    "poids " .. api.Round(stat.weight, 2) .. " = " .. weightedPrefix
+                        .. api.Round(stat.weighted, 1) .. " points",
+                    stat.value > 0 and 0.35 or 1.00, stat.value > 0 and 1.00 or 0.35, 0.35,
+                    0.78, 0.78, 0.78)
+            end
+            local ignored = IgnoredCandidateStats(analysis)
+            if #ignored > 0 then
+                local ignoredText = {}
+                for detailIndex = 1, math.min(#ignored, 4) do table.insert(ignoredText, ignored[detailIndex]) end
+                tooltip:AddLine("Non valorisé pour ta spé : " .. table.concat(ignoredText, ", "),
+                    1.00, 0.55, 0.35, true)
+            end
+            tooltip:AddDoubleLine("Gain nécessaire pour NEED",
+                tostring(api.Round(analysis.effectiveThreshold or analysis.threshold or 0, 1)) .. "%",
+                0.70, 0.70, 0.70, 1.00, 0.82, 0.20)
+        else
+            tooltip:AddLine("Maintiens MAJ pour afficher le calcul détaillé.", 0.55, 0.75, 0.90)
+        end
+    elseif analysis.bagUpgrade and not analysis.manual then
+        tooltip:AddLine("Pourquoi : " .. tostring(analysis.reason or "comparaison de capacité"),
+            0.65, 0.88, 1.00, true)
     end
 
     tooltip.CoALootAdvisorLink = link
+    tooltip.CoALootAdvisorDetailed = detailed
     tooltip.CoALootAdvisorBusy = false
     tooltip:Show()
 end
@@ -377,12 +459,26 @@ end
 local function ClearTooltipAnalysis(tooltip)
     tooltip.CoALootAdvisorLink = nil
     tooltip.CoALootAdvisorBusy = nil
+    tooltip.CoALootAdvisorDetailed = nil
+    tooltip.CoALootAdvisorDetailElapsed = nil
 end
 
 local function HookTooltip(tooltip)
     if not tooltip or tooltipHooks[tooltip] or not tooltip.HookScript then return end
     tooltip:HookScript("OnTooltipSetItem", AddTooltipAnalysis)
     tooltip:HookScript("OnTooltipCleared", ClearTooltipAnalysis)
+    tooltip:HookScript("OnUpdate", function(self, elapsed)
+        self.CoALootAdvisorDetailElapsed = (self.CoALootAdvisorDetailElapsed or 0) + elapsed
+        if self.CoALootAdvisorDetailElapsed < 0.15 then return end
+        self.CoALootAdvisorDetailElapsed = 0
+        if self.CoALootAdvisorBusy or not self.IsShown or not self:IsShown() then return end
+        local _, currentLink = self:GetItem()
+        local nowDetailed = type(IsShiftKeyDown) == "function" and IsShiftKeyDown() or false
+        if currentLink and self.CoALootAdvisorDetailed ~= nowDetailed then
+            self.CoALootAdvisorLink = nil
+            pcall(self.SetHyperlink, self, currentLink)
+        end
+    end)
     tooltipHooks[tooltip] = true
 end
 
@@ -742,7 +838,9 @@ local function RefreshWindow()
             if analysis.manual then
                 row.delta:SetText("|cffffbf19? MANUEL|r")
             elseif analysis.need then
-                row.delta:SetText("|cff33ff4c+ " .. ShortPercent(analysis.percent) .. "|r")
+                local gainText = analysis.bagUpgrade and ("+" .. tostring(analysis.slotGain or 0) .. " places")
+                    or ShortPercent(analysis.percent)
+                row.delta:SetText("|cff33ff4c+ " .. gainText .. "|r")
             elseif (analysis.percent or 0) > 0 then
                 row.delta:SetText("|cffffbf19~ " .. ShortPercent(analysis.percent) .. "|r")
             else
@@ -918,6 +1016,7 @@ local function BuildLootMinimapButton()
         GameTooltip:AddLine("Loot Decider • Warmane", 1, 0.82, 0.20)
         GameTooltip:AddLine("Clic gauche : ouvrir le comparateur de butin.", 1, 1, 1)
         GameTooltip:AddLine("Clic droit : ouvrir l'historique.", 1, 1, 1)
+        GameTooltip:AddLine("Survole un objet ; maintiens MAJ pour comprendre le calcul.", 0.45, 0.90, 1)
         GameTooltip:AddLine("Glisser : déplacer l'icône autour de la minicarte.", 0.65, 0.78, 1)
         GameTooltip:AddLine("/cld minimap hide pour masquer l'icône.", 0.65, 0.72, 0.80)
         GameTooltip:Show()

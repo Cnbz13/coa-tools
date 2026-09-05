@@ -25,7 +25,7 @@ test('Warmane editions are strict Lua 5.1 / WotLK 3.3.5 addons', async () => {
     contents.push(lua);
   }
   const all = contents.join('\n');
-  assert.doesNotMatch(all, /BackdropTemplate|SetShown|C_ClassInfo|C_CharacterAdvancement|GetSpecialization|GetSpecializationInfo/);
+  assert.doesNotMatch(all, /BackdropTemplate|SetShown|GetItemInfoInstant|C_ClassInfo|C_CharacterAdvancement|GetSpecialization|GetSpecializationInfo/);
   assert.match(all, /GetNumTalentTabs/);
   assert.match(all, /GetTalentTabInfo/);
 
@@ -83,7 +83,7 @@ test('Warmane Loot Decider validates every WotLK weapon and relic family before 
   for (const required of [
     'CLASS_WEAPON_SUBCLASSES', 'CLASS_RELIC_SUBCLASS', 'CLASS_CAN_USE_SHIELD',
     'CLASS_CAN_USE_HOLDABLE', 'WeaponCompatibility', 'WEAPON_SUBCLASS_NAMES',
-    'RELIC_SUBCLASS_NAMES', 'GetItemInfoInstant', 'SubclassFromText',
+    'RELIC_SUBCLASS_NAMES', 'returnedClassID', 'returnedSubClassID', 'SubclassFromText',
     'Verification manuelle : le type d\'arme n\'a pas pu etre valide',
     'manual = compatibilityManual and true or false', 'incompatible = not compatibilityManual'
   ]) assert.ok(engine.includes(required), `missing strict weapon compatibility feature: ${required}`);

@@ -169,7 +169,7 @@ local EQUIP_SLOTS = {
     INVTYPE_BAG = { 20, 21, 22, 23 }
 }
 
--- GetItemInfoInstant utilise les sous-classes d'armure classiques :
+-- Les identifiants numeriques optionnels utilisent les sous-classes d'armure classiques :
 -- 1 tissu, 2 cuir, 3 maille, 4 plaque. Les capes, chemises et boucliers ne
 -- doivent pas etre confondus avec la famille d'armure du personnage.
 local ARMOR_SUBCLASS_NAMES = {
@@ -427,8 +427,7 @@ local function ReadBagCapacity(itemLink)
     return capacity
 end
 
--- GetItemInfoInstant n'est pas une API WotLK d'origine. Ascension peut la
--- fournir, mais le moteur ne doit pas dependre de ce backport pour reconnaitre
+-- Le moteur ne depend d'aucun backport moderne pour reconnaitre
 -- tissu/cuir/maille/plaque. GetItemInfo expose deja le sous-type localise : on
 -- l'utilise comme repli, y compris sur un client francais.
 local function ArmorSubclassFromText(itemType, itemSubType, equipLoc)
@@ -539,16 +538,14 @@ local function ItemData(itemLink)
     local cacheKey = tostring(itemLink)
     local cached = itemDataCache[cacheKey]
     if cached then return cached end
-    local name, link, quality, itemLevel, requiredLevel, itemType, itemSubType, stackCount, equipLoc, texture = GetItemInfo(itemLink)
+    local name, link, quality, itemLevel, requiredLevel, itemType, itemSubType, stackCount,
+        equipLoc, texture, _, returnedClassID, returnedSubClassID = GetItemInfo(itemLink)
     if not name or not equipLoc then return nil end
-    local classID, subClassID
-    if type(GetItemInfoInstant) == "function" then
-        local ok, _, _, _, _, _, resolvedClassID, resolvedSubClassID = pcall(GetItemInfoInstant, link or itemLink)
-        if ok then
-            classID = tonumber(resolvedClassID)
-            subClassID = tonumber(resolvedSubClassID)
-        end
-    end
+    -- Le client WotLK d'origine s'arrete au prix de vente. Certains clients
+    -- 3.3.5 etendus ajoutent classID/subClassID a GetItemInfo : on les utilise
+    -- s'ils existent, sans appeler d'API Retail.
+    local classID = tonumber(returnedClassID)
+    local subClassID = tonumber(returnedSubClassID)
     if not classID then
         if WEAPON_EQUIP_LOCS[equipLoc] then
             classID = 2

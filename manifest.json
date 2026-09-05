@@ -4,7 +4,7 @@
   "name": "CoA Tools",
   "version": "1.23.3",
   "channel": "stable",
-  "publishedAt": "2026-09-05T11:00:09.823Z",
+  "publishedAt": "2026-09-05T11:15:31.023Z",
   "minimumNodeVersion": "24.14.0",
   "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.23.3",
   "artifacts": [
@@ -53,8 +53,8 @@
       "installPath": "Interface/AddOns",
       "file": "CoALootDecider-Warmane-v1.23.3.zip",
       "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.3/CoALootDecider-Warmane-v1.23.3.zip",
-      "sha256": "adbedecd7bd4cd48c9e0c2f033d3b98ca01c5395adb1bdcd3db6c0562dc05517",
-      "size": 162135
+      "sha256": "b4461a2cb00705ce54c4076fcf737f7f78b293b627c55040931501e661abbf43",
+      "size": 162083
     }
   ]
 }

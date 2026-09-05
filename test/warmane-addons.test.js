@@ -76,6 +76,55 @@ test('Warmane Loot Decider evaluates bag capacity and explains item choices in t
   ]) assert.ok(advisor.includes(required), `missing detailed tooltip feature: ${required}`);
 });
 
+test('Warmane Loot Decider validates every WotLK weapon and relic family before scoring', async () => {
+  const engine = await readFile('warmane-addons/CoALootDecider/CoALootDecider.lua', 'utf8');
+  const advisor = await readFile('warmane-addons/CoALootDecider/CoALootAdvisor.lua', 'utf8');
+
+  for (const required of [
+    'CLASS_WEAPON_SUBCLASSES', 'CLASS_RELIC_SUBCLASS', 'CLASS_CAN_USE_SHIELD',
+    'CLASS_CAN_USE_HOLDABLE', 'WeaponCompatibility', 'WEAPON_SUBCLASS_NAMES',
+    'RELIC_SUBCLASS_NAMES', 'GetItemInfoInstant', 'SubclassFromText',
+    'Verification manuelle : le type d\'arme n\'a pas pu etre valide',
+    'manual = compatibilityManual and true or false', 'incompatible = not compatibilityManual'
+  ]) assert.ok(engine.includes(required), `missing strict weapon compatibility feature: ${required}`);
+
+  // WotLK numeric subclass IDs: wand=19; libram/idol/totem/sigil=7/8/9/10.
+  assert.match(engine, /DEATHKNIGHT\s*=\s*\{[^}]*\[8\]\s*=\s*true\s*\}/s);
+  assert.doesNotMatch(engine.match(/DEATHKNIGHT\s*=\s*\{[^}]*\}/s)?.[0] ?? '', /\[19\]\s*=\s*true/,
+    'Death Knights must never accept wands');
+  for (const token of ['MAGE', 'PRIEST', 'WARLOCK']) {
+    assert.match(engine.match(new RegExp(`${token}\\s*=\\s*\\{[^}]*\\}`, 's'))?.[0] ?? '', /\[19\]\s*=\s*true/,
+      `${token} must accept wands`);
+  }
+  for (const [token, subclass] of [['PALADIN', 7], ['DRUID', 8], ['SHAMAN', 9], ['DEATHKNIGHT', 10]]) {
+    assert.match(engine, new RegExp(`${token}\\s*=\\s*${subclass}`), `${token} relic subclass`);
+  }
+  for (const token of ['HUNTER', 'WARRIOR', 'ROGUE']) {
+    const row = engine.match(new RegExp(`${token}\\s*=\\s*\\{[^}]*\\}`, 's'))?.[0] ?? '';
+    for (const subclass of token === 'HUNTER' ? [2, 3, 18] : [2, 3, 16, 18]) {
+      assert.match(row, new RegExp(`\\[${subclass}\\]\\s*=\\s*true`), `${token} ranged subclass ${subclass}`);
+    }
+  }
+
+  const validation = engine.indexOf('local compatibilityProblem, compatibilityManual = CompatibilityProblem(candidate)');
+  const scoring = engine.indexOf('local candidateScore = ScoreItem(candidate)', validation);
+  assert.ok(validation >= 0 && scoring > validation, 'weapon compatibility must run before ScoreItem');
+  assert.match(engine, /local function ScoreItem\(data\)[\s\S]*?local weaponCompatible = WeaponCompatibility\(data\)[\s\S]*?if weaponCompatible ~= true then return 0 end/,
+    'ScoreItem itself must never value an incompatible wand or weapon');
+  assert.match(engine, /local function AddOwned\(data, source\)[\s\S]*?WeaponCompatibility\(data\)[\s\S]*?if weaponCompatible ~= true then return end/,
+    'incompatible weapons in bags must not become a comparison baseline');
+  assert.match(engine, /if analysis and analysis\.manual then return nil, analysis\.reason end/,
+    'unknown subtypes must never trigger an automatic NEED/PASS');
+  assert.match(advisor, /if analysis\.manual then[\s\S]*SetOverlayState\(overlay, "\?"/,
+    'unknown types must display the manual-review marker');
+  assert.match(advisor, /if analysis\.incompatible and EnsureSettings\(\)\.showDowngrades then/,
+    'red incompatible markers must obey the existing downgrade display setting');
+
+  // The bag and detailed-tooltip features from v1.23.2 remain wired in.
+  assert.match(engine, /if candidate\.equipLoc == "INVTYPE_BAG" then\s+return AnalyzeBag/);
+  assert.match(advisor, /Maintiens MAJ pour afficher le calcul détaillé/);
+});
+
 test('Warmane UI Manager hides only gameplay spell failures and keeps the setting reversible', async () => {
   const ui = await readFile('warmane-addons/CoAUIManager/CoAUIManager.lua', 'utf8');
   assert.match(ui, /Sound_EnableErrorSpeech/);

@@ -2,7 +2,7 @@
 ## Title: UI Manager - Warmane
 ## Notes: Gestionnaire de positions, profils, échelle, alpha et erreurs de sorts pour Warmane Icecrown 3.3.5a.
 ## Author: Cnbz13
-## Version: 1.23.2
+## Version: 1.23.3
 ## SavedVariables: CoAUIManagerDB
 
 CoAUIManager.lua

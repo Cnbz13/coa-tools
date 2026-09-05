@@ -191,6 +191,92 @@ local BODY_ARMOR_EQUIP_LOCS = {
     INVTYPE_HAND = true
 }
 
+-- Identifiants de sous-classe WotLK 3.3.5a. Ces nombres sont stables et
+-- prioritaires sur les libelles localises de GetItemInfo.
+local WEAPON_SUBCLASS_NAMES = {
+    [0] = "haches a une main",
+    [1] = "haches a deux mains",
+    [2] = "arcs",
+    [3] = "fusils",
+    [4] = "masses a une main",
+    [5] = "masses a deux mains",
+    [6] = "armes d'hast",
+    [7] = "epees a une main",
+    [8] = "epees a deux mains",
+    [10] = "batons",
+    [13] = "armes de pugilat",
+    [15] = "dagues",
+    [16] = "armes de jet",
+    [18] = "arbaletes",
+    [19] = "baguettes",
+    [20] = "cannes a peche"
+}
+
+local RELIC_SUBCLASS_NAMES = {
+    [7] = "librams",
+    [8] = "idoles",
+    [9] = "totems",
+    [10] = "sigilles"
+}
+
+local CLASS_NAMES_FR = {
+    WARRIOR = "Guerrier",
+    PALADIN = "Paladin",
+    HUNTER = "Chasseur",
+    ROGUE = "Voleur",
+    PRIEST = "Pretre",
+    DEATHKNIGHT = "Chevalier de la mort",
+    SHAMAN = "Chaman",
+    MAGE = "Mage",
+    WARLOCK = "Demoniste",
+    DRUID = "Druide"
+}
+
+-- Maitrises d'armes reelles des classes WotLK. Les restrictions specifiques
+-- a un objet (niveau, reputation ou classe inscrite dans son tooltip) restent
+-- gerees par le client ; cette matrice empeche surtout de noter une famille
+-- que la classe ne saura jamais equiper.
+local CLASS_WEAPON_SUBCLASSES = {
+    WARRIOR = { [0] = true, [1] = true, [2] = true, [3] = true, [4] = true, [5] = true,
+        [6] = true, [7] = true, [8] = true, [10] = true, [13] = true, [15] = true,
+        [16] = true, [18] = true },
+    PALADIN = { [0] = true, [1] = true, [4] = true, [5] = true, [6] = true,
+        [7] = true, [8] = true },
+    HUNTER = { [0] = true, [1] = true, [2] = true, [3] = true, [6] = true,
+        [7] = true, [8] = true, [10] = true, [13] = true, [15] = true, [18] = true },
+    ROGUE = { [0] = true, [2] = true, [3] = true, [4] = true, [7] = true,
+        [13] = true, [15] = true, [16] = true, [18] = true },
+    PRIEST = { [4] = true, [10] = true, [15] = true, [19] = true },
+    DEATHKNIGHT = { [0] = true, [1] = true, [4] = true, [5] = true, [6] = true,
+        [7] = true, [8] = true },
+    SHAMAN = { [0] = true, [1] = true, [4] = true, [5] = true, [10] = true,
+        [13] = true, [15] = true },
+    MAGE = { [7] = true, [10] = true, [15] = true, [19] = true },
+    WARLOCK = { [7] = true, [10] = true, [15] = true, [19] = true },
+    DRUID = { [4] = true, [5] = true, [6] = true, [10] = true, [13] = true,
+        [15] = true }
+}
+
+local CLASS_RELIC_SUBCLASS = {
+    PALADIN = 7,
+    DRUID = 8,
+    SHAMAN = 9,
+    DEATHKNIGHT = 10
+}
+
+local CLASS_CAN_USE_SHIELD = { WARRIOR = true, PALADIN = true, SHAMAN = true }
+local CLASS_CAN_USE_HOLDABLE = { PRIEST = true, SHAMAN = true, MAGE = true, WARLOCK = true, DRUID = true }
+
+local WEAPON_EQUIP_LOCS = {
+    INVTYPE_WEAPON = true,
+    INVTYPE_WEAPONMAINHAND = true,
+    INVTYPE_WEAPONOFFHAND = true,
+    INVTYPE_2HWEAPON = true,
+    INVTYPE_RANGED = true,
+    INVTYPE_RANGEDRIGHT = true,
+    INVTYPE_THROWN = true
+}
+
 -- Le Pyromancien exige un gain nettement plus visible avant de NEED.
 -- Les autres classes utilisent le seuil global prudent de 5%.
 local DEFAULT_CLASS_THRESHOLDS = {}
@@ -263,7 +349,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     if CoALootDeciderDB.needLockedChests == nil then CoALootDeciderDB.needLockedChests = true end
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.23.2-warmane-wotlk"
+    CoALootDeciderDB.version = "1.23.3-warmane-wotlk"
 end
 
 local function ReadItemStats(itemLink)
@@ -379,6 +465,75 @@ local function ArmorSubclassFromText(itemType, itemSubType, equipLoc)
     return nil
 end
 
+local ITEM_SUBCLASS_GLOBALS = {
+    [2] = {
+        [0] = "ITEM_SUBCLASS_WEAPON_AXE", [1] = "ITEM_SUBCLASS_WEAPON_AXE2",
+        [2] = "ITEM_SUBCLASS_WEAPON_BOW", [3] = "ITEM_SUBCLASS_WEAPON_GUN",
+        [4] = "ITEM_SUBCLASS_WEAPON_MACE", [5] = "ITEM_SUBCLASS_WEAPON_MACE2",
+        [6] = "ITEM_SUBCLASS_WEAPON_POLEARM", [7] = "ITEM_SUBCLASS_WEAPON_SWORD",
+        [8] = "ITEM_SUBCLASS_WEAPON_SWORD2", [10] = "ITEM_SUBCLASS_WEAPON_STAFF",
+        [13] = "ITEM_SUBCLASS_WEAPON_FIST", [15] = "ITEM_SUBCLASS_WEAPON_DAGGER",
+        [16] = "ITEM_SUBCLASS_WEAPON_THROWN", [18] = "ITEM_SUBCLASS_WEAPON_CROSSBOW",
+        [19] = "ITEM_SUBCLASS_WEAPON_WAND", [20] = "ITEM_SUBCLASS_WEAPON_FISHINGPOLE"
+    },
+    [4] = {
+        [6] = "ITEM_SUBCLASS_ARMOR_SHIELD", [7] = "ITEM_SUBCLASS_ARMOR_LIBRAM",
+        [8] = "ITEM_SUBCLASS_ARMOR_IDOL", [9] = "ITEM_SUBCLASS_ARMOR_TOTEM",
+        [10] = "ITEM_SUBCLASS_ARMOR_SIGIL"
+    }
+}
+
+local ITEM_SUBCLASS_ALIASES = {
+    [2] = {
+        [0] = { "one-handed axes", "one-handed axe", "haches a une main", "hache a une main", "haches à une main", "hache à une main" },
+        [1] = { "two-handed axes", "two-handed axe", "haches a deux mains", "hache a deux mains", "haches à deux mains", "hache à deux mains" },
+        [2] = { "bows", "bow", "arcs", "arc" },
+        [3] = { "guns", "gun", "fusils", "fusil" },
+        [4] = { "one-handed maces", "one-handed mace", "masses a une main", "masse a une main", "masses à une main", "masse à une main" },
+        [5] = { "two-handed maces", "two-handed mace", "masses a deux mains", "masse a deux mains", "masses à deux mains", "masse à deux mains" },
+        [6] = { "polearms", "polearm", "armes d'hast", "arme d'hast" },
+        [7] = { "one-handed swords", "one-handed sword", "epees a une main", "epee a une main", "épées à une main", "épée à une main" },
+        [8] = { "two-handed swords", "two-handed sword", "epees a deux mains", "epee a deux mains", "épées à deux mains", "épée à deux mains" },
+        [10] = { "staves", "staff", "batons", "baton", "bâtons", "bâton" },
+        [13] = { "fist weapons", "fist weapon", "armes de pugilat", "arme de pugilat" },
+        [15] = { "daggers", "dagger", "dagues", "dague" },
+        [16] = { "thrown", "thrown weapons", "armes de jet", "arme de jet" },
+        [18] = { "crossbows", "crossbow", "arbaletes", "arbalete", "arbalètes", "arbalète" },
+        [19] = { "wands", "wand", "baguettes", "baguette" },
+        [20] = { "fishing poles", "fishing pole", "cannes a peche", "canne a peche", "cannes à pêche", "canne à pêche" }
+    },
+    [4] = {
+        [6] = { "shields", "shield", "boucliers", "bouclier" },
+        [7] = { "librams", "libram" },
+        [8] = { "idols", "idol", "idoles", "idole" },
+        [9] = { "totems", "totem" },
+        [10] = { "sigils", "sigil", "sigilles", "sigille" }
+    }
+}
+
+local function SubclassFromText(classID, itemSubType)
+    local normalized = Lower(Trim(itemSubType))
+    if normalized == "" then return nil end
+
+    local globals = ITEM_SUBCLASS_GLOBALS[classID] or {}
+    local subClassID, globalName
+    for subClassID, globalName in pairs(globals) do
+        local localized = _G and _G[globalName] or nil
+        if localized and localized ~= "" and normalized == Lower(Trim(localized)) then
+            return subClassID
+        end
+    end
+
+    local aliases = ITEM_SUBCLASS_ALIASES[classID] or {}
+    local _, alias
+    for subClassID, aliasesForSubclass in pairs(aliases) do
+        for _, alias in ipairs(aliasesForSubclass) do
+            if normalized == Lower(alias) then return subClassID end
+        end
+    end
+    return nil
+end
+
 local function ItemData(itemLink)
     if not itemLink or not GetItemInfo then return nil end
     local cacheKey = tostring(itemLink)
@@ -394,9 +549,25 @@ local function ItemData(itemLink)
             subClassID = tonumber(resolvedSubClassID)
         end
     end
+    if not classID then
+        if WEAPON_EQUIP_LOCS[equipLoc] then
+            classID = 2
+        elseif equipLoc == "INVTYPE_SHIELD" or equipLoc == "INVTYPE_RELIC"
+            or equipLoc == "INVTYPE_HOLDABLE" or BODY_ARMOR_EQUIP_LOCS[equipLoc]
+        then
+            classID = 4
+        end
+    end
     if not subClassID then
-        subClassID = ArmorSubclassFromText(itemType, itemSubType, equipLoc)
-        if subClassID and not classID then classID = 4 end
+        if equipLoc == "INVTYPE_SHIELD" then
+            subClassID = 6
+        elseif equipLoc == "INVTYPE_THROWN" then
+            subClassID = 16
+        elseif classID == 2 or equipLoc == "INVTYPE_RELIC" then
+            subClassID = SubclassFromText(classID or 4, itemSubType)
+        else
+            subClassID = ArmorSubclassFromText(itemType, itemSubType, equipLoc)
+        end
     end
 
     local isWeapon = equipLoc == "INVTYPE_2HWEAPON"
@@ -405,6 +576,7 @@ local function ItemData(itemLink)
         or equipLoc == "INVTYPE_WEAPONOFFHAND"
         or equipLoc == "INVTYPE_RANGED"
         or equipLoc == "INVTYPE_RANGEDRIGHT"
+        or equipLoc == "INVTYPE_THROWN"
 
     local data = {
         name = name,
@@ -1060,6 +1232,76 @@ local function ArmorCompatibility(data)
         .. " ; attendu : " .. tostring(profile.armorRule.label)
 end
 
+local function ClassDisplayName(classToken)
+    return CLASS_NAMES_FR[classToken]
+        or (profile and profile.className)
+        or tostring(classToken or "classe inconnue")
+end
+
+-- Retourne true pour un type autorise, false pour un type incompatible et nil
+-- lorsqu'il manque une information fiable. Le cas nil suspend toujours le jet
+-- automatique : mieux vaut demander une verification que PASS un objet valide.
+local function WeaponCompatibility(data)
+    if not data then return nil, "type d'arme introuvable : verification manuelle" end
+    local equipLoc = data.equipLoc
+    if not WEAPON_EQUIP_LOCS[equipLoc]
+        and equipLoc ~= "INVTYPE_SHIELD"
+        and equipLoc ~= "INVTYPE_HOLDABLE"
+        and equipLoc ~= "INVTYPE_RELIC"
+    then
+        return true
+    end
+
+    local classToken = profile and profile.classToken or nil
+    local className = ClassDisplayName(classToken)
+    if not classToken or not CLASS_WEAPON_SUBCLASSES[classToken] then
+        return nil, "Verification manuelle : la classe ne permet pas de valider ce type d'arme"
+    end
+
+    if equipLoc == "INVTYPE_SHIELD" then
+        if CLASS_CAN_USE_SHIELD[classToken] then return true end
+        return false, "Incompatible avec " .. className .. " : les boucliers ne sont pas utilisables"
+    end
+
+    if equipLoc == "INVTYPE_HOLDABLE" then
+        if CLASS_CAN_USE_HOLDABLE[classToken] then return true end
+        return false, "Incompatible avec " .. className .. " : les objets tenus en main gauche ne sont pas utilisables"
+    end
+
+    if equipLoc == "INVTYPE_RELIC" then
+        local subClassID = tonumber(data.subClassID)
+        if not subClassID or not RELIC_SUBCLASS_NAMES[subClassID] then
+            return nil, "Verification manuelle : le type de relique n'a pas pu etre valide"
+        end
+        if CLASS_RELIC_SUBCLASS[classToken] == subClassID then return true end
+        return false, "Incompatible avec " .. className .. " : les "
+            .. RELIC_SUBCLASS_NAMES[subClassID] .. " ne sont pas utilisables"
+    end
+
+    if tonumber(data.classID) ~= 2 then
+        return nil, "Verification manuelle : la categorie d'arme n'a pas pu etre validee"
+    end
+    local subClassID = tonumber(data.subClassID)
+    local weaponName = subClassID and WEAPON_SUBCLASS_NAMES[subClassID] or nil
+    if not weaponName then
+        return nil, "Verification manuelle : le type d'arme n'a pas pu etre valide"
+    end
+    if not CLASS_WEAPON_SUBCLASSES[classToken][subClassID] then
+        return false, "Incompatible avec " .. className .. " : les " .. weaponName .. " ne sont pas utilisables"
+    end
+
+    -- Une arme explicitement Main gauche exige le double maniement deja
+    -- disponible sur le personnage. Cette API existe en 3.3.5a ; son absence
+    -- sur un client modifie ne doit jamais provoquer un faux rejet.
+    if equipLoc == "INVTYPE_WEAPONOFFHAND" and type(CanDualWield) == "function" then
+        local ok, canDualWield = pcall(CanDualWield)
+        if ok and not canDualWield then
+            return false, "Incompatible actuellement avec " .. className .. " : double maniement indisponible"
+        end
+    end
+    return true
+end
+
 local function PrimaryFitScore(data)
     if not data or not profile or not profile.weights then return nil end
     local maxWeight = 0
@@ -1083,6 +1325,8 @@ end
 
 local function FitScore(data)
     if not data or not profile or not profile.weights then return 0 end
+    local weaponCompatible = WeaponCompatibility(data)
+    if weaponCompatible ~= true then return 0 end
     local armorCompatible = ArmorCompatibility(data)
     if not armorCompatible then return 0 end
     local weapon = IsWeaponEquipLoc(data.equipLoc)
@@ -1169,6 +1413,10 @@ end
 
 local function ScoreItem(data)
     if not data or not profile then return 0 end
+    -- Garde-fou central : meme un appel interne (comparaison avec les sacs ou
+    -- l'equipement) ne doit jamais valoriser les degats d'une arme interdite.
+    local weaponCompatible = WeaponCompatibility(data)
+    if weaponCompatible ~= true then return 0 end
     local score = data.itemLevel * CoALootDeciderDB.itemLevelWeight
     local key, value
     for key, value in pairs(data.stats or {}) do
@@ -1211,6 +1459,10 @@ local function CompatibilityProblem(data)
     if not profile or not profile.valid then
         return profile and profile.error or "profil WotLK non detecte"
     end
+
+    local weaponCompatible, weaponProblem = WeaponCompatibility(data)
+    if weaponCompatible == nil then return weaponProblem, true end
+    if not weaponCompatible then return weaponProblem, false end
 
     local armorCompatible, armorProblem = ArmorCompatibility(data)
     if not armorCompatible then return armorProblem end
@@ -1463,6 +1715,8 @@ local function OwnedBaselineFor(candidate, equippedScore, equippedLevel, equippe
     local skippedOwnedCopy = false
     local function AddOwned(data, source)
         if not data or not SameOwnedSlot(candidate, data) then return end
+        local weaponCompatible = WeaponCompatibility(data)
+        if weaponCompatible ~= true then return end
         if excludeOwnedCopy and not skippedOwnedCopy and data.link == candidate.link and source == "sac" then
             skippedOwnedCopy = true
             return
@@ -1588,9 +1842,16 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
             nonEquipable = true
         }
     end
-    local compatibilityProblem = CompatibilityProblem(candidate)
+    local compatibilityProblem, compatibilityManual = CompatibilityProblem(candidate)
     if compatibilityProblem then
-        return { need = false, candidate = candidate, reason = compatibilityProblem, confidence = "haute" }
+        return {
+            need = false,
+            candidate = candidate,
+            reason = compatibilityProblem,
+            manual = compatibilityManual and true or false,
+            incompatible = not compatibilityManual,
+            confidence = compatibilityManual and "basse" or "haute"
+        }
     end
 
     local currentScore, currentLevel, currentLinkOrReason, currentStats, comparisonWarning, currentData = ComparisonFor(candidate)
@@ -1690,6 +1951,7 @@ CoALootDeciderAPI = {
     ScoreItem = ScoreItem,
     FitScore = FitScore,
     ArmorCompatibility = ArmorCompatibility,
+    WeaponCompatibility = WeaponCompatibility,
     PrimaryFitScore = PrimaryFitScore,
     ReadBagCapacity = ReadBagCapacity,
     Round = Round

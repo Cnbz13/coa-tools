@@ -172,16 +172,18 @@ local function PaintButton(button, link, excludeOwnedCopy)
         SetOverlayState(overlay, "+", "COFFRE", 0.20, 0.75, 1.00)
         return
     end
+    if analysis.manual then
+        SetOverlayState(overlay, "?", "", 1.00, 0.75, 0.10)
+        return
+    end
     if not analysis.candidateScore then
-        if analysis.candidate and analysis.candidate.equipLoc then
+        if analysis.incompatible and EnsureSettings().showDowngrades then
             SetOverlayState(overlay, "x", "", 0.95, 0.20, 0.20)
         end
         return
     end
 
-    if analysis.manual then
-        SetOverlayState(overlay, "?", "", 1.00, 0.75, 0.10)
-    elseif analysis.need then
+    if analysis.need then
         local badge = analysis.bagUpgrade and ("+" .. tostring(analysis.slotGain or 0))
             or ShortPercent(analysis.percent)
         SetOverlayState(overlay, "+", badge, 0.15, 1.00, 0.25)

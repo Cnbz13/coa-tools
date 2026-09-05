@@ -62,6 +62,7 @@ local DISPLAY_STATS = {
     ITEM_MOD_PARRY_RATING_SHORT = "PARADE",
     ITEM_MOD_BLOCK_RATING_SHORT = "BLOC",
     ITEM_MOD_MANA_REGENERATION_SHORT = "MP5",
+    ITEM_MOD_DAMAGE_PER_SECOND_SHORT = "DPS ARME",
     RESISTANCE0_NAME = "ARMURE"
 }
 
@@ -243,7 +244,8 @@ local CLASS_WEAPON_SUBCLASSES = {
     PALADIN = { [0] = true, [1] = true, [4] = true, [5] = true, [6] = true,
         [7] = true, [8] = true },
     HUNTER = { [0] = true, [1] = true, [2] = true, [3] = true, [6] = true,
-        [7] = true, [8] = true, [10] = true, [13] = true, [15] = true, [18] = true },
+        [7] = true, [8] = true, [10] = true, [13] = true, [15] = true, [16] = true,
+        [18] = true },
     ROGUE = { [0] = true, [2] = true, [3] = true, [4] = true, [7] = true,
         [13] = true, [15] = true, [16] = true, [18] = true },
     PRIEST = { [4] = true, [10] = true, [15] = true, [19] = true },
@@ -265,7 +267,9 @@ local CLASS_RELIC_SUBCLASS = {
 }
 
 local CLASS_CAN_USE_SHIELD = { WARRIOR = true, PALADIN = true, SHAMAN = true }
-local CLASS_CAN_USE_HOLDABLE = { PRIEST = true, SHAMAN = true, MAGE = true, WARLOCK = true, DRUID = true }
+local CLASS_CAN_USE_HOLDABLE = {
+    PALADIN = true, PRIEST = true, SHAMAN = true, MAGE = true, WARLOCK = true, DRUID = true
+}
 
 local WEAPON_EQUIP_LOCS = {
     INVTYPE_WEAPON = true,
@@ -298,6 +302,32 @@ end
 
 local function Lower(value)
     return string.lower(value or "")
+end
+
+-- Lua 5.1 ne sait mettre en minuscules que l'ASCII. Sur un client frFR,
+-- string.lower("Épées à deux mains") conserve donc le É majuscule et faisait
+-- échouer la reconnaissance de l'arme équipée. On replie explicitement les
+-- caractères rencontrés dans les libellés d'objets WotLK avant comparaison.
+local ITEM_TEXT_FOLD = {
+    ["À"] = "a", ["Â"] = "a", ["Ä"] = "a", ["à"] = "a", ["â"] = "a", ["ä"] = "a",
+    ["Ç"] = "c", ["ç"] = "c",
+    ["É"] = "e", ["È"] = "e", ["Ê"] = "e", ["Ë"] = "e",
+    ["é"] = "e", ["è"] = "e", ["ê"] = "e", ["ë"] = "e",
+    ["Î"] = "i", ["Ï"] = "i", ["î"] = "i", ["ï"] = "i",
+    ["Ô"] = "o", ["Ö"] = "o", ["ô"] = "o", ["ö"] = "o",
+    ["Ù"] = "u", ["Û"] = "u", ["Ü"] = "u", ["ù"] = "u", ["û"] = "u", ["ü"] = "u",
+    ["’"] = "'", ["–"] = "-", ["—"] = "-"
+}
+
+local function FoldItemText(value)
+    local text = tostring(value or "")
+    local source, replacement
+    for source, replacement in pairs(ITEM_TEXT_FOLD) do
+        text = string.gsub(text, source, replacement)
+    end
+    text = string.lower(text)
+    text = string.gsub(text, "%s+", " ")
+    return Trim(text)
 end
 
 local function PlayerLevel()
@@ -349,7 +379,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     if CoALootDeciderDB.needLockedChests == nil then CoALootDeciderDB.needLockedChests = true end
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.23.3-warmane-wotlk"
+    CoALootDeciderDB.version = "1.23.4-warmane-wotlk"
 end
 
 local function ReadItemStats(itemLink)
@@ -439,16 +469,16 @@ local function ArmorSubclassFromText(itemType, itemSubType, equipLoc)
         [3] = "ITEM_SUBCLASS_ARMOR_MAIL",
         [4] = "ITEM_SUBCLASS_ARMOR_PLATE"
     }
-    local subTypeLower = Lower(itemSubType)
+    local subTypeLower = FoldItemText(itemSubType)
     local subClassID, globalName
     for subClassID, globalName in pairs(localizedGlobals) do
         local localized = _G and _G[globalName] or nil
-        if localized and localized ~= "" and subTypeLower == Lower(localized) then
+        if localized and localized ~= "" and subTypeLower == FoldItemText(localized) then
             return subClassID
         end
     end
 
-    local text = Lower((itemType or "") .. " " .. (itemSubType or ""))
+    local text = FoldItemText((itemType or "") .. " " .. (itemSubType or ""))
     local aliases = {
         [1] = { "cloth", "tissu" },
         [2] = { "leather", "cuir" },
@@ -511,14 +541,14 @@ local ITEM_SUBCLASS_ALIASES = {
 }
 
 local function SubclassFromText(classID, itemSubType)
-    local normalized = Lower(Trim(itemSubType))
+    local normalized = FoldItemText(itemSubType)
     if normalized == "" then return nil end
 
     local globals = ITEM_SUBCLASS_GLOBALS[classID] or {}
     local subClassID, globalName
     for subClassID, globalName in pairs(globals) do
         local localized = _G and _G[globalName] or nil
-        if localized and localized ~= "" and normalized == Lower(Trim(localized)) then
+        if localized and localized ~= "" and normalized == FoldItemText(localized) then
             return subClassID
         end
     end
@@ -527,7 +557,7 @@ local function SubclassFromText(classID, itemSubType)
     local _, alias
     for subClassID, aliasesForSubclass in pairs(aliases) do
         for _, alias in ipairs(aliasesForSubclass) do
-            if normalized == Lower(alias) then return subClassID end
+            if normalized == FoldItemText(alias) then return subClassID end
         end
     end
     return nil
@@ -1200,6 +1230,33 @@ local function IsWeaponEquipLoc(equipLoc)
     return equipLoc == "INVTYPE_WEAPON" or equipLoc == "INVTYPE_WEAPONMAINHAND"
         or equipLoc == "INVTYPE_WEAPONOFFHAND" or equipLoc == "INVTYPE_2HWEAPON"
         or equipLoc == "INVTYPE_RANGED" or equipLoc == "INVTYPE_RANGEDRIGHT"
+        or equipLoc == "INVTYPE_THROWN"
+end
+
+local function IsMeleeWeaponEquipLoc(equipLoc)
+    return equipLoc == "INVTYPE_WEAPON" or equipLoc == "INVTYPE_WEAPONMAINHAND"
+        or equipLoc == "INVTYPE_WEAPONOFFHAND" or equipLoc == "INVTYPE_2HWEAPON"
+end
+
+local function IsRangedWeaponEquipLoc(equipLoc)
+    return equipLoc == "INVTYPE_RANGED" or equipLoc == "INVTYPE_RANGEDRIGHT"
+        or equipLoc == "INVTYPE_THROWN"
+end
+
+-- ITEM_MOD_DAMAGE_PER_SECOND_SHORT est la même clé pour une arme de mêlée et
+-- une arme à distance. Le profil ne doit donc jamais appliquer le poids de DPS
+-- du Chevalier de la mort à un objet de l'emplacement distance, ni celui du
+-- Chasseur à une arme de mêlée. Les druides farouches n'utilisent pas le DPS
+-- affiché de l'arme en forme animale sur WotLK.
+local MELEE_WEAPON_DPS_CLASSES = {
+    WARRIOR = true, PALADIN = true, ROGUE = true, DEATHKNIGHT = true, SHAMAN = true
+}
+
+local function WeaponDamageMatters(data)
+    if not data or not profile then return false end
+    if profile.classToken == "HUNTER" then return IsRangedWeaponEquipLoc(data.equipLoc) end
+    if MELEE_WEAPON_DPS_CLASSES[profile.classToken] then return IsMeleeWeaponEquipLoc(data.equipLoc) end
+    return false
 end
 
 local function FitTier(score)
@@ -1322,15 +1379,16 @@ end
 
 local function FitScore(data)
     if not data or not profile or not profile.weights then return 0 end
+    if tonumber(data.quality) == 0 then return 0 end
     local weaponCompatible = WeaponCompatibility(data)
     if weaponCompatible ~= true then return 0 end
     local armorCompatible = ArmorCompatibility(data)
     if not armorCompatible then return 0 end
-    local weapon = IsWeaponEquipLoc(data.equipLoc)
+    local weaponDpsRelevant = WeaponDamageMatters(data)
     local maxWeight = 0
     local _, key
     for _, key in ipairs(FIT_STAT_KEYS) do
-        if key ~= "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" or weapon then
+        if key ~= "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" or weaponDpsRelevant then
             maxWeight = math.max(maxWeight, math.max(0, tonumber(profile.weights[key]) or 0))
         end
     end
@@ -1338,7 +1396,7 @@ local function FitScore(data)
 
     local totalBudget, usefulBudget = 0, 0
     for _, key in ipairs(FIT_STAT_KEYS) do
-        if key ~= "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" or weapon then
+        if key ~= "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" or weaponDpsRelevant then
             local value = math.max(0, StatValue(data.stats, key))
             if value > 0 then
                 totalBudget = totalBudget + value
@@ -1417,7 +1475,9 @@ local function ScoreItem(data)
     local score = data.itemLevel * CoALootDeciderDB.itemLevelWeight
     local key, value
     for key, value in pairs(data.stats or {}) do
-        score = score + (tonumber(value) or 0) * (profile.weights[key] or 0)
+        if key ~= "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" or WeaponDamageMatters(data) then
+            score = score + (tonumber(value) or 0) * (profile.weights[key] or 0)
+        end
     end
     local weaponRule = profile.weaponRule
     if weaponRule and data.weaponSpeed then
@@ -1450,6 +1510,39 @@ local function ScoreItem(data)
         score = score + (armorBonus[data.subClassID] or 0)
     end
     return score
+end
+
+-- Une référence équipée inconnue ne vaut jamais zéro. Zéro signifiait autrefois
+-- « emplacement vide » et transformait n'importe quelle arme médiocre en +100 %.
+-- Désormais, un sous-type impossible à valider suspend toute décision.
+local function ComparableScore(data)
+    if not data then return 0 end
+    local compatible, problem = WeaponCompatibility(data)
+    if compatible ~= true then
+        return nil, problem or "type de l'objet équipé impossible à valider"
+    end
+    return ScoreItem(data)
+end
+
+local function RelevantWeaponDps(data)
+    if not WeaponDamageMatters(data) then return nil end
+    local value = StatValue(data.stats, "ITEM_MOD_DAMAGE_PER_SECOND_SHORT")
+    if value <= 0 then return nil end
+    return value
+end
+
+-- Dernier filet de sécurité indépendant du score EP : sur une spécialisation
+-- physique, une arme qui perd au moins 25 % de DPS brut ne peut jamais être
+-- déclarée amélioration automatique. Les effets exotiques restent manuels.
+local function WeaponDpsLossProblem(candidate, current)
+    local candidateDps = RelevantWeaponDps(candidate)
+    local currentDps = RelevantWeaponDps(current)
+    if not candidateDps or not currentDps or currentDps <= 0 then return nil end
+    if candidateDps >= currentDps * 0.75 then return nil end
+    local loss = (currentDps - candidateDps) / currentDps * 100
+    return "DPS d'arme beaucoup trop faible : " .. Round(candidateDps, 1)
+        .. " contre " .. Round(currentDps, 1) .. " équipé (-" .. Round(loss, 1)
+        .. " %) ; jamais NEED automatique"
 end
 
 local function CompatibilityProblem(data)
@@ -1710,9 +1803,14 @@ end
 local function OwnedBaselineFor(candidate, equippedScore, equippedLevel, equippedLink, equippedData, excludeOwnedCopy)
     local pool = {}
     local skippedOwnedCopy = false
+    local unknownOwnedProblem = nil
     local function AddOwned(data, source)
         if not data or not SameOwnedSlot(candidate, data) then return end
-        local weaponCompatible = WeaponCompatibility(data)
+        local weaponCompatible, weaponProblem = WeaponCompatibility(data)
+        if weaponCompatible == nil then
+            unknownOwnedProblem = weaponProblem or "type d'un objet possédé impossible à valider"
+            return
+        end
         if weaponCompatible ~= true then return end
         if excludeOwnedCopy and not skippedOwnedCopy and data.link == candidate.link and source == "sac" then
             skippedOwnedCopy = true
@@ -1725,6 +1823,10 @@ local function OwnedBaselineFor(candidate, equippedScore, equippedLevel, equippe
     for slot = 1, 19 do AddOwned(profile.items[slot], "equipe") end
     local _, bagItem
     for _, bagItem in ipairs(profile.bagItems or {}) do AddOwned(bagItem, "sac") end
+    if unknownOwnedProblem then
+        return nil, nil, nil, nil, nil,
+            "Vérification manuelle : " .. unknownOwnedProblem
+    end
     table.sort(pool, function(a, b) return (a.score or 0) > (b.score or 0) end)
 
     -- Deux bagues/bijoux peuvent être équipés : la référence est le second
@@ -1753,7 +1855,15 @@ local function ComparisonFor(data)
     if data.equipLoc == "INVTYPE_2HWEAPON" then
         local main = profile.items[16]
         local off = profile.items[17]
-        local combined = ScoreItem(main) + ScoreItem(off)
+        local mainScore, mainProblem = ComparableScore(main)
+        local offScore, offProblem = ComparableScore(off)
+        if main and mainScore == nil then
+            return nil, nil, "Vérification manuelle : arme équipée non validée ; " .. tostring(mainProblem)
+        end
+        if off and offScore == nil then
+            return nil, nil, "Vérification manuelle : main gauche équipée non validée ; " .. tostring(offProblem)
+        end
+        local combined = (mainScore or 0) + (offScore or 0)
         local currentLevel = math.max(main and main.itemLevel or 0, off and off.itemLevel or 0)
         local combinedStats = {}
         AddStats(combinedStats, main and main.stats)
@@ -1770,7 +1880,11 @@ local function ComparisonFor(data)
         and profile.items[16].equipLoc == "INVTYPE_2HWEAPON"
     then
         local main = profile.items[16]
-        return ScoreItem(main), main.itemLevel or 0, main.link, main.stats or {},
+        local score, problem = ComparableScore(main)
+        if score == nil then
+            return nil, nil, "Vérification manuelle : arme équipée non validée ; " .. tostring(problem)
+        end
+        return score, main.itemLevel or 0, main.link, main.stats or {},
             HasUnscoredEffect(main.link) and "l'arme 2M equipee contient un effet non chiffrable" or nil, main
     end
 
@@ -1781,13 +1895,21 @@ local function ComparisonFor(data)
         and profile.items[16].equipLoc == "INVTYPE_2HWEAPON"
     then
         local main = profile.items[16]
-        return ScoreItem(main), main.itemLevel or 0, main.link, main.stats or {},
+        local score, problem = ComparableScore(main)
+        if score == nil then
+            return nil, nil, "Vérification manuelle : arme équipée non validée ; " .. tostring(problem)
+        end
+        return score, main.itemLevel or 0, main.link, main.stats or {},
             "necessite aussi une arme a une main compatible", main
     end
 
     if data.equipLoc == "INVTYPE_WEAPON" and not profile.items[17] then
         local main = profile.items[16]
-        return ScoreItem(main), main and main.itemLevel or 0, main and main.link or nil,
+        local score, problem = ComparableScore(main)
+        if main and score == nil then
+            return nil, nil, "Vérification manuelle : arme équipée non validée ; " .. tostring(problem)
+        end
+        return score or 0, main and main.itemLevel or 0, main and main.link or nil,
             main and main.stats or {}, main and HasUnscoredEffect(main.link)
                 and "l'equipement remplace contient un effet non chiffrable" or nil, main
     end
@@ -1796,7 +1918,10 @@ local function ComparisonFor(data)
     local _, slot
     for _, slot in ipairs(slots) do
         local current = profile.items[slot]
-        local score = ScoreItem(current)
+        local score, problem = ComparableScore(current)
+        if current and score == nil then
+            return nil, nil, "Vérification manuelle : objet équipé non validé ; " .. tostring(problem)
+        end
         if lowestScore == nil or score < lowestScore then
             lowestScore = score
             lowestLevel = current and current.itemLevel or 0
@@ -1839,6 +1964,19 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
             nonEquipable = true
         }
     end
+    -- Un objet gris est destiné à la vente. Il ne doit jamais profiter d'un
+    -- emplacement vide, d'une erreur de cache ou d'un poids de DPS pour être
+    -- présenté comme amélioration.
+    if tonumber(candidate.quality) == 0 then
+        return {
+            need = false,
+            candidate = candidate,
+            reason = "Objet de mauvaise qualité (gris) : jamais une amélioration fiable",
+            incompatible = true,
+            poorQuality = true,
+            confidence = "haute"
+        }
+    end
     local compatibilityProblem, compatibilityManual = CompatibilityProblem(candidate)
     if compatibilityProblem then
         return {
@@ -1853,13 +1991,28 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
 
     local currentScore, currentLevel, currentLinkOrReason, currentStats, comparisonWarning, currentData = ComparisonFor(candidate)
     if currentScore == nil then
-        return { need = false, candidate = candidate, reason = currentLinkOrReason or "comparaison impossible", confidence = "basse" }
+        return {
+            need = false,
+            candidate = candidate,
+            reason = currentLinkOrReason or "Vérification manuelle : comparaison impossible",
+            manual = true,
+            confidence = "basse"
+        }
     end
 
-    local currentSource
-    currentScore, currentLevel, currentLinkOrReason, currentData, currentSource = OwnedBaselineFor(
+    local currentSource, baselineProblem
+    currentScore, currentLevel, currentLinkOrReason, currentData, currentSource, baselineProblem = OwnedBaselineFor(
         candidate, currentScore, currentLevel, currentLinkOrReason, currentData, excludeOwnedCopy
     )
+    if currentScore == nil then
+        return {
+            need = false,
+            candidate = candidate,
+            reason = baselineProblem or "Vérification manuelle : objet possédé impossible à comparer",
+            manual = true,
+            confidence = "basse"
+        }
+    end
     currentStats = currentData and currentData.stats or currentStats or {}
     if currentData and HasUnscoredEffect(currentData.link) then
         comparisonWarning = "le meilleur objet possede contient un effet non chiffrable"
@@ -1871,8 +2024,10 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
     local threshold, thresholdSource = ActiveThreshold()
     local fitScore = FitScore(candidate)
     local currentFitScore = currentData and FitScore(currentData) or 0
+    local weaponDpsProblem = WeaponDpsLossProblem(candidate, currentData)
+    if weaponDpsProblem then fitScore = math.min(fitScore, 25) end
     local effectiveThreshold = RequiredUpgradeForFit(fitScore)
-    local fitBlocked = effectiveThreshold >= 999
+    local fitBlocked = effectiveThreshold >= 999 or weaponDpsProblem ~= nil
     local minimum = fitBlocked and math.huge or math.max(1, currentScore * (effectiveThreshold / 100))
     local need = not fitBlocked
         and ((currentScore <= 0 and candidateScore > 0) or delta >= minimum)
@@ -1885,7 +2040,9 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
         manualReason = "aucune statistique chiffrable"
     end
     local reason
-    if manualReason then
+    if weaponDpsProblem then
+        reason = weaponDpsProblem
+    elseif manualReason then
         reason = manualReason .. " : verification manuelle recommandee"
     elseif fitBlocked then
         reason = "adequation " .. fitScore .. "/100 " .. FitTier(fitScore)
@@ -1921,6 +2078,7 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
         primaryFitScore = PrimaryFitScore(candidate),
         armorRuleLabel = profile.armorRule and profile.armorRule.displayLabel or nil,
         fitBlocked = fitBlocked,
+        forcedDowngrade = weaponDpsProblem and true or false,
         reason = reason,
         manual = manualReason and true or false,
         confidence = manualReason and "moyenne" or "haute"

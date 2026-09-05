@@ -125,6 +125,42 @@ test('Warmane Loot Decider validates every WotLK weapon and relic family before 
   assert.match(advisor, /Maintiens MAJ pour afficher le calcul détaillé/);
 });
 
+test('Warmane Loot Decider cannot repeat the French DK rusty-pitchfork +99% regression', async () => {
+  const engine = await readFile('warmane-addons/CoALootDecider/CoALootDecider.lua', 'utf8');
+  const advisor = await readFile('warmane-addons/CoALootDecider/CoALootAdvisor.lua', 'utf8');
+
+  // Lua 5.1 string.lower is ASCII-only. The equipped French subtype
+  // "Épées à deux mains" must resolve exactly like "épées à deux mains".
+  assert.match(engine, /\["É"\]\s*=\s*"e"/);
+  assert.match(engine, /local function FoldItemText\(value\)[\s\S]*?string\.lower\(text\)/);
+  assert.match(engine, /local function SubclassFromText\(classID, itemSubType\)[\s\S]*?FoldItemText\(itemSubType\)/);
+  assert.match(engine, /normalized == FoldItemText\(localized\)/);
+  assert.match(engine, /normalized == FoldItemText\(alias\)/);
+
+  // An unvalidated equipped weapon is not an empty slot and never scores zero.
+  assert.match(engine, /local function ComparableScore\(data\)[\s\S]*?if compatible ~= true then[\s\S]*?return nil, problem/);
+  assert.match(engine, /local function ComparisonFor\(data\)[\s\S]*?ComparableScore\(main\)/);
+  assert.match(engine, /if current and score == nil then[\s\S]*?Vérification manuelle : objet équipé non validé/);
+  assert.match(engine, /if currentScore == nil then[\s\S]*?manual = true/);
+
+  // Grey vendor trash and catastrophic raw weapon-DPS losses cannot be NEED.
+  assert.match(engine, /if tonumber\(candidate\.quality\) == 0 then[\s\S]*?jamais une amélioration fiable[\s\S]*?incompatible = true/);
+  assert.match(engine, /local function WeaponDpsLossProblem\(candidate, current\)[\s\S]*?candidateDps >= currentDps \* 0\.75/);
+  assert.match(engine, /local weaponDpsProblem = WeaponDpsLossProblem\(candidate, currentData\)/);
+  assert.match(engine, /local fitBlocked = effectiveThreshold >= 999 or weaponDpsProblem ~= nil/);
+  assert.match(engine, /forcedDowngrade = weaponDpsProblem and true or false/);
+  assert.match(advisor, /if analysis\.forcedDowngrade then[\s\S]*?SetOverlayState\(overlay, "-", "DPS"/);
+  assert.match(advisor, /DPS ARME TROP FAIBLE/);
+
+  // The single WotLK DPS stat key is applied only to the relevant weapon slot.
+  assert.match(engine, /local function WeaponDamageMatters\(data\)/);
+  assert.match(engine, /profile\.classToken == "HUNTER"[\s\S]*?IsRangedWeaponEquipLoc/);
+  assert.match(engine, /MELEE_WEAPON_DPS_CLASSES\[profile\.classToken\][\s\S]*?IsMeleeWeaponEquipLoc/);
+  assert.match(engine, /if key ~= "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" or WeaponDamageMatters\(data\) then/);
+  assert.match(engine, /ITEM_MOD_DAMAGE_PER_SECOND_SHORT = "DPS ARME"/,
+    'tooltips must show a readable weapon-DPS label rather than the raw API key');
+});
+
 test('Warmane UI Manager hides only gameplay spell failures and keeps the setting reversible', async () => {
   const ui = await readFile('warmane-addons/CoAUIManager/CoAUIManager.lua', 'utf8');
   assert.match(ui, /Sound_EnableErrorSpeech/);

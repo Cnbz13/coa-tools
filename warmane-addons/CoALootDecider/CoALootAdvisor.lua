@@ -182,6 +182,12 @@ local function PaintButton(button, link, excludeOwnedCopy)
         end
         return
     end
+    if analysis.forcedDowngrade then
+        if EnsureSettings().showDowngrades then
+            SetOverlayState(overlay, "-", "DPS", 1.00, 0.18, 0.18)
+        end
+        return
+    end
 
     if analysis.need then
         local badge = analysis.bagUpgrade and ("+" .. tostring(analysis.slotGain or 0))
@@ -365,9 +371,10 @@ local function AddTooltipAnalysis(tooltip)
         end
     else
         local positive = analysis.need
-        local partial = not positive and (tonumber(analysis.percent) or 0) > 0
+        local partial = not positive and not analysis.forcedDowngrade
+            and (tonumber(analysis.percent) or 0) > 0
         local red, green, blue = 1.00, 0.25, 0.25
-        local verdict = "MOINS BON"
+        local verdict = analysis.forcedDowngrade and "DPS ARME TROP FAIBLE" or "MOINS BON"
         if positive then
             red, green, blue = 0.20, 1.00, 0.30
             verdict = "AMELIORATION"

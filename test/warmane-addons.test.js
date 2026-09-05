@@ -161,6 +161,19 @@ test('Warmane Loot Decider cannot repeat the French DK rusty-pitchfork +99% regr
     'tooltips must show a readable weapon-DPS label rather than the raw API key');
 });
 
+test('Warmane Loot Decider never clears or rebuilds native item, spell or NPC tooltips', async () => {
+  const advisor = await readFile('warmane-addons/CoALootDecider/CoALootAdvisor.lua', 'utf8');
+  const hook = advisor.match(/local function HookTooltip\(tooltip\)[\s\S]*?\nend\n\nlocal function HookAdiBags/)?.[0] ?? '';
+
+  assert.match(advisor, /local function SafeAddTooltipAnalysis\(tooltip\)[\s\S]*?pcall\(AddTooltipAnalysis, tooltip\)/,
+    'an advisor failure must not escape into the native FrameXML tooltip handler');
+  assert.match(hook, /HookScript\("OnTooltipSetItem", SafeAddTooltipAnalysis\)/,
+    'analysis must run only when the game has created a real item tooltip');
+  assert.match(hook, /HookScript\("OnTooltipCleared", ClearTooltipAnalysis\)/);
+  assert.doesNotMatch(hook, /OnUpdate|SetHyperlink|ClearLines|:Hide\(/,
+    'the shared tooltip must never be periodically reset, cleared or hidden');
+});
+
 test('Warmane UI Manager hides only gameplay spell failures and keeps the setting reversible', async () => {
   const ui = await readFile('warmane-addons/CoAUIManager/CoAUIManager.lua', 'utf8');
   assert.match(ui, /Sound_EnableErrorSpeech/);

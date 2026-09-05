@@ -318,6 +318,7 @@ local function AddTooltipAnalysis(tooltip)
     local settings = EnsureSettings()
     if not settings.enabled or not settings.tooltip then return end
     if tooltip.CoALootAdvisorBusy then return end
+    if type(tooltip.GetItem) ~= "function" then return end
 
     local _, link = tooltip:GetItem()
     local detailed = type(IsShiftKeyDown) == "function" and IsShiftKeyDown() or false
@@ -465,6 +466,18 @@ local function AddTooltipAnalysis(tooltip)
     tooltip:Show()
 end
 
+-- Un hook de tooltip ne doit jamais pouvoir casser le tooltip natif. Certaines
+-- versions 3.3.5 propagent les erreurs d'un HookScript jusque dans FrameXML ; on
+-- libère donc toujours notre verrou sans effacer ni masquer le contenu du jeu.
+local function SafeAddTooltipAnalysis(tooltip)
+    local ok = pcall(AddTooltipAnalysis, tooltip)
+    if not ok then
+        tooltip.CoALootAdvisorBusy = nil
+        tooltip.CoALootAdvisorLink = nil
+        tooltip.CoALootAdvisorDetailed = nil
+    end
+end
+
 local function ClearTooltipAnalysis(tooltip)
     tooltip.CoALootAdvisorLink = nil
     tooltip.CoALootAdvisorBusy = nil
@@ -474,20 +487,8 @@ end
 
 local function HookTooltip(tooltip)
     if not tooltip or tooltipHooks[tooltip] or not tooltip.HookScript then return end
-    tooltip:HookScript("OnTooltipSetItem", AddTooltipAnalysis)
+    tooltip:HookScript("OnTooltipSetItem", SafeAddTooltipAnalysis)
     tooltip:HookScript("OnTooltipCleared", ClearTooltipAnalysis)
-    tooltip:HookScript("OnUpdate", function(self, elapsed)
-        self.CoALootAdvisorDetailElapsed = (self.CoALootAdvisorDetailElapsed or 0) + elapsed
-        if self.CoALootAdvisorDetailElapsed < 0.15 then return end
-        self.CoALootAdvisorDetailElapsed = 0
-        if self.CoALootAdvisorBusy or not self.IsShown or not self:IsShown() then return end
-        local _, currentLink = self:GetItem()
-        local nowDetailed = type(IsShiftKeyDown) == "function" and IsShiftKeyDown() or false
-        if currentLink and self.CoALootAdvisorDetailed ~= nowDetailed then
-            self.CoALootAdvisorLink = nil
-            pcall(self.SetHyperlink, self, currentLink)
-        end
-    end)
     tooltipHooks[tooltip] = true
 end
 

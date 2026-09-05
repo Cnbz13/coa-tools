@@ -379,7 +379,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     if CoALootDeciderDB.needLockedChests == nil then CoALootDeciderDB.needLockedChests = true end
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.23.4-warmane-wotlk"
+    CoALootDeciderDB.version = "1.23.5-warmane-wotlk"
 end
 
 local function ReadItemStats(itemLink)

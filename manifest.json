@@ -2,16 +2,16 @@
   "$schema": "./schemas/manifest.schema.json",
   "schemaVersion": 1,
   "name": "CoA Tools",
-  "version": "1.23.5",
+  "version": "1.23.6",
   "channel": "stable",
-  "publishedAt": "2026-09-05T14:41:42.603Z",
+  "publishedAt": "2026-09-06T10:05:20.641Z",
   "minimumNodeVersion": "24.14.0",
-  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.23.5",
+  "releaseUrl": "https://github.com/Cnbz13/coa-tools/releases/tag/v1.23.6",
   "artifacts": [
     {
       "name": "CoA Addon Manager for Windows",
       "component": "addon-manager",
-      "version": "1.23.5",
+      "version": "1.23.6",
       "platform": "win32",
       "arch": "x64",
       "gameFlavors": [
@@ -19,15 +19,15 @@
       ],
       "targetFolder": "CoAAddonManager",
       "installPath": ".",
-      "file": "CoAAddonManager-v1.23.5-Windows.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.5/CoAAddonManager-v1.23.5-Windows.zip",
-      "sha256": "77ad022bffa661755931d7ee2e373316263e4cb9b8f29f4d704a2e2b81808814",
+      "file": "CoAAddonManager-v1.23.6-Windows.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.6/CoAAddonManager-v1.23.6-Windows.zip",
+      "sha256": "f8d26f321bcadde6356616d7a05cd75d8aba720c54f2b6bf2bc157565b5f0e04",
       "size": 141888
     },
     {
       "name": "UI Manager - Warmane",
       "component": "warmane-ui-manager",
-      "version": "1.23.5",
+      "version": "1.23.6",
       "platform": "any",
       "arch": "any",
       "gameFlavors": [
@@ -35,15 +35,15 @@
       ],
       "targetFolder": "CoAUIManager",
       "installPath": "Interface/AddOns",
-      "file": "CoAUIManager-Warmane-v1.23.5.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.5/CoAUIManager-Warmane-v1.23.5.zip",
-      "sha256": "267d7339d5757875d3d8643904d2378bc94647b7676be711244a027ffa3929ef",
+      "file": "CoAUIManager-Warmane-v1.23.6.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.6/CoAUIManager-Warmane-v1.23.6.zip",
+      "sha256": "6d46d8715b07e52dfa05c3b1416bd8c17fc10a8d7e1c2bad5b81fdd1bc0d3802",
       "size": 30927
     },
     {
       "name": "Loot Decider - Warmane",
       "component": "warmane-loot-decider",
-      "version": "1.23.5",
+      "version": "1.23.6",
       "platform": "any",
       "arch": "any",
       "gameFlavors": [
@@ -51,10 +51,10 @@
       ],
       "targetFolder": "CoALootDecider",
       "installPath": "Interface/AddOns",
-      "file": "CoALootDecider-Warmane-v1.23.5.zip",
-      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.5/CoALootDecider-Warmane-v1.23.5.zip",
-      "sha256": "d4f5b1449551a6f0488bba04eff5f6fe37ddf33f3c7bb0c563fe2700a10ce3f6",
-      "size": 169353
+      "file": "CoALootDecider-Warmane-v1.23.6.zip",
+      "url": "https://github.com/Cnbz13/coa-tools/releases/download/v1.23.6/CoALootDecider-Warmane-v1.23.6.zip",
+      "sha256": "a7afa88393daf01eb0a0702ebc9123ab0fe4fad9d6198c6fe1730c179dfdc6a5",
+      "size": 184273
     }
   ]
 }

@@ -28,6 +28,8 @@ UI Manager conserve `/cui unlock`, les profils global/personnage, les frames per
 
 Loot Decider détermine la classe et l’arbre actif avec les API talents WotLK, s’adapte au niveau d’armure disponible avant/après le niveau 40 et compare aussi les objets des PNJ, de la banque et des sacs. Les spécialisations ambiguës se règlent avec `/cld role tank|dps|auto`. Par prudence, les conseils visuels sont actifs dès l’installation mais les jets NEED/PASS automatiques doivent être explicitement activés avec `/cld auto`.
 
+Quand le sac à dos est ouvert, son petit bouton **Tri** organise volontairement les sacs généraux : quêtes, consommables, métiers, gemmes/améliorations, équipement, divers puis camelote. Il regroupe uniquement les piles dont la fusion complète est sûre, ne touche ni aux objets verrouillés ni aux sacs spécialisés et s’arrête dès l’entrée en combat. La commande `/cldbags` lance le même rangement et `/cldbags categories` rappelle l’ordre utilisé.
+
 ## Performances en jeu
 
 Depuis la 1.20.1, Loot Decider met en cache les données immuables des objets, fusionne les rafales d’événements de sacs/talents et répartit les contours d’objets sur plusieurs images. Ouvrir un sac, un marchand ou une fenêtre de butin ne déclenche plus un rescan complet du spellbook et des talents. Le guide de donjon sépare aussi la flèche légère des cartes et conseils de loot plus coûteux, tandis qu’Essential Assistant temporise les auras de groupe et mémorise leurs tooltips.

@@ -14,7 +14,8 @@ const warmaneFiles = [
   'warmane-addons/CoAUIManager/CoAUIManager.lua',
   'warmane-addons/CoALootDecider/CoALootProfiles.lua',
   'warmane-addons/CoALootDecider/CoALootDecider.lua',
-  'warmane-addons/CoALootDecider/CoALootAdvisor.lua'
+  'warmane-addons/CoALootDecider/CoALootAdvisor.lua',
+  'warmane-addons/CoALootDecider/CoALootBags.lua'
 ];
 
 test('Warmane editions are strict Lua 5.1 / WotLK 3.3.5 addons', async () => {
@@ -172,6 +173,33 @@ test('Warmane Loot Decider never clears or rebuilds native item, spell or NPC to
   assert.match(hook, /HookScript\("OnTooltipCleared", ClearTooltipAnalysis\)/);
   assert.doesNotMatch(hook, /OnUpdate|SetHyperlink|ClearLines|:Hide\(/,
     'the shared tooltip must never be periodically reset, cleared or hidden');
+});
+
+test('Warmane Loot Decider provides a safe click-only stable bag organizer', async () => {
+  const bags = await readFile('warmane-addons/CoALootDecider/CoALootBags.lua', 'utf8');
+  const toc = await readFile('warmane-addons/CoALootDecider/CoALootDecider.toc', 'utf8');
+
+  assert.match(toc, /CoALootAdvisor\.lua\r?\nCoALootBags\.lua/);
+  for (const required of [
+    'CoALootBagSortButton', 'button:SetText("Tri")', 'button:SetScript("OnClick", BeginSort)',
+    'GetContainerNumSlots', 'GetContainerItemInfo', 'GetContainerItemLink', 'PickupContainerItem',
+    'GetItemFamily', 'BagIsGeneral', 'QueueMergePlan', 'QueueSortPlan', 'ITEM_LOCK_CHANGED',
+    'PLAYER_REGEN_DISABLED', 'tri impossible pendant le combat', 'sacs organisés',
+    'SLASH_COALOOTBAGS1 = "/cldbags"'
+  ]) assert.ok(bags.includes(required), `missing safe bag organizer feature: ${required}`);
+
+  assert.match(bags, /if bag == 0 then return true end/,
+    'the backpack must always participate');
+  assert.match(bags, /return ok and \(tonumber\(family\) or 0\) == 0/,
+    'specialized bags must be excluded');
+  assert.match(bags, /if not state\.locked then table\.insert\(slots, state\) end/,
+    'locked items must stay in place');
+  assert.match(bags, /source\.count <= free/,
+    'only complete, cursor-safe stack merges are allowed');
+  assert.match(bags, /frame:HookScript\("OnShow", PositionButton\)/,
+    'the button follows the actual backpack frame without an idle per-frame scan');
+  assert.doesNotMatch(bags, /C_Container|ContainerFrameItemButtonMixin|SortBags/,
+    'Retail and later Classic bag APIs are forbidden');
 });
 
 test('Warmane UI Manager hides only gameplay spell failures and keeps the setting reversible', async () => {

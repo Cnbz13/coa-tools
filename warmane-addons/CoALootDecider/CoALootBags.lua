@@ -225,7 +225,11 @@ local function QueueSortPlan()
             end
             table.insert(desired, item)
         end
-        state[index] = item
+        -- Garder une séquence dense est indispensable en Lua 5.1 : une valeur
+        -- nil créerait un trou et rendrait l'opérateur # indéterminé. Les sacs
+        -- contiennent presque toujours des cases vides, ce qui faisait arrêter
+        -- le tri alors que leur contenu n'avait pas changé.
+        state[index] = item or false
     end
     table.sort(desired, function(left, right)
         if left.key == right.key then return left.uid < right.uid end
@@ -236,7 +240,10 @@ local function QueueSortPlan()
         if not state[index] or state[index].uid ~= desired[index].uid then
             local sourceIndex = nil
             local search
-            for search = index + 1, #state do
+            -- Parcourir le nombre réel de cases éligibles. Ne jamais utiliser
+            -- #state ici : les emplacements vides y sont représentés par false
+            -- et la taille de référence reste celle de la liste des cases.
+            for search = index + 1, #slots do
                 if state[search] and state[search].uid == desired[index].uid then
                     sourceIndex = search
                     break

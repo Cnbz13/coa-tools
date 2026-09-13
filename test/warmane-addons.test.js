@@ -196,6 +196,12 @@ test('Warmane Loot Decider provides a safe click-only stable bag organizer', asy
     'locked items must stay in place');
   assert.match(bags, /source\.count <= free/,
     'only complete, cursor-safe stack merges are allowed');
+  assert.match(bags, /state\[index\] = item or false/,
+    'empty bag slots must use a dense Lua 5.1 sentinel');
+  assert.match(bags, /for search = index \+ 1, #slots do/,
+    'the sort planner must scan the real eligible slot count');
+  assert.doesNotMatch(bags, /for search = index \+ 1, #state do/,
+    'Lua 5.1 table length must not be used for a potentially sparse slot state');
   assert.match(bags, /frame:HookScript\("OnShow", PositionButton\)/,
     'the button follows the actual backpack frame without an idle per-frame scan');
   assert.doesNotMatch(bags, /C_Container|ContainerFrameItemButtonMixin|SortBags/,

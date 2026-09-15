@@ -379,7 +379,7 @@ local function EnsureDatabase()
     CoALootDeciderDB.history = CoALootDeciderDB.history or {}
     if CoALootDeciderDB.needLockedChests == nil then CoALootDeciderDB.needLockedChests = true end
     CoALootDeciderDB.bannerPosition = CoALootDeciderDB.bannerPosition or nil
-    CoALootDeciderDB.version = "1.23.7-warmane-wotlk"
+    CoALootDeciderDB.version = "1.23.8-warmane-wotlk"
 end
 
 local function ReadItemStats(itemLink)
@@ -1238,6 +1238,25 @@ local function IsMeleeWeaponEquipLoc(equipLoc)
         or equipLoc == "INVTYPE_WEAPONOFFHAND" or equipLoc == "INVTYPE_2HWEAPON"
 end
 
+local function IsOneHandWeapon(data)
+    local equipLoc = data and data.equipLoc
+    return equipLoc == "INVTYPE_WEAPON" or equipLoc == "INVTYPE_WEAPONMAINHAND"
+        or equipLoc == "INVTYPE_WEAPONOFFHAND"
+end
+
+local function CanFillMainHand(data)
+    return data and (data.equipLoc == "INVTYPE_WEAPON" or data.equipLoc == "INVTYPE_WEAPONMAINHAND")
+end
+
+local function CanFillOffHand(data)
+    return data and (data.equipLoc == "INVTYPE_WEAPON" or data.equipLoc == "INVTYPE_WEAPONOFFHAND")
+end
+
+local function IsDeathKnightOneHandCandidate(data)
+    return profile and profile.classToken == "DEATHKNIGHT" and profile.role == "DAMAGE"
+        and IsOneHandWeapon(data)
+end
+
 local function IsRangedWeaponEquipLoc(equipLoc)
     return equipLoc == "INVTYPE_RANGED" or equipLoc == "INVTYPE_RANGEDRIGHT"
         or equipLoc == "INVTYPE_THROWN"
@@ -1800,7 +1819,123 @@ local function SameOwnedSlot(candidate, owned)
     return candidate and owned and EquipFamily(candidate.equipLoc) == EquipFamily(owned.equipLoc)
 end
 
+-- Une arme 1M de DK ne doit jamais être comparée seule à une arme 2M. On
+-- construit les meilleures configurations réellement disponibles : paire 1M
+-- possédée ou arme 2M, puis on ajoute le candidat à la meilleure seconde main.
+-- Cela permet à Givre (et à Impie si la paire est réellement supérieure) de
+-- récupérer une arme utile sans transformer toute 1M compatible en faux NEED.
+local function DeathKnightOneHandBaseline(candidate, excludeOwnedCopy)
+    local oneHands, twoHands = {}, {}
+    local skippedCandidate = false
+    local unknownProblem = nil
+
+    local function AddOwned(data, source)
+        if not data then return end
+        if excludeOwnedCopy and source == "sac" and not skippedCandidate and data.link == candidate.link then
+            skippedCandidate = true
+            return
+        end
+        local compatible, problem = WeaponCompatibility(data)
+        if compatible == nil then
+            unknownProblem = unknownProblem or problem
+            return
+        end
+        if compatible ~= true then return end
+        local entry = {
+            data = data,
+            score = ScoreItem(data),
+            source = source,
+            level = tonumber(data.itemLevel) or 0
+        }
+        if IsOneHandWeapon(data) then
+            table.insert(oneHands, entry)
+        elseif data.equipLoc == "INVTYPE_2HWEAPON" then
+            table.insert(twoHands, entry)
+        end
+    end
+
+    AddOwned(profile.items[16], "equipe")
+    AddOwned(profile.items[17], "equipe")
+    local _, bagItem
+    for _, bagItem in ipairs(profile.bagItems or {}) do AddOwned(bagItem, "sac") end
+
+    local bestPartner = nil
+    local _, entry
+    for _, entry in ipairs(oneHands) do
+        local canPair = (CanFillMainHand(candidate) and CanFillOffHand(entry.data))
+            or (CanFillOffHand(candidate) and CanFillMainHand(entry.data))
+        if canPair and (not bestPartner or entry.score > bestPartner.score) then
+            bestPartner = entry
+        end
+    end
+
+    local bestConfiguration = nil
+    for _, entry in ipairs(twoHands) do
+        if not bestConfiguration or entry.score > bestConfiguration.score then
+            bestConfiguration = {
+                score = entry.score,
+                level = entry.level,
+                link = entry.data.link,
+                data = entry.data,
+                stats = entry.data.stats or {},
+                source = entry.source,
+                warning = HasUnscoredEffect(entry.data.link)
+                    and "la meilleure arme 2M possédée contient un effet non chiffrable" or nil
+            }
+        end
+    end
+
+    local mainIndex, offIndex
+    for mainIndex = 1, #oneHands do
+        local main = oneHands[mainIndex]
+        if CanFillMainHand(main.data) then
+            for offIndex = 1, #oneHands do
+                local off = oneHands[offIndex]
+                if mainIndex ~= offIndex and CanFillOffHand(off.data) then
+                    local pairScore = main.score + off.score
+                    if not bestConfiguration or pairScore > bestConfiguration.score then
+                        local combinedStats = {}
+                        AddStats(combinedStats, main.data.stats)
+                        AddStats(combinedStats, off.data.stats)
+                        bestConfiguration = {
+                            score = pairScore,
+                            level = math.max(main.level, off.level),
+                            link = main.data.link,
+                            data = main.data,
+                            stats = combinedStats,
+                            source = (main.source == "equipe" and off.source == "equipe") and "equipe" or "sac",
+                            warning = (HasUnscoredEffect(main.data.link) or HasUnscoredEffect(off.data.link))
+                                and "la meilleure paire 1M possédée contient un effet non chiffrable" or nil
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    if not bestConfiguration and unknownProblem then
+        return nil, nil, nil, nil, nil,
+            "Vérification manuelle : " .. tostring(unknownProblem)
+    end
+    bestConfiguration = bestConfiguration or {
+        score = 0, level = 0, link = nil, data = nil, stats = {}, source = nil
+    }
+    local candidateConfigurationScore = ScoreItem(candidate) + (bestPartner and bestPartner.score or 0)
+    return bestConfiguration.score, bestConfiguration.level, bestConfiguration.link,
+        bestPartner and bestPartner.data or bestConfiguration.data,
+        bestConfiguration.source, nil, {
+            candidateScore = candidateConfigurationScore,
+            currentScore = bestConfiguration.score,
+            currentStats = bestConfiguration.stats,
+            partner = bestPartner and bestPartner.data or nil,
+            warning = bestConfiguration.warning
+        }
+end
+
 local function OwnedBaselineFor(candidate, equippedScore, equippedLevel, equippedLink, equippedData, excludeOwnedCopy)
+    if IsDeathKnightOneHandCandidate(candidate) then
+        return DeathKnightOneHandBaseline(candidate, excludeOwnedCopy)
+    end
     local pool = {}
     local skippedOwnedCopy = false
     local unknownOwnedProblem = nil
@@ -2000,8 +2135,8 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
         }
     end
 
-    local currentSource, baselineProblem
-    currentScore, currentLevel, currentLinkOrReason, currentData, currentSource, baselineProblem = OwnedBaselineFor(
+    local currentSource, baselineProblem, weaponContext
+    currentScore, currentLevel, currentLinkOrReason, currentData, currentSource, baselineProblem, weaponContext = OwnedBaselineFor(
         candidate, currentScore, currentLevel, currentLinkOrReason, currentData, excludeOwnedCopy
     )
     if currentScore == nil then
@@ -2013,18 +2148,25 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
             confidence = "basse"
         }
     end
-    currentStats = currentData and currentData.stats or currentStats or {}
+    currentStats = weaponContext and weaponContext.currentStats
+        or (currentData and currentData.stats) or currentStats or {}
+    if weaponContext and weaponContext.warning then comparisonWarning = weaponContext.warning end
     if currentData and HasUnscoredEffect(currentData.link) then
         comparisonWarning = "le meilleur objet possede contient un effet non chiffrable"
     end
 
-    local candidateScore = ScoreItem(candidate)
+    local individualCandidateScore = ScoreItem(candidate)
+    local candidateScore = weaponContext and weaponContext.candidateScore or individualCandidateScore
     local delta = candidateScore - currentScore
     local percent = currentScore > 0 and delta / currentScore * 100 or (candidateScore > 0 and 100 or 0)
     local threshold, thresholdSource = ActiveThreshold()
     local fitScore = FitScore(candidate)
+    local collectionFitScore = fitScore
     local currentFitScore = currentData and FitScore(currentData) or 0
-    local weaponDpsProblem = WeaponDpsLossProblem(candidate, currentData)
+    -- Pour une 1M de DK, le DPS pertinent est celui de la configuration
+    -- candidat + seconde main. Le comparer seul au DPS d'une 2M recréerait le
+    -- faux PASS que ce chemin corrige ; le score de paire inclut déjà le DPS.
+    local weaponDpsProblem = weaponContext and nil or WeaponDpsLossProblem(candidate, currentData)
     if weaponDpsProblem then fitScore = math.min(fitScore, 25) end
     local effectiveThreshold = RequiredUpgradeForFit(fitScore)
     local fitBlocked = effectiveThreshold >= 999 or weaponDpsProblem ~= nil
@@ -2039,8 +2181,18 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
     elseif not manualReason and not next(candidate.stats or {}) then
         manualReason = "aucune statistique chiffrable"
     end
+    local greed = false
+    if not need and not manualReason and IsDeathKnightOneHandCandidate(candidate)
+        and tonumber(candidate.quality) >= 2 and collectionFitScore >= 55
+        and ((tonumber(currentLevel) or 0) <= 0
+            or (tonumber(candidate.itemLevel) or 0) + 13 >= (tonumber(currentLevel) or 0))
+    then
+        greed = true
+    end
     local reason
-    if weaponDpsProblem then
+    if greed then
+        reason = "arme 1M DK intéressante à conserver pour former ou améliorer une paire ; CUPIDITÉ"
+    elseif weaponDpsProblem then
         reason = weaponDpsProblem
     elseif manualReason then
         reason = manualReason .. " : verification manuelle recommandee"
@@ -2050,7 +2202,9 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
     elseif currentScore <= 0 and candidateScore > 0 then
         reason = "aucun meilleur objet possede ; adequation " .. fitScore .. "/100"
     elseif need then
-        reason = "+" .. Round(percent, 1) .. "% vs " .. (currentSource == "sac" and "meilleur en sac" or "equipe")
+        reason = "+" .. Round(percent, 1) .. "% vs "
+            .. (weaponContext and "meilleure configuration d'armes"
+                or (currentSource == "sac" and "meilleur en sac" or "equipe"))
             .. " ; adequation " .. fitScore .. "/100 " .. FitTier(fitScore)
             .. " ; seuil " .. effectiveThreshold .. "%"
     else
@@ -2061,8 +2215,12 @@ local function AnalyzeItem(itemLink, refreshEquipment, excludeOwnedCopy)
 
     return {
         need = need,
+        greed = greed,
+        deathKnightOneHand = weaponContext and true or false,
+        partnerLink = weaponContext and weaponContext.partner and weaponContext.partner.link or nil,
         candidate = candidate,
         candidateScore = candidateScore,
+        individualCandidateScore = individualCandidateScore,
         currentScore = currentScore,
         currentLevel = currentLevel,
         currentLink = currentLinkOrReason,
@@ -2190,6 +2348,9 @@ local function ShowDecision(decision, automatic)
     elseif decision.lockedChest and decision.need then
         banner.accent:SetVertexColor(0.15, 1.00, 0.25, 1)
         banner.verdict:SetText("|cff3cff52+ NEED COFFRE|r  " .. (candidate.link or candidate.name or "Coffre"))
+    elseif decision.rollDecision == "GREED" or decision.greed then
+        banner.accent:SetVertexColor(0.20, 0.55, 1.00, 1)
+        banner.verdict:SetText("|cff55aaff+ CUPIDITÉ|r  " .. (candidate.link or candidate.name or "Objet"))
     elseif decision.need then
         local percent = decision.percent and ((decision.percent > 0 and "+" or "") .. Round(decision.percent, 0) .. "%") or ""
         banner.accent:SetVertexColor(0.15, 1.00, 0.25, 1)
@@ -2255,9 +2416,19 @@ local function ApplyRoll(rollID, decision, canNeed, canGreed)
     elseif decision.lockedChest and decision.need and not canNeed then
         decision.need = false
         decision.reason = "coffre verrouillé : NEED et CUPIDITÉ indisponibles pour ce jet"
+    elseif decision.need and decision.deathKnightOneHand and not canNeed and canGreed then
+        rollType = ROLL_GREED
+        decision.rollDecision = "GREED"
+        decision.reason = "arme 1M DK utile : NEED indisponible, jet CUPIDITÉ effectué"
     elseif decision.need and not canNeed then
         decision.need = false
         decision.reason = "NEED indisponible pour cet objet"
+    elseif decision.greed and canGreed then
+        rollType = ROLL_GREED
+        decision.rollDecision = "GREED"
+    elseif decision.greed then
+        decision.greed = false
+        decision.reason = "arme 1M DK intéressante, mais CUPIDITÉ indisponible pour ce jet"
     end
     if not rollType then rollType = decision.need and ROLL_NEED or ROLL_PASS end
     if not decision.rollDecision then decision.rollDecision = decision.need and "NEED" or "PASS" end

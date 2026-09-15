@@ -28,6 +28,8 @@ UI Manager conserve `/cui unlock`, les profils global/personnage, les frames per
 
 Loot Decider détermine la classe et l’arbre actif avec les API talents WotLK, s’adapte au niveau d’armure disponible avant/après le niveau 40 et compare aussi les objets des PNJ, de la banque et des sacs. Les spécialisations ambiguës se règlent avec `/cld role tank|dps|auto`. Par prudence, les conseils visuels sont actifs dès l’installation mais les jets NEED/PASS automatiques doivent être explicitement activés avec `/cld auto`.
 
+Pour un Chevalier de la mort DPS, une arme à une main est évaluée avec la meilleure seconde arme 1M déjà possédée, face à la meilleure paire ou arme 2M disponible. Une paire réellement supérieure déclenche NEED. Une 1M rare ou meilleure, bien adaptée au profil et située au maximum un palier sous la configuration actuelle, déclenche CUPIDITÉ lorsqu’elle mérite d’être conservée pour constituer la paire ; les autres restent en PASS. Givre privilégie explicitement le double maniement, tandis qu’Impie conserve sa préférence 2M sauf gain réel de la paire.
+
 Quand le sac à dos est ouvert, son petit bouton **Tri** organise volontairement les sacs généraux : quêtes, consommables, métiers, gemmes/améliorations, équipement, divers puis camelote. Il regroupe uniquement les piles dont la fusion complète est sûre, ne touche ni aux objets verrouillés ni aux sacs spécialisés et s’arrête dès l’entrée en combat. La commande `/cldbags` lance le même rangement et `/cldbags categories` rappelle l’ordre utilisé.
 
 Le plan de rangement conserve explicitement les emplacements vides : leur présence n'interrompt donc plus le tri sur Lua 5.1 avec le faux message « contenu des sacs modifié pendant le calcul ».

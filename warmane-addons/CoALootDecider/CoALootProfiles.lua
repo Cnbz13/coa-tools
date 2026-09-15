@@ -122,6 +122,7 @@ CoALootProfiles = {
         ["WARRIOR:Arms"]={ preferTwoHand=true, speed="slow", speedWeight=9 },
         ["PALADIN:Retribution"]={ preferTwoHand=true, speed="slow", speedWeight=9 },
         ["DEATHKNIGHT:Blood DPS"]={ preferTwoHand=true, speed="slow", speedWeight=8 },
+        ["DEATHKNIGHT:Frost"]={ preferDualWield=true, speed="slow", speedWeight=5 },
         ["DEATHKNIGHT:Unholy"]={ preferTwoHand=true, speed="slow", speedWeight=7 },
         ["ROGUE:Assassination"]={ speed="fast", speedWeight=5 }
     }

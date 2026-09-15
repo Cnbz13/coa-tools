@@ -108,7 +108,7 @@ test('Warmane Loot Decider validates every WotLK weapon and relic family before 
   }
 
   const validation = engine.indexOf('local compatibilityProblem, compatibilityManual = CompatibilityProblem(candidate)');
-  const scoring = engine.indexOf('local candidateScore = ScoreItem(candidate)', validation);
+  const scoring = engine.indexOf('local individualCandidateScore = ScoreItem(candidate)', validation);
   assert.ok(validation >= 0 && scoring > validation, 'weapon compatibility must run before ScoreItem');
   assert.match(engine, /local function ScoreItem\(data\)[\s\S]*?local weaponCompatible = WeaponCompatibility\(data\)[\s\S]*?if weaponCompatible ~= true then return 0 end/,
     'ScoreItem itself must never value an incompatible wand or weapon');
@@ -147,7 +147,7 @@ test('Warmane Loot Decider cannot repeat the French DK rusty-pitchfork +99% regr
   // Grey vendor trash and catastrophic raw weapon-DPS losses cannot be NEED.
   assert.match(engine, /if tonumber\(candidate\.quality\) == 0 then[\s\S]*?jamais une amélioration fiable[\s\S]*?incompatible = true/);
   assert.match(engine, /local function WeaponDpsLossProblem\(candidate, current\)[\s\S]*?candidateDps >= currentDps \* 0\.75/);
-  assert.match(engine, /local weaponDpsProblem = WeaponDpsLossProblem\(candidate, currentData\)/);
+  assert.match(engine, /local weaponDpsProblem = weaponContext and nil or WeaponDpsLossProblem\(candidate, currentData\)/);
   assert.match(engine, /local fitBlocked = effectiveThreshold >= 999 or weaponDpsProblem ~= nil/);
   assert.match(engine, /forcedDowngrade = weaponDpsProblem and true or false/);
   assert.match(advisor, /if analysis\.forcedDowngrade then[\s\S]*?SetOverlayState\(overlay, "-", "DPS"/);
@@ -160,6 +160,28 @@ test('Warmane Loot Decider cannot repeat the French DK rusty-pitchfork +99% regr
   assert.match(engine, /if key ~= "ITEM_MOD_DAMAGE_PER_SECOND_SHORT" or WeaponDamageMatters\(data\) then/);
   assert.match(engine, /ITEM_MOD_DAMAGE_PER_SECOND_SHORT = "DPS ARME"/,
     'tooltips must show a readable weapon-DPS label rather than the raw API key');
+});
+
+test('Warmane Loot Decider evaluates Death Knight one-hand weapons as complete configurations', async () => {
+  const engine = await readFile('warmane-addons/CoALootDecider/CoALootDecider.lua', 'utf8');
+  const profiles = await readFile('warmane-addons/CoALootDecider/CoALootProfiles.lua', 'utf8');
+
+  for (const required of [
+    'IsDeathKnightOneHandCandidate', 'DeathKnightOneHandBaseline',
+    'CanFillMainHand', 'CanFillOffHand', 'candidateConfigurationScore',
+    'meilleure configuration d\'armes', 'deathKnightOneHand', 'partnerLink',
+    'arme 1M DK intéressante à conserver', 'decision.greed and canGreed',
+    'NEED indisponible, jet CUPIDITÉ effectué'
+  ]) assert.ok(engine.includes(required), `missing DK one-hand behavior: ${required}`);
+
+  assert.match(profiles, /\["DEATHKNIGHT:Frost"\]\s*=\s*\{\s*preferDualWield=true/,
+    'Frost DK must explicitly prefer a viable dual-wield configuration');
+  assert.match(engine, /mainIndex ~= offIndex/,
+    'one physical weapon occurrence cannot fill both hands');
+  assert.match(engine, /ScoreItem\(candidate\) \+ \(bestPartner and bestPartner\.score or 0\)/,
+    'a one-hand candidate must be scored with the best compatible owned partner');
+  assert.match(engine, /tonumber\(candidate\.quality\) >= 2[\s\S]*?collectionFitScore >= 55[\s\S]*?itemLevel\) or 0\) \+ 13/,
+    'collection GREED must stay limited to useful uncommon-or-better weapons within one item tier');
 });
 
 test('Warmane Loot Decider never clears or rebuilds native item, spell or NPC tooltips', async () => {
